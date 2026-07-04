@@ -9,6 +9,7 @@ import ProductListPage from "../features/inventory/screens/ProductList";
 import ReportsPage from "../features/reports/screens/Reports";
 import SettingsPage from "../features/profile/screens/Settings";
 import CustomerListPage from "../features/customers/screens/CustomerList";
+import PurchaseListPage from "../features/purchases/screens/PurchaseList";
 import ProtectedRoute from "./ProtectedRoute";
 
 const AppRoutes = () => {
@@ -31,6 +32,7 @@ const AppRoutes = () => {
             <Route path="/customers" element={<CustomerListPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/purchases" element={<PurchaseListPage />} />
           </Route>
         </Route>
 

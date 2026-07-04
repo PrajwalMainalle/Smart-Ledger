@@ -7,6 +7,7 @@ function Reports() {
   const [activeTab, setActiveTab] = useState("sales");
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
+  const [purchaseData, setPurchaseData] = useState([]);
   const [error, setError] = useState("");
   const [salesFilter, setSalesFilter] = useState("all"); // "all" | "standard" | "manual"
 
@@ -14,8 +15,12 @@ function Reports() {
     const fetchReportData = async () => {
       try {
         setLoading(true);
-        const response = await axiosInstance.get("/dashboard/summary");
-        setReportData(response.data.reports);
+        const [dashRes, purchRes] = await Promise.all([
+          axiosInstance.get("/dashboard/summary"),
+          axiosInstance.get("/purchases")
+        ]);
+        setReportData(dashRes.data.reports);
+        setPurchaseData(purchRes.data);
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -25,6 +30,82 @@ function Reports() {
     };
     fetchReportData();
   }, []);
+
+  // Aggregate Purchase GST locally
+  const getPurchaseGstSummary = () => {
+    let totalTaxable = 0;
+    let totalGst = 0;
+    const rateMap = {};
+
+    purchaseData.forEach(p => {
+      if (!p.items) return;
+      p.items.forEach(item => {
+        const price = parseFloat(item.price) || 0;
+        const qty = parseInt(item.qty) || 0;
+        const rate = parseFloat(item.gstRate) || 0;
+
+        const itemSubtotal = price * qty;
+        const itemGst = (itemSubtotal * rate) / 100;
+
+        totalTaxable += itemSubtotal;
+        totalGst += itemGst;
+
+        const rateKey = `${rate}%`;
+        if (!rateMap[rateKey]) {
+          rateMap[rateKey] = { rate: rateKey, taxableValue: 0, cgst: 0, sgst: 0, totalTax: 0 };
+        }
+        rateMap[rateKey].taxableValue += itemSubtotal;
+        rateMap[rateKey].cgst += itemGst / 2;
+        rateMap[rateKey].sgst += itemGst / 2;
+        rateMap[rateKey].totalTax += itemGst;
+      });
+    });
+
+    return {
+      summary: {
+        totalTaxable,
+        totalCgst: totalGst / 2,
+        totalSgst: totalGst / 2,
+        totalTax: totalGst
+      },
+      ratesBreakdown: Object.values(rateMap)
+    };
+  };
+
+  const purchaseGstReport = getPurchaseGstSummary();
+
+  const handleExportCAReconciliation = () => {
+    const headers = ["Type", "Tax Slab", "Taxable Base Value", "CGST Amount", "SGST Amount", "Total GST Value"];
+    const rows = [headers.join(",")];
+
+    rows.push('"--- OUTWARD SALES GST ---",,,,,');
+    reportData.gstReport.ratesBreakdown.forEach(row => {
+      rows.push(`"Sales GST",${row.rate},${row.taxableValue.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.totalTax.toFixed(2)}`);
+    });
+    rows.push(`"Sales Total Sum",,${reportData.gstReport.summary.totalTaxable.toFixed(2)},${reportData.gstReport.summary.totalCgst.toFixed(2)},${reportData.gstReport.summary.totalSgst.toFixed(2)},${reportData.gstReport.summary.totalTax.toFixed(2)}`);
+
+    rows.push('"--- INWARD PURCHASE GST (ITC) ---",,,,,');
+    purchaseGstReport.ratesBreakdown.forEach(row => {
+      rows.push(`"Purchase GST (ITC)",${row.rate},${row.taxableValue.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.totalTax.toFixed(2)}`);
+    });
+    rows.push(`"Purchase Total Sum",,${purchaseGstReport.summary.totalTaxable.toFixed(2)},${purchaseGstReport.summary.totalCgst.toFixed(2)},${purchaseGstReport.summary.totalSgst.toFixed(2)},${purchaseGstReport.summary.totalTax.toFixed(2)}`);
+
+    rows.push('"--- NET TAX RECONCILIATION ---",,,,,');
+    const netTaxable = reportData.gstReport.summary.totalTaxable - purchaseGstReport.summary.totalTaxable;
+    const netCgst = reportData.gstReport.summary.totalCgst - purchaseGstReport.summary.totalCgst;
+    const netSgst = reportData.gstReport.summary.totalSgst - purchaseGstReport.summary.totalSgst;
+    const netTotal = reportData.gstReport.summary.totalTax - purchaseGstReport.summary.totalTax;
+    rows.push(`"Net Liability (Sales - ITC)",,${netTaxable.toFixed(2)},${netCgst.toFixed(2)},${netSgst.toFixed(2)},${netTotal.toFixed(2)}`);
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `gst_ca_reconciliation_report_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const exportToCSV = (data, headers, filename) => {
     if (!data || data.length === 0) return alert("No data available to export");
@@ -285,73 +366,217 @@ function Reports() {
           </div>
         )}
 
-        {/* T4: GST SUMMARY REPORTS */}
+        {/* T4: GST SUMMARY & CA RECONCILIATION */}
         {activeTab === "gst" && reportData && (
           <div className="space-y-6">
             
             {/* Header info */}
-            <div className="flex justify-between items-center print:hidden">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">GST Tax Audit Logs</h3>
-              <button
-                onClick={() => exportToCSV(reportData.gstReport.ratesBreakdown, ["Tax Bracket", "Taxable Value", "CGST Amount", "SGST Amount", "Total Tax"], "gst_tax_breakdown_report")}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-semibold"
-              >
-                <FaFileCsv /> Export to Excel
-              </button>
-            </div>
-
-            {/* Overall tax sums */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl border border-slate-900 bg-slate-950/40 text-center">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-900 pb-3 print:hidden">
               <div>
-                <p className="text-slate-500 text-[10px] uppercase font-semibold">Total Taxable Value</p>
-                <p className="text-lg font-bold text-slate-100 mt-1">₹{reportData.gstReport.summary.totalTaxable.toFixed(2)}</p>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">GST Tax Audit &amp; CA Reconciliation</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Compare outward tax collections against inward tax inputs (ITC) to calculate tax liabilities.</p>
               </div>
-              <div className="border-l border-slate-900">
-                <p className="text-slate-500 text-[10px] uppercase font-semibold">Central GST (CGST)</p>
-                <p className="text-lg font-bold text-slate-100 mt-1">₹{reportData.gstReport.summary.totalCgst.toFixed(2)}</p>
-              </div>
-              <div className="border-l border-slate-900">
-                <p className="text-slate-500 text-[10px] uppercase font-semibold">State GST (SGST)</p>
-                <p className="text-lg font-bold text-slate-100 mt-1">₹{reportData.gstReport.summary.totalSgst.toFixed(2)}</p>
-              </div>
-              <div className="border-l border-slate-900">
-                <p className="text-slate-500 text-[10px] uppercase font-semibold">Total GST Collected</p>
-                <p className="text-lg font-black text-orange-500 mt-1">₹{reportData.gstReport.summary.totalTax.toFixed(2)}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportToCSV(reportData.gstReport.ratesBreakdown, ["Tax Bracket", "Taxable Value", "CGST Amount", "SGST Amount", "Total Tax"], "gst_sales_breakdown_report")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold"
+                >
+                  <FaFileCsv /> Export Sales GST
+                </button>
+                <button
+                  onClick={handleExportCAReconciliation}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg text-xs font-bold shadow-md shadow-orange-500/10"
+                >
+                  <FaFileCsv /> Export CA Ledger
+                </button>
               </div>
             </div>
 
-            {/* Rate-wise details */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Tax Bracket Breakdown</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs md:text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-900 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="py-2.5 px-4">Tax Rate Bracket</th>
-                      <th className="py-2.5 px-2 text-right">Taxable Net Value</th>
-                      <th className="py-2.5 px-2 text-right">CGST</th>
-                      <th className="py-2.5 px-2 text-right">SGST</th>
-                      <th className="py-2.5 px-4 text-right">Total Tax Collected</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-900/40 text-slate-350">
-                    {reportData.gstReport.ratesBreakdown.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-900/10 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-slate-100">{row.rate}</td>
-                        <td className="py-3 px-2 text-right">₹{row.taxableValue.toFixed(2)}</td>
-                        <td className="py-3 px-2 text-right text-slate-400">₹{row.cgst.toFixed(2)}</td>
-                        <td className="py-3 px-2 text-right text-slate-400">₹{row.sgst.toFixed(2)}</td>
-                        <td className="py-3 px-4 text-right font-bold text-orange-400">₹{row.totalTax.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                    {reportData.gstReport.ratesBreakdown.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="py-8 text-center text-slate-500">No GST transactions logged yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            {/* Reconciliation summary card */}
+            {(() => {
+              const salesTax = reportData.gstReport.summary.totalTax;
+              const purchTax = purchaseGstReport.summary.totalTax;
+              const netTaxDue = salesTax - purchTax;
+              const isItcExcess = netTaxDue < 0;
+
+              return (
+                <div className={`p-5 rounded-2xl border text-xs md:text-sm font-mono space-y-4
+                  ${isItcExcess 
+                    ? "bg-emerald-500/5 border-emerald-500/25" 
+                    : "bg-orange-500/5 border-orange-500/25"
+                  }
+                `}>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h4 className={`text-xs uppercase font-extrabold tracking-wider
+                        ${isItcExcess ? "text-emerald-400" : "text-orange-400"}
+                      `}>
+                        GST Tax Reconciliation Status
+                      </h4>
+                      <p className="text-slate-400 text-[10px] mt-0.5 font-sans leading-relaxed">
+                        {isItcExcess 
+                          ? "Your supplier purchases (Input Tax Credit) exceed your sales tax collections. You have surplus credit to carry forward."
+                          : "Your sales tax collections exceed your supplier purchase inputs. This is the estimated tax payable amount for the period."
+                        }
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                        {isItcExcess ? "Excess ITC Carry-Forward" : "Net GST Tax Payable"}
+                      </span>
+                      <p className={`text-xl font-black mt-0.5
+                        ${isItcExcess ? "text-emerald-400" : "text-orange-500"}
+                      `}>
+                        ₹{Math.abs(netTaxDue).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-slate-900 text-center">
+                    <div>
+                      <span className="text-slate-500 text-[9px] uppercase">Net Taxable Value</span>
+                      <p className="text-xs font-bold text-slate-200 mt-0.5">
+                        ₹{(reportData.gstReport.summary.totalTaxable - purchaseGstReport.summary.totalTaxable).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="border-l border-slate-900">
+                      <span className="text-slate-500 text-[9px] uppercase">Net CGST</span>
+                      <p className="text-xs font-bold text-slate-200 mt-0.5">
+                        ₹{(reportData.gstReport.summary.totalCgst - purchaseGstReport.summary.totalCgst).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="border-l border-slate-900">
+                      <span className="text-slate-500 text-[9px] uppercase">Net SGST</span>
+                      <p className="text-xs font-bold text-slate-200 mt-0.5">
+                        ₹{(reportData.gstReport.summary.totalSgst - purchaseGstReport.summary.totalSgst).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="border-l border-slate-900">
+                      <span className="text-slate-500 text-[9px] uppercase">Net GST Variance</span>
+                      <p className={`text-xs font-bold mt-0.5 ${netTaxDue >= 0 ? "text-orange-400" : "text-emerald-400"}`}>
+                        ₹{netTaxDue.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Sales GST Summary vs Purchase GST Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Sales GST card */}
+              <div className="bg-slate-900/40 border border-slate-900 rounded-xl p-4 space-y-4">
+                <h4 className="text-xs font-black text-orange-400 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between">
+                  <span>1. Sales Tax Collected (Outward)</span>
+                  <span className="text-slate-400 font-bold font-mono">₹{reportData.gstReport.summary.totalTax.toFixed(2)}</span>
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-2 text-center text-xs py-2 bg-slate-950/30 rounded border border-slate-900/50">
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase">Taxable Sales</span>
+                    <p className="font-bold text-slate-200 mt-0.5">₹{reportData.gstReport.summary.totalTaxable.toFixed(2)}</p>
+                  </div>
+                  <div className="border-l border-slate-900/80">
+                    <span className="text-[9px] text-slate-500 uppercase">CGST Collected</span>
+                    <p className="font-bold text-slate-350 mt-0.5">₹{reportData.gstReport.summary.totalCgst.toFixed(2)}</p>
+                  </div>
+                  <div className="border-l border-slate-900/80">
+                    <span className="text-[9px] text-slate-500 uppercase">SGST Collected</span>
+                    <p className="font-bold text-slate-350 mt-0.5">₹{reportData.gstReport.summary.totalSgst.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h5 className="text-[10px] uppercase font-bold text-slate-500">Sales Rate Breakdown</h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] text-left">
+                      <thead>
+                        <tr className="border-b border-slate-900 text-slate-500 uppercase text-[9px] font-bold">
+                          <th className="pb-1.5">Slab</th>
+                          <th className="pb-1.5 text-right">Taxable</th>
+                          <th className="pb-1.5 text-right">CGST</th>
+                          <th className="pb-1.5 text-right">SGST</th>
+                          <th className="pb-1.5 text-right">Total Tax</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900/30 text-slate-350 font-mono">
+                        {reportData.gstReport.ratesBreakdown.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-950/10">
+                            <td className="py-2 text-slate-100 font-bold">{row.rate}</td>
+                            <td className="py-2 text-right">₹{row.taxableValue.toFixed(2)}</td>
+                            <td className="py-2 text-right text-slate-400">₹{row.cgst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-slate-400">₹{row.sgst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-orange-400 font-bold">₹{row.totalTax.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                        {reportData.gstReport.ratesBreakdown.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="py-4 text-center text-slate-500 font-sans">No sales GST transactions logged.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
+
+              {/* Purchase GST card */}
+              <div className="bg-slate-900/40 border border-slate-900 rounded-xl p-4 space-y-4">
+                <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between">
+                  <span>2. Purchases Tax Paid (Inward ITC)</span>
+                  <span className="text-slate-400 font-bold font-mono">₹{purchaseGstReport.summary.totalTax.toFixed(2)}</span>
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-2 text-center text-xs py-2 bg-slate-950/30 rounded border border-slate-900/50">
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase">Taxable Purchases</span>
+                    <p className="font-bold text-slate-200 mt-0.5">₹{purchaseGstReport.summary.totalTaxable.toFixed(2)}</p>
+                  </div>
+                  <div className="border-l border-slate-900/80">
+                    <span className="text-[9px] text-slate-500 uppercase">CGST Paid</span>
+                    <p className="font-bold text-slate-350 mt-0.5">₹{purchaseGstReport.summary.totalCgst.toFixed(2)}</p>
+                  </div>
+                  <div className="border-l border-slate-900/80">
+                    <span className="text-[9px] text-slate-500 uppercase">SGST Paid</span>
+                    <p className="font-bold text-slate-350 mt-0.5">₹{purchaseGstReport.summary.totalSgst.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h5 className="text-[10px] uppercase font-bold text-slate-500">Purchases Rate Breakdown</h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] text-left">
+                      <thead>
+                        <tr className="border-b border-slate-900 text-slate-500 uppercase text-[9px] font-bold">
+                          <th className="pb-1.5">Slab</th>
+                          <th className="pb-1.5 text-right">Taxable</th>
+                          <th className="pb-1.5 text-right">CGST</th>
+                          <th className="pb-1.5 text-right">SGST</th>
+                          <th className="pb-1.5 text-right">Total Tax</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900/30 text-slate-350 font-mono">
+                        {purchaseGstReport.ratesBreakdown.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-950/10">
+                            <td className="py-2 text-slate-100 font-bold">{row.rate}</td>
+                            <td className="py-2 text-right">₹{row.taxableValue.toFixed(2)}</td>
+                            <td className="py-2 text-right text-slate-400">₹{row.cgst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-slate-400">₹{row.sgst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-emerald-450 font-bold">₹{row.totalTax.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                        {purchaseGstReport.ratesBreakdown.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="py-4 text-center text-slate-500 font-sans">No supplier purchase inputs logged.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
