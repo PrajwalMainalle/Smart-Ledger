@@ -57,6 +57,19 @@ function POS() {
   const [orientation, setOrientation] = useState("portrait");
   const [isGstBilling, setIsGstBilling] = useState(false);
 
+  // Credit Outstanding & Return Exchange states
+  const [amountPaidToday, setAmountPaidToday] = useState(0);
+  const [returnedItems, setReturnedItems] = useState([]);
+  
+  // Return Lookup Modal states
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState("");
+  const [returnSearchResults, setReturnSearchResults] = useState([]);
+  const [returnLoading, setReturnLoading] = useState(false);
+  const [selectedInvoiceForReturn, setSelectedInvoiceForReturn] = useState(null);
+  const [returnQuantities, setReturnQuantities] = useState({});
+  const [returnDefects, setReturnDefects] = useState({});
+
   // Load products and customers on mount
   useEffect(() => {
     dispatch(fetchProducts());
@@ -106,7 +119,16 @@ function POS() {
   };
 
   const gstAmt = calculateGstAmount();
-  const grandTotal = discountedSubtotal + gstAmt;
+  
+  // Calculate returned total with tax
+  const returnedTotalWithTax = returnedItems.reduce((sum, item) => {
+    const itemSub = item.price * item.qty;
+    const itemGst = (itemSub * (item.gstRate || 0)) / 100;
+    return sum + itemSub + itemGst;
+  }, 0);
+
+  const newTotal = discountedSubtotal + gstAmt;
+  const grandTotal = Math.max(0, newTotal - returnedTotalWithTax);
 
   // Handle SKU Quick add
   const handleSkuSearch = (e) => {
@@ -162,6 +184,8 @@ function POS() {
       isQuotation,
       items: checkoutItems,
       isGstBilling,
+      amountPaid: paymentMethod === "Credit" ? amountPaidToday : grandTotal,
+      returnedItems: returnedItems,
     })).then((res) => {
       if (!res.error) {
         const savedInvoice = res.payload;
@@ -183,6 +207,9 @@ function POS() {
           pdfUrl: savedInvoice.pdfUrl,
           isQuotation: savedInvoice.isQuotation,
           isGstBilling: savedInvoice.isGstBilling,
+          amountPaid: savedInvoice.amountPaid,
+          outstandingAmount: savedInvoice.outstandingAmount,
+          returnedItems: savedInvoice.returnedItems || [],
         });
 
         // Trigger products refetch to synchronize stock counters instantly
@@ -191,6 +218,8 @@ function POS() {
         // Clear local discount input
         setDiscountValue(0);
         setIsQuotation(false); // Reset quotation toggle
+        setAmountPaidToday(0);
+        setReturnedItems([]);
 
         // Open printing popup modal
         setShowCheckoutModal(true);
@@ -248,6 +277,65 @@ function POS() {
   const getPdfDownloadLink = () => {
     const url = getDynamicPdfUrl();
     return url ? `${url}&download=true` : "";
+  };
+
+  const handleReturnSearchSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!returnSearchQuery.trim()) return;
+    try {
+      setReturnLoading(true);
+      const response = await axiosInstance.get(`/billing/lookup-invoice?query=${encodeURIComponent(returnSearchQuery)}`);
+      setReturnSearchResults(response.data);
+      setReturnLoading(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to search invoices. Ensure server is active.");
+      setReturnLoading(false);
+    }
+  };
+
+  const handleSelectInvoiceForReturn = (invoice) => {
+    setSelectedInvoiceForReturn(invoice);
+    const qtys = {};
+    const defects = {};
+    invoice.items.forEach(item => {
+      qtys[item.productId || item.name] = 0;
+      defects[item.productId || item.name] = false;
+    });
+    setReturnQuantities(qtys);
+    setReturnDefects(defects);
+  };
+
+  const handleConfirmReturnExchange = () => {
+    if (!selectedInvoiceForReturn) return;
+    const itemsToReturn = [];
+    selectedInvoiceForReturn.items.forEach(item => {
+      const key = item.productId || item.name;
+      const q = returnQuantities[key] || 0;
+      if (q > 0) {
+        itemsToReturn.push({
+          productId: item.productId,
+          name: item.name,
+          qty: q,
+          price: item.price,
+          gstRate: item.gstRate || 0,
+          sku: item.sku || "MANUAL",
+          originalInvoiceId: selectedInvoiceForReturn.invoiceId,
+          isDefective: !!returnDefects[key]
+        });
+      }
+    });
+
+    if (itemsToReturn.length === 0) {
+      alert("Please select at least 1 item with quantity > 0.");
+      return;
+    }
+
+    setReturnedItems([...returnedItems, ...itemsToReturn]);
+    setShowReturnModal(false);
+    setSelectedInvoiceForReturn(null);
+    setReturnSearchResults([]);
+    setReturnSearchQuery("");
   };
 
   const handleQuickAddCustomer = (e) => {
@@ -354,6 +442,13 @@ function POS() {
               className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-orange-500/10"
             >
               + Custom Item
+            </button>
+            <button 
+              type="button"
+              onClick={() => setShowReturnModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-500/10"
+            >
+              🔄 Return / Exchange
             </button>
             <div className="text-xs text-slate-550 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-900">
               Scanner Port: <span className="text-emerald-450 font-bold">ACTIVE</span>
@@ -672,7 +767,36 @@ function POS() {
               );
             })}
 
-            {cart.length === 0 && (
+            {returnedItems.length > 0 && (
+              <div className="mt-4 space-y-2 pt-2 border-t border-slate-900">
+                <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block text-left">Returned Items Adjustment</span>
+                {returnedItems.map((item, idx) => (
+                  <div key={`ret_${idx}`} className="bg-rose-955/10 bg-slate-900/40 border border-rose-900/20 rounded-xl p-3 space-y-2 text-left">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-rose-300 truncate notranslate" translate="no">{item.name}</p>
+                        <p className="text-[10px] text-slate-500 font-mono truncate">Invoice: {item.originalInvoiceId} {item.isDefective ? "(Defective)" : "(Reusable)"}</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setReturnedItems(returnedItems.filter((_, i) => i !== idx));
+                        }}
+                        className="text-rose-400 hover:text-rose-300 transition-colors"
+                        title="Cancel return item"
+                      >
+                        <MdClear size={14} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-mono">Qty: {item.qty} @ ₹{item.price.toFixed(2)}</span>
+                      <span className="font-bold text-rose-450 font-mono">-₹{(item.price * item.qty).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {cart.length === 0 && returnedItems.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center py-12 text-slate-600">
                 <FaCalculator className="text-3xl mb-2" />
                 <p className="text-xs">Cart is empty.</p>
@@ -689,6 +813,13 @@ function POS() {
             <span className="text-slate-500">Cart Subtotal</span>
             <span className="font-semibold text-slate-300 font-mono">₹{subtotal.toFixed(2)}</span>
           </div>
+
+          {returnedItems.length > 0 && (
+            <div className="flex justify-between text-rose-400 font-semibold border-b border-slate-900 pb-1">
+              <span>Returns Deduct (with Tax)</span>
+              <span className="font-mono">-₹{returnedTotalWithTax.toFixed(2)}</span>
+            </div>
+          )}
 
           {/* Dynamic manual discount settings */}
           <div className="space-y-2 py-1 border-t border-b border-slate-900/80 my-1">
@@ -776,6 +907,20 @@ function POS() {
             })}
           </div>
         </div>
+
+        {paymentMethod === "Credit" && (
+          <div className="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-900 text-xs">
+            <span className="text-slate-450 font-bold">Amount Paid Today (₹):</span>
+            <input 
+              type="number"
+              min="0"
+              max={grandTotal}
+              value={amountPaidToday}
+              onChange={(e) => setAmountPaidToday(parseFloat(e.target.value) || 0)}
+              className="w-24 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right font-semibold font-mono text-slate-205 focus:outline-none focus:border-orange-500"
+            />
+          </div>
+        )}
 
         {/* Quotation / Estimate Toggle */}
         {/* GST Billing Toggle */}
@@ -970,13 +1115,26 @@ function POS() {
                               );
                             })}
                             
+                            {receiptData.returnedItems && receiptData.returnedItems.map((item, idx) => {
+                              const lineTotal = item.price * item.qty;
+                              return (
+                                <tr key={`ret_${idx}`} style={{ color: "#b91c1c", backgroundColor: "#fef2f2" }}>
+                                  <td className="text-center font-bold">R{idx + 1}</td>
+                                  <td className="bold notranslate font-semibold" translate="no">[RET] {item.name}</td>
+                                  <td className="text-center font-mono font-bold">-{item.qty}</td>
+                                  <td className="text-right font-mono">₹{item.price.toFixed(2)}</td>
+                                  <td className="text-right font-mono bold text-rose-600">-₹{lineTotal.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })}
+                            
                             {/* Bank details and Calculations merged row */}
                             <tr>
                               <td colSpan="3" style={{ verticalAlign: "top", padding: "8px", borderRight: "1px solid #94a3b8" }}>
-                                <div style={{ color: "#b91c1c", fontWeight: "bold", fontSize: "8.5px", marginBottom: "4px" }}>
+                                <div style={{ color: "#000000", fontWeight: "bold", fontSize: "8.5px", marginBottom: "4px" }}>
                                   BANK ACCOUNT DETAILS:
                                 </div>
-                                <div style={{ fontSize: "7.5px", color: "#0f172a", lineHeight: "1.3" }}>
+                                <div style={{ fontSize: "7.5px", color: "#000000", lineHeight: "1.3" }}>
                                   <div>A/c Name: {shopName.toUpperCase()}</div>
                                   <div>Bank: CANARA BANK, BASAVAKALYAN BRANCH</div>
                                   <div>A/c No: 120033287950  |  IFSC: CNRB0010700</div>
@@ -988,7 +1146,7 @@ function POS() {
                                     <tr>
                                       <td className="bold" style={{ width: "40%" }}>TOTAL QTY:</td>
                                       <td className="text-right font-mono bold" style={{ width: "60%" }}>
-                                        {receiptData.items.reduce((sum, item) => sum + item.qty, 0)}
+                                        {receiptData.items.reduce((sum, item) => sum + item.qty, 0) - (receiptData.returnedItems ? receiptData.returnedItems.reduce((sum, item) => sum + item.qty, 0) : 0)}
                                       </td>
                                     </tr>
                                     <tr>
@@ -1015,6 +1173,14 @@ function POS() {
                                         </tr>
                                       </>
                                     )}
+                                    {receiptData.returnedItems && receiptData.returnedItems.length > 0 && (
+                                      <tr>
+                                        <td className="bold text-rose-600" style={{ fontSize: "8.5px" }}>RETURNS TOTAL:</td>
+                                        <td className="text-right font-mono text-rose-600 font-bold" style={{ fontSize: "8.5px" }}>
+                                          -₹{receiptData.returnedItems.reduce((sum, item) => sum + (item.price * item.qty) * (1 + (item.gstRate || 0)/100), 0).toFixed(2)}
+                                        </td>
+                                      </tr>
+                                    )}
                                     <tr style={{ borderTop: "1px solid #94a3b8" }}>
                                       <td className="bold font-extrabold text-orange-600" style={{ fontSize: "10px" }}>
                                         {receiptData.isQuotation ? "ESTIMATED TOTAL" : "GRAND TOTAL"}
@@ -1023,6 +1189,22 @@ function POS() {
                                         ₹{receiptData.total.toFixed(2)}
                                       </td>
                                     </tr>
+                                    {receiptData.paymentMethod === "Credit" && (
+                                      <>
+                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
+                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>PAID TODAY:</td>
+                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
+                                            ₹{(receiptData.amountPaid || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                          <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
+                                          <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
+                                            ₹{(receiptData.outstandingAmount || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      </>
+                                    )}
                                   </tbody>
                                 </table>
                               </td>
@@ -1254,6 +1436,208 @@ function POS() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* EXCHANGE & RETURN MODAL */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 text-left">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh]">
+            <div className="bg-slate-950 px-5 py-3.5 flex items-center justify-between border-b border-slate-900">
+              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                🔄 Return / Exchange Item Wizard
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setSelectedInvoiceForReturn(null);
+                  setReturnSearchResults([]);
+                  setReturnSearchQuery("");
+                }} 
+                className="text-slate-400 hover:text-slate-200"
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 flex-1 overflow-y-auto space-y-4 text-xs">
+              {!selectedInvoiceForReturn ? (
+                <div className="space-y-4">
+                  <p className="text-slate-400">Search for the original purchase invoice using the Invoice Number, Customer Name, or Customer Mobile number:</p>
+                  
+                  <form onSubmit={handleReturnSearchSubmit} className="flex gap-2">
+                    <input 
+                      type="text"
+                      required
+                      placeholder="e.g. INV-2026-0001, John, 9845..."
+                      value={returnSearchQuery}
+                      onChange={(e) => setReturnSearchQuery(e.target.value)}
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 text-xs"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={returnLoading}
+                      className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center gap-1.5 shadow text-xs"
+                    >
+                      {returnLoading ? <FaSpinner className="animate-spin" /> : <IoSearch />} Search
+                    </button>
+                  </form>
+
+                  <div className="border border-slate-850 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto bg-slate-950/20">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-900 text-slate-450 border-b border-slate-850 uppercase text-[9px] font-bold">
+                          <th className="p-3">Invoice No</th>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Customer</th>
+                          <th className="p-3">Payment</th>
+                          <th className="p-3 text-right">Total Amount</th>
+                          <th className="p-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850/60 text-slate-350">
+                        {returnSearchResults.map((inv) => (
+                          <tr key={inv._id} className="hover:bg-slate-900/40">
+                            <td className="p-3 font-mono font-bold text-slate-100">{inv.invoiceId}</td>
+                            <td className="p-3">{new Date(inv.date).toLocaleDateString("en-IN")}</td>
+                            <td className="p-3">
+                              <span className="font-semibold text-slate-200">{inv.customerName}</span>
+                              <span className="text-[10px] text-slate-500 ml-2">({inv.customerPhone})</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-bold border border-slate-800">
+                                {inv.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-mono font-bold text-slate-100">₹{inv.total.toFixed(2)}</td>
+                            <td className="p-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectInvoiceForReturn(inv)}
+                                className="px-3 py-1 bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/20 rounded text-[10px] font-bold transition"
+                              >
+                                Select Invoice
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {returnSearchResults.length === 0 && !returnLoading && (
+                          <tr>
+                            <td colSpan="6" className="p-8 text-center text-slate-500">No invoices matched your query.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-850/80 flex flex-wrap justify-between gap-4 text-xs">
+                    <div>
+                      <p className="text-slate-500 font-semibold uppercase text-[9px] tracking-wider">Invoice Details</p>
+                      <p className="text-sm font-bold text-slate-100 mt-1 font-mono">{selectedInvoiceForReturn.invoiceId}</p>
+                      <p className="text-slate-400 mt-0.5">Date: {new Date(selectedInvoiceForReturn.date).toLocaleDateString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-semibold uppercase text-[9px] tracking-wider">Customer Info</p>
+                      <p className="text-sm font-bold text-slate-100 mt-1">{selectedInvoiceForReturn.customerName}</p>
+                      <p className="text-slate-400 mt-0.5">Phone: {selectedInvoiceForReturn.customerPhone}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-semibold uppercase text-[9px] tracking-wider">Payment mode</p>
+                      <p className="text-sm font-bold text-orange-400 mt-1">{selectedInvoiceForReturn.paymentMethod}</p>
+                      <p className="text-slate-450 mt-0.5">Total Bill: ₹{selectedInvoiceForReturn.total.toFixed(2)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInvoiceForReturn(null)}
+                      className="px-2 py-1 h-fit bg-slate-800 text-slate-300 rounded font-semibold border border-slate-700 hover:bg-slate-700 self-center"
+                    >
+                      Change Invoice
+                    </button>
+                  </div>
+
+                  <p className="font-bold text-slate-350">Select items to return &amp; adjust:</p>
+                  
+                  <div className="border border-slate-850 rounded-xl overflow-hidden bg-slate-950/20">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-900 text-slate-450 border-b border-slate-850 uppercase text-[9px] font-bold">
+                          <th className="p-3">Product Name</th>
+                          <th className="p-3 text-center">Purchased Qty</th>
+                          <th className="p-3 text-center">Returned Qty</th>
+                          <th className="p-3 text-center">Returnable Qty</th>
+                          <th className="p-3 text-center" style={{ width: "120px" }}>Qty to Return</th>
+                          <th className="p-3 text-center">Mark Defective?</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850/60 text-slate-300">
+                        {selectedInvoiceForReturn.items.map((item) => {
+                          const key = item.productId || item.name;
+                          const returned = item.returnedQty || 0;
+                          const returnable = item.qty - returned;
+                          
+                          return (
+                            <tr key={key}>
+                              <td className="p-3">
+                                <p className="font-semibold text-slate-100">{item.name}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">Rate: ₹{item.price.toFixed(2)} (GST: {item.gstRate || 0}%)</p>
+                              </td>
+                              <td className="p-3 text-center font-mono">{item.qty}</td>
+                              <td className="p-3 text-center font-mono text-rose-450">{returned}</td>
+                              <td className="p-3 text-center font-mono font-bold text-emerald-450">{returnable}</td>
+                              <td className="p-3 text-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={returnable}
+                                  value={returnQuantities[key] || 0}
+                                  onChange={(e) => {
+                                    const val = Math.min(returnable, Math.max(0, parseInt(e.target.value) || 0));
+                                    setReturnQuantities({ ...returnQuantities, [key]: val });
+                                  }}
+                                  className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-center font-bold text-xs focus:outline-none focus:border-orange-500"
+                                />
+                              </td>
+                              <td className="p-3 text-center">
+                                <input 
+                                  type="checkbox"
+                                  checked={!!returnDefects[key]}
+                                  onChange={(e) => setReturnDefects({ ...returnDefects, [key]: e.target.checked })}
+                                  className="w-4 h-4 text-orange-500 bg-slate-950 border-slate-800 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="pt-4 flex gap-3 border-t border-slate-900 justify-end">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setSelectedInvoiceForReturn(null);
+                        setReturnSearchResults([]);
+                        setReturnSearchQuery("");
+                      }}
+                      className="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-350 hover:text-white border border-slate-700 rounded-xl font-bold text-xs"
+                    >
+                      Reset selection
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleConfirmReturnExchange}
+                      className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold shadow-md shadow-orange-500/10 text-xs"
+                    >
+                      Apply Return items to Bill
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

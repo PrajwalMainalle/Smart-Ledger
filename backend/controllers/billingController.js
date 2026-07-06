@@ -1,6 +1,9 @@
 const Invoice = require("../models/Invoice");
 const Product = require("../models/Product");
 const User = require("../models/User");
+const Customer = require("../models/Customer");
+const CustomerLedger = require("../models/CustomerLedger");
+const DamagedStock = require("../models/DamagedStock");
 const { generateInvoicePDF } = require("../utils/pdfGenerator");
 const path = require("path");
 const fs = require("fs");
@@ -22,13 +25,28 @@ const getInvoices = async (req, res) => {
 // @route   POST /api/billing
 // @access  Private
 const createInvoice = async (req, res) => {
-  const { customerName, customerPhone, customerType, items, discountType, discountValue, discountPercent, paymentMethod, isQuotation, isGstBilling } = req.body;
+  const { 
+    customerName, 
+    customerPhone, 
+    customerType, 
+    items, 
+    discountType, 
+    discountValue, 
+    discountPercent, 
+    paymentMethod, 
+    isQuotation, 
+    isGstBilling,
+    amountPaid,
+    returnedItems
+  } = req.body;
 
   if (!items || items.length === 0) {
     return res.status(400).json({ message: "No items provided in cart" });
   }
 
   try {
+    const tenantId = req.user._id;
+
     // 1. Verify stock availability first & cache products for cost calculations
     const checkedItems = [];
     const productsMap = {};
@@ -37,7 +55,7 @@ const createInvoice = async (req, res) => {
         continue;
       }
       const pId = cartItem.id || cartItem.productId;
-      const product = await Product.findOne({ _id: pId, tenantId: req.user._id });
+      const product = await Product.findOne({ _id: pId, tenantId });
       if (!product) {
         return res.status(404).json({ message: `Product '${cartItem.name}' not found in inventory` });
       }
@@ -50,7 +68,7 @@ const createInvoice = async (req, res) => {
       productsMap[pId] = product;
     }
 
-    // 2. Compute Invoice Totals
+    // 2. Compute Invoice Totals for new purchases
     let subtotal = 0;
     const invoiceItems = [];
 
@@ -104,21 +122,111 @@ const createInvoice = async (req, res) => {
     const discountRatio = subtotal > 0 ? discountedSubtotal / subtotal : 1;
     let gstAmount = 0;
     invoiceItems.forEach((item) => {
-      const itemSubtotal = item.price * item.qty;
-      const discountedItemSubtotal = itemSubtotal * discountRatio;
-      const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
-      gstAmount += itemGst;
+      if (isGstBilling !== false) {
+        const itemSubtotal = item.price * item.qty;
+        const discountedItemSubtotal = itemSubtotal * discountRatio;
+        const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
+        gstAmount += itemGst;
+      }
     });
 
-    const total = discountedSubtotal + gstAmount;
+    const newItemsTotal = discountedSubtotal + gstAmount;
+
+    // 3. Process Returns/Exchanges if present (and not a quotation)
+    let processedReturnedItems = [];
+    let returnedTotal = 0;
 
     // Generate Unique Invoice ID for Tenant
     const year = new Date().getFullYear();
-    const invoiceCount = await Invoice.countDocuments({ tenantId: req.user._id });
+    const invoiceCount = await Invoice.countDocuments({ tenantId });
     const invoiceNumberStr = String(invoiceCount + 1).padStart(4, "0");
     const invoiceId = `INV-${year}-${invoiceNumberStr}`;
 
-    // 3. Deduct Stock Levels in Database (only if not a quotation)
+    if (!isQuotation && returnedItems && returnedItems.length > 0) {
+      for (const retItem of returnedItems) {
+        const origInvoice = await Invoice.findOne({ tenantId, invoiceId: retItem.originalInvoiceId });
+        if (!origInvoice) {
+          return res.status(404).json({ message: `Original invoice '${retItem.originalInvoiceId}' not found.` });
+        }
+        
+        // Find the item in the original invoice
+        const origItem = origInvoice.items.find(
+          oi => oi.productId && oi.productId.toString() === retItem.productId.toString()
+        );
+        if (!origItem) {
+          return res.status(404).json({ message: `Item '${retItem.name}' not found on invoice '${retItem.originalInvoiceId}'.` });
+        }
+
+        const alreadyReturned = origItem.returnedQty || 0;
+        const remainingReturnable = origItem.qty - alreadyReturned;
+        if (retItem.qty > remainingReturnable) {
+          return res.status(400).json({
+            message: `Cannot return ${retItem.qty} of '${retItem.name}'. Only ${remainingReturnable} remaining returnable from invoice '${retItem.originalInvoiceId}'.`
+          });
+        }
+
+        // Update returnedQty on the original invoice
+        origItem.returnedQty = alreadyReturned + retItem.qty;
+        await origInvoice.save();
+
+        // Regenerate the original invoice PDF to reflect returns
+        try {
+          const tenantUser = await User.findById(tenantId);
+          const origPdfFilename = `${tenantId}_${origInvoice.invoiceId}.pdf`;
+          const origAbsolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", origPdfFilename);
+          await generateInvoicePDF(origInvoice, tenantUser, origAbsolutePdfPath);
+        } catch (pdfErr) {
+          console.error("Failed to regenerate original invoice PDF after return:", pdfErr.message);
+        }
+
+        // Adjust stock
+        if (retItem.isDefective) {
+          await DamagedStock.create({
+            tenantId,
+            productId: retItem.productId,
+            name: retItem.name,
+            sku: retItem.sku || "MANUAL",
+            qty: retItem.qty,
+            returnInvoiceId: retItem.originalInvoiceId,
+          });
+        } else {
+          const product = await Product.findOne({ _id: retItem.productId, tenantId });
+          if (product) {
+            product.stock += retItem.qty;
+            await product.save();
+          }
+        }
+
+        const retVal = (retItem.price * retItem.qty) * (1 + (retItem.gstRate || 0) / 100);
+        returnedTotal += retVal;
+
+        processedReturnedItems.push({
+          productId: retItem.productId,
+          name: retItem.name,
+          qty: retItem.qty,
+          price: retItem.price,
+          originalInvoiceId: retItem.originalInvoiceId,
+          isDefective: !!retItem.isDefective,
+        });
+      }
+    }
+
+    // Final Net Total
+    const netTotal = newItemsTotal - returnedTotal;
+
+    // Determine Paid Amount and Outstanding
+    let paidAmount = 0;
+    let outstandingAmount = 0;
+
+    if (paymentMethod === "Credit") {
+      paidAmount = parseFloat(amountPaid) || 0.0;
+      outstandingAmount = netTotal - paidAmount;
+    } else {
+      paidAmount = netTotal;
+      outstandingAmount = 0.0;
+    }
+
+    // 4. Deduct Stock Levels for new purchases (only if not a quotation)
     if (!isQuotation) {
       for (const checked of checkedItems) {
         checked.product.stock -= checked.qty;
@@ -127,13 +235,13 @@ const createInvoice = async (req, res) => {
     }
 
     // Create paths for PDF storage
-    const pdfFilename = `${req.user._id}_${invoiceId}.pdf`;
+    const pdfFilename = `${tenantId}_${invoiceId}.pdf`;
     const relativePdfPath = `/uploads/invoices/${pdfFilename}`;
     const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
 
     // Create Invoice Document
     const invoice = new Invoice({
-      tenantId: req.user._id,
+      tenantId,
       invoiceId,
       customerName: customerName || "Walk-in Customer",
       customerPhone: customerPhone || "N/A",
@@ -143,20 +251,63 @@ const createInvoice = async (req, res) => {
       discountPercent: discPercent,
       discountAmount,
       gstAmount,
-      total,
+      total: netTotal,
       paymentMethod: paymentMethod || "Cash",
       status: isQuotation ? "Quotation" : "Paid",
       isQuotation: isQuotation || false,
       isGstBilling: isGstBilling !== undefined ? isGstBilling : true,
       pdfUrl: relativePdfPath,
+      amountPaid: paidAmount,
+      outstandingAmount: outstandingAmount,
+      isReturnExchange: processedReturnedItems.length > 0,
+      returnedItems: processedReturnedItems,
     });
-
-    // 4. Generate & Save PDF file on Server disk
-    const tenantUser = await User.findById(req.user._id);
-    await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
 
     // Save invoice to DB
     const savedInvoice = await invoice.save();
+
+    // 5. Generate & Save PDF file on Server disk
+    const tenantUser = await User.findById(tenantId);
+    await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+
+    // 6. Record Customer Ledger and update Outstanding Balance if not a quotation
+    if (!isQuotation && customerPhone && customerPhone !== "N/A") {
+      const customer = await Customer.findOne({ tenantId, phone: customerPhone });
+      if (customer) {
+        // We define helper inline to perform ledger entries and update balance sequentially
+        const postLedgerEntry = async (type, debit, credit, description) => {
+          customer.outstandingBalance += (debit - credit);
+          await customer.save();
+
+          const entry = new CustomerLedger({
+            tenantId,
+            customerId: customer._id,
+            invoiceId: savedInvoice.invoiceId,
+            invoiceObjectId: savedInvoice._id,
+            type,
+            debit,
+            credit,
+            balance: customer.outstandingBalance,
+            description,
+          });
+          await entry.save();
+        };
+
+        // Purchase entry
+        if (newItemsTotal > 0) {
+          await postLedgerEntry("Purchase", newItemsTotal, 0, `Purchase Invoice ${invoiceId}`);
+        }
+        // Return entry
+        if (returnedTotal > 0) {
+          await postLedgerEntry("Return", 0, returnedTotal, `Return Adjustment on Invoice ${invoiceId}`);
+        }
+        // Payment entry
+        if (paidAmount > 0) {
+          await postLedgerEntry("Payment", 0, paidAmount, `Payment received today on Invoice ${invoiceId}`);
+        }
+      }
+    }
+
     res.status(201).json(savedInvoice);
 
   } catch (error) {
@@ -193,6 +344,31 @@ const refundInvoice = async (req, res) => {
         if (product) {
           product.stock += item.qty;
           await product.save();
+        }
+      }
+    }
+
+    // Adjust customer outstanding balance if credit and has registered customer
+    if (!invoice.isQuotation && invoice.customerPhone && invoice.customerPhone !== "N/A") {
+      const customer = await Customer.findOne({ tenantId: req.user._id, phone: invoice.customerPhone });
+      if (customer) {
+        const refundCredit = invoice.outstandingAmount || 0;
+        if (refundCredit > 0) {
+          customer.outstandingBalance -= refundCredit;
+          await customer.save();
+
+          const ledgerEntry = new CustomerLedger({
+            tenantId: req.user._id,
+            customerId: customer._id,
+            invoiceId: invoice.invoiceId,
+            invoiceObjectId: invoice._id,
+            type: "Refund",
+            debit: 0,
+            credit: refundCredit,
+            balance: customer.outstandingBalance,
+            description: `Refund / Reversal of Credit Invoice ${invoice.invoiceId}`,
+          });
+          await ledgerEntry.save();
         }
       }
     }
@@ -430,6 +606,156 @@ const resetBusinessData = async (req, res) => {
   }
 };
 
+// @desc    Lookup invoice for return/exchange validation
+// @route   GET /api/billing/lookup-invoice
+// @access  Private
+const lookupInvoice = async (req, res) => {
+  const { query } = req.query; // query can be invoiceId, customerName, or customerPhone
+  if (!query) {
+    return res.status(400).json({ message: "Please provide a search query" });
+  }
+
+  try {
+    const tenantId = req.user._id;
+    const invoices = await Invoice.find({
+      tenantId,
+      isQuotation: { $ne: true },
+      $or: [
+        { invoiceId: { $regex: query, $options: "i" } },
+        { customerName: { $regex: query, $options: "i" } },
+        { customerPhone: { $regex: query, $options: "i" } },
+      ],
+    }).sort({ date: -1 });
+
+    res.json(invoices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error searching invoices for return", error: error.message });
+  }
+};
+
+// @desc    Get pending credit invoices for a customer
+// @route   GET /api/billing/customer/:phone/pending
+// @access  Private
+const getPendingCreditInvoices = async (req, res) => {
+  try {
+    const tenantId = req.user._id;
+    const { phone } = req.params;
+
+    const invoices = await Invoice.find({
+      tenantId,
+      customerPhone: phone,
+      paymentMethod: "Credit",
+      outstandingAmount: { $gt: 0 },
+      isQuotation: { $ne: true },
+      status: { $ne: "Refunded" },
+    }).sort({ date: 1 }); // oldest first
+
+    res.json(invoices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error fetching pending credit invoices" });
+  }
+};
+
+// @desc    Record a credit payment collection
+// @route   POST /api/billing/collection
+// @access  Private
+const recordCollection = async (req, res) => {
+  const { customerPhone, amountPaid, paymentMethod, notes, invoiceId } = req.body;
+
+  if (!customerPhone || !amountPaid || amountPaid <= 0) {
+    return res.status(400).json({ message: "Invalid payment details" });
+  }
+
+  try {
+    const tenantId = req.user._id;
+    const customer = await Customer.findOne({ tenantId, phone: customerPhone });
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const payVal = parseFloat(amountPaid);
+    let remainingPayment = payVal;
+
+    // Find pending invoices
+    let queryObj = {
+      tenantId,
+      customerPhone,
+      paymentMethod: "Credit",
+      outstandingAmount: { $gt: 0 },
+      status: { $ne: "Refunded" },
+      isQuotation: { $ne: true },
+    };
+
+    if (invoiceId) {
+      queryObj.invoiceId = invoiceId;
+    }
+
+    const pendingInvoices = await Invoice.find(queryObj).sort({ date: 1 });
+
+    const tenantUser = await User.findById(tenantId);
+
+    // Apply payment in FIFO order or to specific invoice
+    for (const inv of pendingInvoices) {
+      if (remainingPayment <= 0) break;
+
+      const outstanding = inv.outstandingAmount;
+      if (remainingPayment >= outstanding) {
+        inv.amountPaid += outstanding;
+        inv.outstandingAmount = 0;
+        inv.creditSettled = true;
+        inv.settlementDate = new Date();
+        inv.settlementMethod = ["Cash", "UPI", "Card"].includes(paymentMethod) ? paymentMethod : "Cash";
+        remainingPayment -= outstanding;
+      } else {
+        inv.amountPaid += remainingPayment;
+        inv.outstandingAmount = outstanding - remainingPayment;
+        remainingPayment = 0;
+      }
+
+      await inv.save();
+
+      // Regenerate the invoice PDF to show updated settlement status/outstanding
+      try {
+        const pdfFilename = `${tenantId}_${inv.invoiceId}.pdf`;
+        const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+        await generateInvoicePDF(inv, tenantUser, absolutePdfPath);
+      } catch (pdfErr) {
+        console.error("Failed to regenerate invoice PDF during collection:", pdfErr.message);
+      }
+    }
+
+    // Update customer outstanding balance
+    customer.outstandingBalance -= payVal;
+    await customer.save();
+
+    // Create payment ledger entry
+    const ledgerEntry = new CustomerLedger({
+      tenantId,
+      customerId: customer._id,
+      invoiceId: invoiceId || "COLL-PAY",
+      type: "Payment",
+      debit: 0,
+      credit: payVal,
+      balance: customer.outstandingBalance,
+      description: notes || `Credit Payment Collection via ${paymentMethod} (General Account Payment)`,
+    });
+    const savedLedger = await ledgerEntry.save();
+
+    res.json({
+      success: true,
+      message: "Payment collection recorded successfully",
+      ledgerEntry: savedLedger,
+      updatedBalance: customer.outstandingBalance,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error recording payment collection", error: error.message });
+  }
+};
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -438,4 +764,7 @@ module.exports = {
   streamInvoicePDF,
   settleInvoice,
   resetBusinessData,
+  lookupInvoice,
+  getPendingCreditInvoices,
+  recordCollection,
 };

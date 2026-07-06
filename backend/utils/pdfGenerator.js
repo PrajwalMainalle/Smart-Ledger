@@ -92,7 +92,7 @@ const drawPageHeader = (doc, invoice, tenant, pageNum) => {
 
     // 4. Centered Title
     const titleY = textStartY + 95;
-    const titleText = invoice.isQuotation ? "ESTIMATE / QUOTATION" : "CREDIT BILL";
+    const titleText = invoice.isQuotation ? "ESTIMATE / QUOTATION" : `${invoice.paymentMethod.toUpperCase()} BILL`;
     doc.fillColor(primaryColor).font(fontBold).fontSize(13).text(titleText, margin, titleY, { align: "center", width: printWidth });
     
     const textWidth = doc.widthOfString(titleText);
@@ -131,7 +131,7 @@ const drawPageHeader = (doc, invoice, tenant, pageNum) => {
     doc.fillColor(primaryColor).font(fontBold).fontSize(10);
     doc.text(shopName.toUpperCase(), margin + 5, margin + 5);
     
-    const titleText = invoice.isQuotation ? `ESTIMATE / QUOTATION (Page ${pageNum})` : `CREDIT BILL (Page ${pageNum})`;
+    const titleText = invoice.isQuotation ? `ESTIMATE / QUOTATION (Page ${pageNum})` : `${invoice.paymentMethod.toUpperCase()} BILL (Page ${pageNum})`;
     doc.text(titleText, margin + printWidth - 200, margin + 5, { align: "right", width: 195 });
     
     doc.fontSize(8.5).font(fontRegular);
@@ -304,14 +304,16 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       // summary parameters
       const discountAmount = invoice.discountAmount || 0;
+      const isCredit = invoice.paymentMethod === "Credit";
 
       // Calculate height needed for calculations column
       let calcRowsHeight = 0;
       if (discountAmount > 0) calcRowsHeight += 20;
       if (hasGst) calcRowsHeight += 40;
+      if (isCredit) calcRowsHeight += 40;
 
       // The Grand Total row needs at least 20 points, but expands if needed to ensure the box is at least 75 points tall (so bank details don't overflow)
-      const grandTotalHeight = Math.max(20, 75 - 20 - calcRowsHeight);
+      const grandTotalHeight = Math.max(20, 75 - 20 - (discountAmount > 0 ? 20 : 0) - (hasGst ? 40 : 0));
       const summaryHeight = 20 + calcRowsHeight + grandTotalHeight;
 
       // Check if we need another page for the summary rows + signature block
@@ -341,6 +343,14 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         lineY += 20;
         doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
       }
+      
+      // Divider below Grand Total (since we have extra rows under it for credit)
+      if (isCredit) {
+        lineY += grandTotalHeight;
+        doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
+        lineY += 20;
+        doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
+      }
 
       // Row 1: TOTAL columns
       doc.moveTo(col2X, currentY).lineTo(col2X, currentY + 20).stroke(borderColor);
@@ -361,27 +371,27 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       const bankDetailsY = currentY + 25;
       if (hasGst) {
-        doc.fillColor("#b91c1c").font(fontBold).fontSize(8);
+        doc.fillColor("#000000").font(fontBold).fontSize(8);
         doc.text("BANK ACCOUNT DETAILS:", margin + 8, bankDetailsY);
         
-        doc.fillColor("#0f172a").font(fontRegular).fontSize(7.5);
+        doc.fillColor("#000000").font(fontRegular).fontSize(7.5);
         const profile = tenant.profile || {};
         const shopNameStr = (profile.shopName || tenant.businessName || "SmartLedger").toUpperCase();
         doc.text(`Account Name:  ${shopNameStr}`, margin + 8, bankDetailsY + 11, { width: col3X - margin - 16 });
         doc.text("Bank Name:      CANARA BANK, BASAVAKALYAN BRANCH", margin + 8, bankDetailsY + 20, { width: col3X - margin - 16 });
         doc.text("A/C Number:     120033287950  |  IFSC Code: CNRB0010700", margin + 8, bankDetailsY + 29, { width: col3X - margin - 16 });
       } else if (invoice.paymentMethod === "Credit" && invoice.creditSettled) {
-        doc.fillColor("#16a34a").font(fontBold).fontSize(8.5);
+        doc.fillColor("#000000").font(fontBold).fontSize(8.5);
         doc.text("CREDIT STATUS:", margin + 8, bankDetailsY - 2);
         
-        doc.fillColor("#0f172a").font(fontBold).fontSize(8);
+        doc.fillColor("#000000").font(fontBold).fontSize(8);
         doc.text("FULLY SETTLED & PAID", margin + 8, bankDetailsY + 10);
         doc.font(fontRegular).fontSize(7);
         doc.text(`Method: ${invoice.settlementMethod.toUpperCase()}`, margin + 8, bankDetailsY + 19);
         doc.text(`Date:   ${new Date(invoice.settlementDate).toLocaleDateString("en-IN")}`, margin + 8, bankDetailsY + 27);
-        doc.fillColor("#64748b").fontSize(6.5).text("Thank you for your business!", margin + 8, bankDetailsY + 36);
+        doc.fillColor("#000000").fontSize(6.5).text("Thank you for your business!", margin + 8, bankDetailsY + 36);
       } else {
-        doc.fillColor("#b91c1c").font(fontBold).fontSize(8);
+        doc.fillColor("#000000").font(fontBold).fontSize(8);
         doc.text("SCAN & PAY (UPI):", margin + 8, bankDetailsY - 2);
         
         if (qrBuffer) {
@@ -392,12 +402,12 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
           }
         }
         
-        doc.fillColor("#0f172a").font(fontBold).fontSize(7.5);
+        doc.fillColor("#000000").font(fontBold).fontSize(7.5);
         doc.text("BHARATAMBE TRADERS", margin + 56, bankDetailsY + 10);
         const qrPhone = invoice.total >= 5000 ? "6364676448" : "6361037157";
         doc.text(`Mobile: ${qrPhone}`, margin + 56, bankDetailsY + 18);
         doc.text(`Amount: ₹${invoice.total.toFixed(2)}`, margin + 56, bankDetailsY + 26);
-        doc.fillColor("#64748b").fontSize(6.5).text("Scan with GPay/PhonePe/Paytm", margin + 56, bankDetailsY + 34);
+        doc.fillColor("#000000").fontSize(6.5).text("Scan with GPay/PhonePe/Paytm", margin + 56, bankDetailsY + 34);
       }
 
       // Calculations right column
@@ -424,9 +434,21 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       const grandTotalLabel = invoice.isQuotation ? "ESTIMATED TOTAL" : "GRAND TOTAL";
       const cellPaddingY = (grandTotalHeight - 10) / 2;
-      doc.font(fontBold).fontSize(9.5).fillColor("#f97316");
+      doc.font(fontBold).fontSize(9.5).fillColor("#000000");
       doc.text(grandTotalLabel, col3X, calcY + cellPaddingY, { width: col5X - col3X - 5, align: "right" });
       doc.text(`₹${invoice.total.toFixed(2)}`, col5X, calcY + cellPaddingY, { width: col6X - col5X - 5, align: "right" });
+      calcY += grandTotalHeight;
+
+      if (isCredit) {
+        doc.fillColor("#000000").font(fontBold).fontSize(7.5);
+        doc.text("AMOUNT PAID TODAY", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+        doc.font(fontRegular).text(`₹${(invoice.amountPaid || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+        calcY += 20;
+
+        doc.font(fontBold).text("OUTSTANDING BALANCE", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+        doc.fillColor("#000000").text(`₹${(invoice.outstandingAmount || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+        calcY += 20;
+      }
 
       // Signatures row
       const footerY = currentY + summaryHeight + 20;

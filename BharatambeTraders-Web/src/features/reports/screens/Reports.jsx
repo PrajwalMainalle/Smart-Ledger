@@ -175,6 +175,10 @@ function Reports() {
           { id: "products", label: "Product Performance", icon: FaBoxes },
           { id: "customers", label: "Customer Rankings", icon: FaUserFriends },
           { id: "gst", label: "GST Summary Reports", icon: FaPercent },
+          { id: "creditOutstanding", label: "Credit & Debtors", icon: FaUserFriends },
+          { id: "collections", label: "Payments Collected", icon: FaFileCsv },
+          { id: "returns", label: "Returns & Exchanges", icon: FaBoxes },
+          { id: "damagedStock", label: "Damaged Stock", icon: FaBoxes },
           { id: "detailedSales", label: "Multi-Price Sales Log", icon: FaFileCsv },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
@@ -683,6 +687,247 @@ function Reports() {
                   }).length === 0 && (
                     <tr>
                       <td colSpan="8" className="py-8 text-center text-slate-500">No sales details found matching filters.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* T6: CREDIT & DEBTORS REPORT */}
+        {activeTab === "creditOutstanding" && reportData && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center print:hidden">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Credit Debtors List</h3>
+              <button
+                onClick={() => {
+                  const mapped = reportData.creditCustomers.map(c => ({ name: c.name, phone: c.phone, type: c.customerType, balance: c.outstandingBalance }));
+                  exportToCSV(mapped, ["Customer Name", "Phone", "Customer Type", "Outstanding Balance"], "credit_debtors_report");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-semibold"
+              >
+                <FaFileCsv /> Export to Excel
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-900 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5 px-4">Customer Name</th>
+                    <th className="py-2.5 px-2">Phone</th>
+                    <th className="py-2.5 px-2">Customer Type</th>
+                    <th className="py-2.5 px-4 text-right">Outstanding Credit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/40 text-slate-350">
+                  {reportData.creditCustomers.map((cust) => (
+                    <tr key={cust._id} className="hover:bg-slate-900/10 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-slate-100">{cust.name}</td>
+                      <td className="py-3 px-2 font-mono text-slate-400">{cust.phone}</td>
+                      <td className="py-3 px-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700">
+                          {cust.customerType}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-black text-rose-450 font-mono">₹{cust.outstandingBalance.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {reportData.creditCustomers.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="py-8 text-center text-slate-500">No customers currently hold outstanding balances.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* T7: PAYMENTS COLLECTED REPORT */}
+        {activeTab === "collections" && reportData && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center print:hidden">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Credit Collections Postings</h3>
+              <button
+                onClick={() => {
+                  const mapped = reportData.paymentsCollected.map(p => ({
+                    date: new Date(p.date).toLocaleDateString("en-IN"),
+                    customer: p.customerId?.name || "Deleted",
+                    phone: p.customerId?.phone || "N/A",
+                    method: p.paymentMethod,
+                    amount: p.credit,
+                    notes: p.notes || ""
+                  }));
+                  exportToCSV(mapped, ["Date", "Customer Name", "Customer Phone", "Payment Method", "Amount Collected", "Notes"], "collections_log_report");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-semibold"
+              >
+                <FaFileCsv /> Export to Excel
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-900 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5 px-4">Receipt Date</th>
+                    <th className="py-2.5 px-2">Customer Details</th>
+                    <th className="py-2.5 px-2">Ref Method</th>
+                    <th className="py-2.5 px-2">Description / Comments</th>
+                    <th className="py-2.5 px-4 text-right">Amount post</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/40 text-slate-350">
+                  {reportData.paymentsCollected.map((payment) => {
+                    const payDate = payment.date ? new Date(payment.date).toLocaleDateString("en-IN") : "N/A";
+                    return (
+                      <tr key={payment._id} className="hover:bg-slate-900/10 transition-colors">
+                        <td className="py-3 px-4 font-mono">{payDate}</td>
+                        <td className="py-3 px-2">
+                          <div className="font-semibold text-slate-200">{payment.customerId?.name || "Walk-in"}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{payment.customerId?.phone || "N/A"}</div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="px-2.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-bold uppercase">
+                            {payment.paymentMethod}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div>{payment.description}</div>
+                          {payment.notes && <div className="text-[10px] font-serif text-slate-500 italic mt-0.5">Note: {payment.notes}</div>}
+                        </td>
+                        <td className="py-3 px-4 text-right font-black text-emerald-450 font-mono">₹{payment.credit.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                  {reportData.paymentsCollected.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-500">No payment collections recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* T8: RETURNS & EXCHANGES REPORT */}
+        {activeTab === "returns" && reportData && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center print:hidden">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Sales Returns Log</h3>
+              <button
+                onClick={() => {
+                  const mapped = reportData.salesReturns.map(r => ({
+                    date: new Date(r.date).toLocaleDateString("en-IN"),
+                    invoice: r.invoiceId,
+                    customer: r.customerName,
+                    phone: r.customerPhone,
+                    total: r.total
+                  }));
+                  exportToCSV(mapped, ["Return Date", "Invoice ID", "Customer Name", "Customer Phone", "Invoice Net Total"], "sales_returns_report");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-semibold"
+              >
+                <FaFileCsv /> Export to Excel
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-900 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5 px-4">Return Date</th>
+                    <th className="py-2.5 px-2">Invoice ID</th>
+                    <th className="py-2.5 px-2">Customer Details</th>
+                    <th className="py-2.5 px-2">Adjusted Items Details</th>
+                    <th className="py-2.5 px-4 text-right">Net Bill Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/40 text-slate-350">
+                  {reportData.salesReturns.map((invoice) => {
+                    const retDate = invoice.date ? new Date(invoice.date).toLocaleDateString("en-IN") : "N/A";
+                    return (
+                      <tr key={invoice._id} className="hover:bg-slate-900/10 transition-colors">
+                        <td className="py-3 px-4 font-mono">{retDate}</td>
+                        <td className="py-3 px-2 font-mono font-bold text-slate-100">{invoice.invoiceId}</td>
+                        <td className="py-3 px-2">
+                          <div className="font-semibold text-slate-200">{invoice.customerName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{invoice.customerPhone}</div>
+                        </td>
+                        <td className="py-3 px-2 space-y-1">
+                          {invoice.items.filter(i => i.returnedQty > 0).map((item, idx) => (
+                            <div key={idx} className="text-[10px] text-rose-300">
+                              - {item.name} (Qty Returned: <span className="font-bold">{item.returnedQty}</span>)
+                            </div>
+                          ))}
+                        </td>
+                        <td className="py-3 px-4 text-right font-black text-slate-100 font-mono">₹{invoice.total.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                  {reportData.salesReturns.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-500">No sales return transactions logged.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* T9: DAMAGED STOCK REPORT */}
+        {activeTab === "damagedStock" && reportData && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center print:hidden">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Damaged Inventory Audit</h3>
+              <button
+                onClick={() => {
+                  const mapped = reportData.damagedStock.map(d => ({
+                    date: new Date(d.date).toLocaleDateString("en-IN"),
+                    sku: d.productId?.sku || "MANUAL",
+                    name: d.productId?.name || d.productName || "N/A",
+                    qty: d.qty,
+                    reason: d.reason || ""
+                  }));
+                  exportToCSV(mapped, ["Logged Date", "Product SKU", "Product Name", "Damaged Quantity", "Reason"], "damaged_stock_report");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-semibold"
+              >
+                <FaFileCsv /> Export to Excel
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-900 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5 px-4">Log Date</th>
+                    <th className="py-2.5 px-2">SKU / Code</th>
+                    <th className="py-2.5 px-2">Product Name</th>
+                    <th className="py-2.5 px-2 text-center">Defective Qty</th>
+                    <th className="py-2.5 px-4">Comments / Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/40 text-slate-350">
+                  {reportData.damagedStock.map((item) => {
+                    const logDate = item.date ? new Date(item.date).toLocaleDateString("en-IN") : "N/A";
+                    return (
+                      <tr key={item._id} className="hover:bg-slate-900/10 transition-colors">
+                        <td className="py-3 px-4 font-mono">{logDate}</td>
+                        <td className="py-3 px-2 font-mono font-semibold text-slate-100">{item.productId?.sku || "MANUAL"}</td>
+                        <td className="py-3 px-2 font-medium text-slate-205">{item.productId?.name || item.productName || "N/A"}</td>
+                        <td className="py-3 px-2 text-center font-bold text-rose-455 font-mono">{item.qty} units</td>
+                        <td className="py-3 px-4 text-slate-400 italic">{item.reason || "Defective return exchange"}</td>
+                      </tr>
+                    );
+                  })}
+                  {reportData.damagedStock.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-500">No products logged in damaged stock directory.</td>
                     </tr>
                   )}
                 </tbody>

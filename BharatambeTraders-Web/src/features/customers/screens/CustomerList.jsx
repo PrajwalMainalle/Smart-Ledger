@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { IoSearch } from "react-icons/io5";
-import { FaUserFriends, FaPlus, FaTimes, FaEdit, FaTrashAlt, FaSpinner } from "react-icons/fa";
-import { fetchCustomers, addCustomer, updateCustomer, deleteCustomer } from "../customerSlice";
+import { FaUserFriends, FaPlus, FaTimes, FaEdit, FaTrashAlt, FaSpinner, FaHistory, FaPrint } from "react-icons/fa";
+import { fetchCustomers, addCustomer, updateCustomer, deleteCustomer, fetchCustomerLedger, collectPayment, clearActiveLedger } from "../customerSlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
 function CustomerList() {
@@ -25,6 +25,15 @@ function CustomerList() {
     customerType: "Retail",
     priceCategory: "retail",
   });
+
+  // Outstanding Ledger & Collection payment states
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
+  const [selectedCustomerForLedger, setSelectedCustomerForLedger] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [collectMethod, setCollectMethod] = useState("Cash");
+  const [paymentNotes, setPaymentNotes] = useState("");
+
+  const { activeLedger, ledgerLoading } = useSelector((state) => state.customers);
 
   useEffect(() => {
     dispatch(fetchCustomers());
@@ -148,6 +157,36 @@ function CustomerList() {
     setFormData({ ...formData, customerType: typeVal, priceCategory: categoryVal });
   };
 
+  const handleOpenLedger = (cust) => {
+    setSelectedCustomerForLedger(cust);
+    setShowLedgerModal(true);
+    dispatch(fetchCustomerLedger(cust._id || cust.id));
+  };
+
+  const handleCollectSubmit = (e) => {
+    e.preventDefault();
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      alert("Please enter a valid payment amount.");
+      return;
+    }
+    const payload = {
+      customerPhone: selectedCustomerForLedger.phone,
+      amountPaid: parseFloat(paymentAmount),
+      paymentMethod: collectMethod,
+      notes: paymentNotes,
+    };
+    dispatch(collectPayment(payload)).then((res) => {
+      if (!res.error) {
+        alert("Payment collected successfully!");
+        setPaymentAmount("");
+        setPaymentNotes("");
+        dispatch(fetchCustomers());
+      } else {
+        alert(res.payload || "Failed to record collection");
+      }
+    });
+  };
+
   // Reset helper
   const resetForm = () => {
     setFormData({
@@ -247,6 +286,7 @@ function CustomerList() {
                   <th className="py-3 px-2">Phone Number</th>
                   <th className="py-3 px-2">Customer Type</th>
                   <th className="py-3 px-2">Assigned Pricing Category</th>
+                  <th className="py-3 px-2 text-right">Outstanding Balance</th>
                   <th className="py-3 px-2">Date Added</th>
                   <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
@@ -266,9 +306,21 @@ function CustomerList() {
                         </span>
                       </td>
                       <td className="py-4 px-2 text-orange-400 font-bold capitalize">{cust.priceCategory} Price</td>
+                      <td className="py-4 px-2 text-right">
+                        <span className={`font-bold font-mono text-xs ${cust.outstandingBalance > 0 ? "text-rose-450 font-extrabold" : "text-emerald-450"}`}>
+                          ₹{(cust.outstandingBalance || 0).toFixed(2)}
+                        </span>
+                      </td>
                       <td className="py-4 px-2 text-slate-500 font-mono">{dateStr}</td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => handleOpenLedger(cust)}
+                            className="p-1.5 bg-slate-800 hover:bg-slate-750 text-orange-400 hover:text-orange-300 rounded border border-slate-700 transition"
+                            title="View customer transaction ledger & collect payment"
+                          >
+                            <FaHistory size={12} />
+                          </button>
                           <button 
                             onClick={() => openEditModal(cust)}
                             className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded border border-slate-700 transition"
@@ -491,6 +543,189 @@ function CustomerList() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOMER LEDGER & CREDIT COLLECTION MODAL */}
+      {showLedgerModal && selectedCustomerForLedger && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 text-left">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-950 px-5 py-3.5 flex items-center justify-between border-b border-slate-900 print:hidden">
+              <h3 className="font-bold text-white flex items-center gap-2 text-xs uppercase tracking-wider">
+                📄 Customer Ledger &amp; Collections ({selectedCustomerForLedger.name})
+              </h3>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 font-bold flex items-center gap-1.5 hover:text-white transition text-xs"
+                >
+                  <FaPrint /> Print Ledger
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowLedgerModal(false);
+                    setSelectedCustomerForLedger(null);
+                    dispatch(clearActiveLedger());
+                  }} 
+                  className="text-slate-400 hover:text-slate-200"
+                >
+                  <FaTimes size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Print Only Header (Visible only when printing) */}
+            <div className="hidden print:block p-6 text-slate-950 bg-white">
+              <h1 className="text-xl font-bold uppercase text-center border-b-2 border-slate-955 pb-2">CUSTOMER LEDGER STATEMENT</h1>
+              <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                <div>
+                  <p><strong>Customer Name:</strong> {selectedCustomerForLedger.name}</p>
+                  <p><strong>Mobile Number:</strong> {selectedCustomerForLedger.phone}</p>
+                  <p><strong>Pricing Tier:</strong> {selectedCustomerForLedger.customerType} ({selectedCustomerForLedger.priceCategory})</p>
+                </div>
+                <div className="text-right">
+                  <p><strong>Statement Date:</strong> {new Date().toLocaleDateString("en-IN")}</p>
+                  <p className="text-base font-bold text-red-700"><strong>Outstanding Balance:</strong> ₹{(selectedCustomerForLedger.outstandingBalance || 0).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 flex-1 overflow-y-auto space-y-5 text-xs print:p-0 print:overflow-visible">
+              
+              {/* Row 1: Left (Record Payment) vs Right (Quick summary) - print hidden */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 print:hidden">
+                
+                {/* Collect Payment Form */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-900 space-y-4 lg:col-span-2">
+                  <h4 className="font-bold text-slate-200 text-xs border-b border-slate-900 pb-2 uppercase tracking-wider">Record Payment Collection</h4>
+                  <form onSubmit={handleCollectSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div className="space-y-1">
+                      <label className="text-slate-400 font-semibold">Amount Received (₹) *</label>
+                      <input 
+                        type="number" 
+                        required
+                        min="1"
+                        placeholder="e.g. 1500"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        className="w-full bg-slate-955 border border-slate-800 rounded-lg p-2 text-slate-105 focus:outline-none focus:border-orange-500 text-xs font-mono font-bold bg-slate-950"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-slate-400 font-semibold">Payment Mode</label>
+                      <select 
+                        value={collectMethod}
+                        onChange={(e) => setCollectMethod(e.target.value)}
+                        className="w-full bg-slate-955 border border-slate-800 rounded-lg p-2 bg-slate-955 text-slate-105 focus:outline-none focus:border-orange-500 text-xs bg-slate-950"
+                      >
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Card">Card</option>
+                      </select>
+                    </div>
+                    <div>
+                      <button 
+                        type="submit"
+                        className="w-full py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold rounded-lg shadow-md transition-transform active:scale-95 text-xs flex items-center justify-center gap-1.5"
+                      >
+                        Record Collection
+                      </button>
+                    </div>
+                    <div className="md:col-span-3 space-y-1">
+                      <label className="text-slate-400 font-semibold">Reference Notes / Comments</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Cleared invoice INV-004 partial balance"
+                        value={paymentNotes}
+                        onChange={(e) => setPaymentNotes(e.target.value)}
+                        className="w-full bg-slate-955 border border-slate-800 rounded-lg p-2 text-slate-105 focus:outline-none focus:border-orange-500 text-xs bg-slate-950"
+                      />
+                    </div>
+                  </form>
+                </div>
+
+                {/* Balance Card */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-900 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Current Balance Status</span>
+                    <h4 className="text-2xl font-black text-rose-450 font-mono mt-1">
+                      ₹{(selectedCustomerForLedger.outstandingBalance || 0).toFixed(2)}
+                    </h4>
+                    <p className="text-slate-450 text-[10px] mt-1">This amount represents the customer's total unpaid credit balance across all transactions.</p>
+                  </div>
+                  <div className="pt-3 border-t border-slate-900/80 text-[10px] text-slate-500">
+                    <div>Phone: <span className="font-mono font-bold text-slate-350">{selectedCustomerForLedger.phone}</span></div>
+                    <div className="mt-1">Pricing category: <span className="font-bold text-orange-400 uppercase">{selectedCustomerForLedger.priceCategory}</span></div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Ledger Entries Table */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-200 text-xs border-b border-slate-900 pb-2 uppercase tracking-wider flex justify-between print:hidden">
+                  <span>Ledger Transaction History</span>
+                  <span className="text-slate-500 font-normal">({activeLedger?.ledger?.length || 0} entries found)</span>
+                </h4>
+
+                <div className="border border-slate-850 rounded-xl overflow-hidden bg-slate-950/20 print:border-slate-950">
+                  <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                    <thead>
+                      <tr className="bg-slate-900 text-slate-450 border-b border-slate-850 uppercase text-[9px] font-bold print:bg-slate-200 print:text-slate-950 print:border-b-2 print:border-slate-950">
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Ref ID</th>
+                        <th className="p-3">Particulars / Description</th>
+                        <th className="p-3 text-right">Debit (Purchases)</th>
+                        <th className="p-3 text-right">Credit (Payments)</th>
+                        <th className="p-3 text-right">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850/60 text-slate-350 print:divide-slate-955 print:text-slate-950">
+                      {ledgerLoading && (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-slate-500"><FaSpinner className="animate-spin inline mr-2" /> Loading ledger records...</td>
+                        </tr>
+                      )}
+                      {activeLedger?.ledger?.map((entry, idx) => {
+                        const dateStr = entry.date ? new Date(entry.date).toLocaleDateString("en-IN") : "N/A";
+                        const refIdStr = entry.invoiceId || entry._id?.substring(18) || "N/A";
+                        return (
+                          <tr key={entry._id || idx} className="hover:bg-slate-900/20 transition-colors">
+                            <td className="p-3 font-mono">{dateStr}</td>
+                            <td className="p-3 font-mono font-semibold">{refIdStr}</td>
+                            <td className="p-3">
+                              <div>{entry.description}</div>
+                              {entry.notes && <div className="text-[10px] text-slate-500 mt-0.5 print:text-slate-600 font-serif">Note: {entry.notes}</div>}
+                            </td>
+                            <td className="p-3 text-right font-mono text-rose-455 print:text-rose-900">
+                              {entry.debit > 0 ? `₹${entry.debit.toFixed(2)}` : "-"}
+                            </td>
+                            <td className="p-3 text-right font-mono text-emerald-450 print:text-emerald-900">
+                              {entry.credit > 0 ? `₹${entry.credit.toFixed(2)}` : "-"}
+                            </td>
+                            <td className="p-3 text-right font-mono font-bold text-slate-100 print:text-slate-955">
+                              ₹{entry.balance.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {(!activeLedger || activeLedger.ledger.length === 0) && !ledgerLoading && (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-slate-500">No ledger transaction activities on record.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       )}

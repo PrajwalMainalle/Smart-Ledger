@@ -60,14 +60,48 @@ export const deleteCustomer = createAsyncThunk(
   }
 );
 
+export const fetchCustomerLedger = createAsyncThunk(
+  "customers/fetchCustomerLedger",
+  async (customerId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`/customers/${customerId}/ledger`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to load customer ledger"
+      );
+    }
+  }
+);
+
+export const collectPayment = createAsyncThunk(
+  "customers/collectPayment",
+  async (paymentData, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/billing/collection", paymentData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to record payment collection"
+      );
+    }
+  }
+);
+
 const customerSlice = createSlice({
   name: "customers",
   initialState: {
     customers: [],
     loading: false,
     error: null,
+    activeLedger: null,
+    ledgerLoading: false,
   },
-  reducers: {},
+  reducers: {
+    clearActiveLedger: (state) => {
+      state.activeLedger = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
       // Fetch Customers
@@ -137,8 +171,44 @@ const customerSlice = createSlice({
       .addCase(deleteCustomer.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Fetch Customer Ledger
+      .addCase(fetchCustomerLedger.pending, (state) => {
+        state.ledgerLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomerLedger.fulfilled, (state, action) => {
+        state.ledgerLoading = false;
+        state.activeLedger = action.payload;
+      })
+      .addCase(fetchCustomerLedger.rejected, (state, action) => {
+        state.ledgerLoading = false;
+        state.error = action.payload;
+      })
+      // Collect Payment
+      .addCase(collectPayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(collectPayment.fulfilled, (state, action) => {
+        state.loading = false;
+        const collectedPhone = action.meta.arg.customerPhone;
+        const index = state.customers.findIndex(c => c.phone === collectedPhone);
+        if (index !== -1) {
+          state.customers[index].outstandingBalance = action.payload.updatedBalance;
+        }
+        if (state.activeLedger && state.activeLedger.customer.phone === collectedPhone) {
+          state.activeLedger.customer.outstandingBalance = action.payload.updatedBalance;
+          state.activeLedger.ledger.push(action.payload.ledgerEntry);
+        }
+      })
+      .addCase(collectPayment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
+
+export const { clearActiveLedger } = customerSlice.actions;
 
 export default customerSlice.reducer;

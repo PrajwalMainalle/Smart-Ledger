@@ -40,6 +40,10 @@ const InvoiceItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  returnedQty: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const InvoiceSchema = new mongoose.Schema(
@@ -112,7 +116,7 @@ const InvoiceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-     pdfUrl: {
+    pdfUrl: {
       type: String,
       default: "",
     },
@@ -127,6 +131,42 @@ const InvoiceSchema = new mongoose.Schema(
       type: String,
       enum: ["Cash", "UPI", "Card"],
     },
+    amountPaid: {
+      type: Number,
+      default: 0.0,
+    },
+    outstandingAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    isReturnExchange: {
+      type: Boolean,
+      default: false,
+    },
+    returnedItems: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+        },
+        name: {
+          type: String,
+        },
+        qty: {
+          type: Number,
+        },
+        price: {
+          type: Number,
+        },
+        originalInvoiceId: {
+          type: String,
+        },
+        isDefective: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

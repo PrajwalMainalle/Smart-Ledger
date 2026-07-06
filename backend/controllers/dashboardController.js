@@ -1,5 +1,8 @@
 const Invoice = require("../models/Invoice");
 const Product = require("../models/Product");
+const Customer = require("../models/Customer");
+const CustomerLedger = require("../models/CustomerLedger");
+const DamagedStock = require("../models/DamagedStock");
 
 // @desc    Get dashboard KPIs and charts analytics
 // @route   GET /api/dashboard/summary
@@ -181,6 +184,30 @@ const getDashboardSummary = async (req, res) => {
       });
     });
 
+    // Fetch Credit / Debtors, Collections, Returns & Damaged Stock Reports
+    const creditCustomers = await Customer.find({ tenantId, outstandingBalance: { $gt: 0 } }).sort({ outstandingBalance: -1 });
+    const pendingCreditInvoices = await Invoice.find({ 
+      tenantId, 
+      paymentMethod: "Credit", 
+      outstandingAmount: { $gt: 0 }, 
+      status: "Paid", 
+      isQuotation: { $ne: true } 
+    }).sort({ date: -1 });
+    
+    const paymentsCollected = await CustomerLedger.find({ tenantId, type: "Payment" })
+      .populate("customerId", "name phone")
+      .sort({ date: -1 });
+      
+    const salesReturns = await Invoice.find({ 
+      tenantId, 
+      isReturnExchange: true, 
+      isQuotation: { $ne: true } 
+    }).sort({ date: -1 });
+    
+    const damagedStock = await DamagedStock.find({ tenantId })
+      .populate("productId", "name sku")
+      .sort({ date: -1 });
+
     res.json({
       kpis: {
         totalSales,
@@ -201,6 +228,11 @@ const getDashboardSummary = async (req, res) => {
         productReport,
         gstReport,
         salesDetailsReport,
+        creditCustomers,
+        pendingCreditInvoices,
+        paymentsCollected,
+        salesReturns,
+        damagedStock,
       },
     });
 

@@ -1,4 +1,5 @@
 const Customer = require("../models/Customer");
+const CustomerLedger = require("../models/CustomerLedger");
 
 // @desc    Get all customers for tenant
 // @route   GET /api/customers
@@ -104,9 +105,35 @@ const deleteCustomer = async (req, res) => {
   }
 };
 
+// @desc    Get ledger for a customer
+// @route   GET /api/customers/:id/ledger
+// @access  Private
+const getCustomerLedger = async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.user._id });
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found or unauthorized" });
+    }
+
+    const ledger = await CustomerLedger.find({
+      tenantId: req.user._id,
+      customerId: req.params.id,
+    }).sort({ date: 1 });
+
+    res.json({
+      customer,
+      ledger,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error fetching customer ledger" });
+  }
+};
+
 module.exports = {
   getCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  getCustomerLedger,
 };

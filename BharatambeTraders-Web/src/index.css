@@ -176,16 +176,16 @@ body, body * {
 }
 
 .details-label {
-  color: #64748b;
+  color: #000000;
   text-transform: uppercase;
   font-size: 8.5px;
-  font-weight: 600;
+  font-weight: 750;
   letter-spacing: 0.3px;
 }
 
 .details-val {
-  color: #334155;
-  font-weight: 600;
+  color: #000000;
+  font-weight: 750;
 }
 
 .receipt-table-container {
@@ -240,7 +240,8 @@ body, body * {
   padding: 4px 8px !important;
   border: none !important;
   font-size: 9px !important;
-  color: #1e293b !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
 }
 
 .inner-calc-table tr:not(:last-child) td {
@@ -274,8 +275,8 @@ body, body * {
 
 .sig-text {
   font-size: 8.5px;
-  font-weight: 700;
+  font-weight: 750;
   text-transform: uppercase;
-  color: #475569;
+  color: #000000;
 }
 

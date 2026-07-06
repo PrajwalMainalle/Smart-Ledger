@@ -28,6 +28,10 @@ const CustomerSchema = new mongoose.Schema(
       required: true,
       default: "retail",
     },
+    outstandingBalance: {
+      type: Number,
+      default: 0.0,
+    },
   },
   { timestamps: true }
 );
