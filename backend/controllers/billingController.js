@@ -480,7 +480,7 @@ const streamInvoicePDF = async (req, res) => {
 // @route   PUT /api/billing/:id/settle
 // @access  Private
 const settleInvoice = async (req, res) => {
-  const { settlementMethod, settlementDate } = req.body;
+  const { settlementMethod, settlementDate, amount } = req.body;
   try {
     const invoice = await Invoice.findOne({ _id: req.params.id, tenantId: req.user._id });
     if (!invoice) {
@@ -495,11 +495,62 @@ const settleInvoice = async (req, res) => {
       return res.status(400).json({ message: "Invalid settlement method. Must be Cash, UPI, or Card." });
     }
 
-    invoice.creditSettled = true;
+    const payVal = parseFloat(amount);
+    if (isNaN(payVal) || payVal <= 0) {
+      return res.status(400).json({ message: "Invalid settlement payment amount." });
+    }
+
+    if (payVal > invoice.outstandingAmount) {
+      return res.status(400).json({
+        message: `Settlement amount (₹${payVal.toFixed(2)}) exceeds the current outstanding amount (₹${invoice.outstandingAmount.toFixed(2)}).`
+      });
+    }
+
+    // Update invoice paid and outstanding amounts
+    invoice.amountPaid = (invoice.amountPaid || 0) + payVal;
+    invoice.outstandingAmount = Math.max(0, invoice.outstandingAmount - payVal);
+
+    // If outstanding is cleared, set creditSettled to true
+    if (invoice.outstandingAmount <= 0) {
+      invoice.creditSettled = true;
+    }
     invoice.settlementDate = settlementDate ? new Date(settlementDate) : new Date();
     invoice.settlementMethod = settlementMethod;
 
     const savedInvoice = await invoice.save();
+
+    // Regenerate invoice PDF with updated outstanding/paid values
+    const tenantUser = await User.findById(req.user._id);
+    try {
+      const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
+      const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+      await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Failed to regenerate invoice PDF during settlement:", pdfErr.message);
+    }
+
+    // Update customer outstanding balance and post ledger entry
+    if (invoice.customerPhone && invoice.customerPhone !== "N/A") {
+      const customer = await Customer.findOne({ tenantId: req.user._id, phone: invoice.customerPhone });
+      if (customer) {
+        customer.outstandingBalance = (customer.outstandingBalance || 0) - payVal;
+        await customer.save();
+
+        const ledgerEntry = new CustomerLedger({
+          tenantId: req.user._id,
+          customerId: customer._id,
+          invoiceId: invoice.invoiceId,
+          invoiceObjectId: invoice._id,
+          type: "Payment",
+          debit: 0,
+          credit: payVal,
+          balance: customer.outstandingBalance,
+          description: `Credit Payment Settlement for Invoice ${invoice.invoiceId} via ${settlementMethod}`,
+        });
+        await ledgerEntry.save();
+      }
+    }
+
     res.status(200).json(savedInvoice);
   } catch (error) {
     console.error("Invoice Settlement Error:", error);

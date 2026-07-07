@@ -38,9 +38,9 @@ function InvoiceList() {
   const averageTicket = activeInvoices.length > 0 ? totalRevenue / activeInvoices.length : 0;
 
   // Credit metrics
-  const creditInvoices = invoices.filter(inv => inv.paymentMethod === "Credit" && inv.status !== "Refunded");
+  const creditInvoices = invoices.filter(inv => inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status !== "Refunded");
   const creditCount = creditInvoices.length;
-  const totalCreditAmt = creditInvoices.reduce((acc, curr) => acc + curr.total, 0);
+  const totalCreditAmt = creditInvoices.reduce((acc, curr) => acc + (curr.outstandingAmount !== undefined ? curr.outstandingAmount : curr.total), 0);
 
   // Filtered List
   const filteredInvoices = invoices.filter((inv) => {
@@ -338,7 +338,14 @@ function InvoiceList() {
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-2 text-right font-black text-slate-100">₹{inv.total.toFixed(2)}</td>
+                      <td className="py-4 px-2 text-right font-black text-slate-100">
+                        <div>₹{inv.total.toFixed(2)}</div>
+                        {inv.paymentMethod === "Credit" && (
+                          <div className="text-[10px] text-purple-400 font-bold">
+                            Due: ₹{(inv.outstandingAmount !== undefined ? inv.outstandingAmount : (inv.creditSettled ? 0 : inv.total)).toFixed(2)}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button 
@@ -351,11 +358,16 @@ function InvoiceList() {
                           {inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status === "Paid" && (
                             <button 
                               onClick={() => {
+                                const outstanding = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.total;
                                 setSettleForm({
                                   invoiceId: inv._id,
                                   invoiceCode: inv.invoiceId,
                                   settlementMethod: "Cash",
-                                  settlementDate: new Date().toISOString().split('T')[0]
+                                  settlementDate: new Date().toISOString().split('T')[0],
+                                  totalAmount: inv.total,
+                                  alreadyPaid: inv.amountPaid || 0,
+                                  outstandingAmount: outstanding,
+                                  amount: outstanding
                                 });
                                 setShowSettleModal(true);
                               }}
@@ -673,7 +685,22 @@ function InvoiceList() {
             <form onSubmit={handleSettleSubmit} className="p-5 space-y-4 text-xs">
               <div>
                 <p className="text-slate-400 mb-1">Settling payment for invoice:</p>
-                <p className="font-mono text-sm font-bold text-slate-100">{settleForm.invoiceCode}</p>
+                <p className="font-mono text-sm font-bold text-slate-100 mb-2">{settleForm.invoiceCode}</p>
+                
+                <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-850 text-center font-mono text-[10px]">
+                  <div>
+                    <p className="text-[8px] text-slate-500 uppercase font-bold">Total Bill</p>
+                    <p className="font-bold text-slate-200">₹{settleForm.totalAmount?.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] text-emerald-500 uppercase font-bold">Paid</p>
+                    <p className="font-bold text-emerald-450 text-emerald-400">₹{settleForm.alreadyPaid?.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] text-purple-400 uppercase font-bold">Outstanding</p>
+                    <p className="font-bold text-purple-400">₹{settleForm.outstandingAmount?.toFixed(2)}</p>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -698,6 +725,16 @@ function InvoiceList() {
                     );
                   })}
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-450 font-bold uppercase tracking-wider text-[10px]">Settlement Amount Paid (₹)</label>
+                <input 
+                  type="number" step="0.01" min="0.01" max={settleForm.outstandingAmount} required
+                  value={settleForm.amount}
+                  onChange={(e) => setSettleForm({ ...settleForm, amount: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                />
               </div>
 
               <div className="space-y-1">

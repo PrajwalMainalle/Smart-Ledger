@@ -74,11 +74,12 @@ export const convertQuotation = createAsyncThunk(
 
 export const settleInvoice = createAsyncThunk(
   "billing/settleInvoice",
-  async ({ invoiceId, settlementMethod, settlementDate }, { rejectWithValue }) => {
+  async ({ invoiceId, settlementMethod, settlementDate, amount }, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.put(`/billing/${invoiceId}/settle`, {
         settlementMethod,
-        settlementDate
+        settlementDate,
+        amount
       });
       return response.data;
     } catch (error) {
