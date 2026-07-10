@@ -18,6 +18,7 @@ import { fetchProducts } from "../../inventory/inventorySlice";
 import { fetchCustomers, addCustomer } from "../../customers/customerSlice";
 import logo from "../../../assets/SLLogo.png";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import axiosInstance from "../../../app/api/axiosInstance";
 
 
 function POS() {

@@ -150,9 +150,14 @@ const createInvoice = async (req, res) => {
         }
         
         // Find the item in the original invoice
-        const origItem = origInvoice.items.find(
-          oi => oi.productId && oi.productId.toString() === retItem.productId.toString()
-        );
+        const origItem = origInvoice.items.find(oi => {
+          if (retItem.productId) {
+            return oi.productId && oi.productId.toString() === retItem.productId.toString();
+          } else {
+            return !oi.productId && oi.name === retItem.name;
+          }
+        });
+
         if (!origItem) {
           return res.status(404).json({ message: `Item '${retItem.name}' not found on invoice '${retItem.originalInvoiceId}'.` });
         }
@@ -183,17 +188,19 @@ const createInvoice = async (req, res) => {
         if (retItem.isDefective) {
           await DamagedStock.create({
             tenantId,
-            productId: retItem.productId,
+            productId: retItem.productId || null, // Allow null for custom/manual items
             name: retItem.name,
             sku: retItem.sku || "MANUAL",
             qty: retItem.qty,
             returnInvoiceId: retItem.originalInvoiceId,
           });
         } else {
-          const product = await Product.findOne({ _id: retItem.productId, tenantId });
-          if (product) {
-            product.stock += retItem.qty;
-            await product.save();
+          if (retItem.productId) {
+            const product = await Product.findOne({ _id: retItem.productId, tenantId });
+            if (product) {
+              product.stock += retItem.qty;
+              await product.save();
+            }
           }
         }
 
@@ -201,7 +208,7 @@ const createInvoice = async (req, res) => {
         returnedTotal += retVal;
 
         processedReturnedItems.push({
-          productId: retItem.productId,
+          productId: retItem.productId || null,
           name: retItem.name,
           qty: retItem.qty,
           price: retItem.price,
@@ -668,13 +675,19 @@ const lookupInvoice = async (req, res) => {
 
   try {
     const tenantId = req.user._id;
+
+    // Sanitise the search query: replace spaces/hyphens with a placeholder, escape regex specials, then set flexible pattern
+    const formatted = query.replace(/[\s-]+/g, "__SPACE_OR_HYPHEN__");
+    const escaped = formatted.replace(/[\/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const flexibleQuery = escaped.replace(/__SPACE_OR_HYPHEN__/g, "[\\s-]+");
+
     const invoices = await Invoice.find({
       tenantId,
       isQuotation: { $ne: true },
       $or: [
-        { invoiceId: { $regex: query, $options: "i" } },
-        { customerName: { $regex: query, $options: "i" } },
-        { customerPhone: { $regex: query, $options: "i" } },
+        { invoiceId: { $regex: flexibleQuery, $options: "i" } },
+        { customerName: { $regex: flexibleQuery, $options: "i" } },
+        { customerPhone: { $regex: flexibleQuery, $options: "i" } },
       ],
     }).sort({ date: -1 });
 
