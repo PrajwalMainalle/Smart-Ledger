@@ -1,6 +1,7 @@
 // Trigger Vercel build
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useLocation } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload } from "react-icons/fa";
 import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice } from "../billingSlice";
@@ -10,6 +11,7 @@ import logo from "../../../assets/SLLogo.png";
 
 function InvoiceList() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { invoices, loading, error } = useSelector((state) => state.billing);
   const { user, token: authStoreToken } = useSelector((state) => state.auth);
 
@@ -30,6 +32,14 @@ function InvoiceList() {
   useEffect(() => {
     dispatch(fetchInvoices());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (location.state && location.state.searchInvoiceId) {
+      setSearchTerm(location.state.searchInvoiceId);
+      // Clean up location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Math Calculations for Dashboard KPIs
   const activeInvoices = invoices.filter(inv => inv.status === "Paid");

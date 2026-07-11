@@ -11,6 +11,7 @@ const {
   lookupInvoice,
   getPendingCreditInvoices,
   recordCollection,
+  getCreditReminders,
 } = require("../controllers/billingController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -18,6 +19,7 @@ router.use(protect); // protect all billing routes
 
 router.get("/", getInvoices);
 router.post("/", createInvoice);
+router.get("/credit-reminders", getCreditReminders);
 router.get("/lookup-invoice", lookupInvoice);
 router.get("/customer/:phone/pending", getPendingCreditInvoices);
 router.post("/collection", recordCollection);

@@ -820,6 +820,46 @@ const recordCollection = async (req, res) => {
   }
 };
 
+// @desc    Get credit invoices overdue by more than 20 days
+// @route   GET /api/billing/credit-reminders
+// @access  Private
+const getCreditReminders = async (req, res) => {
+  try {
+    const tenantId = req.user._id;
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - 20);
+
+    const overdueInvoices = await Invoice.find({
+      tenantId,
+      paymentMethod: "Credit",
+      outstandingAmount: { $gt: 0 },
+      status: { $ne: "Refunded" },
+      isQuotation: { $ne: true },
+      date: { $lte: thresholdDate },
+    }).sort({ date: 1 }); // Oldest first
+
+    const reminders = overdueInvoices.map(inv => {
+      const daysElapsed = Math.floor((Date.now() - new Date(inv.date)) / (1000 * 60 * 60 * 24));
+      return {
+        _id: inv._id,
+        invoiceId: inv.invoiceId,
+        customerName: inv.customerName,
+        customerPhone: inv.customerPhone,
+        total: inv.total,
+        amountPaid: inv.amountPaid,
+        outstandingAmount: inv.outstandingAmount,
+        date: inv.date,
+        daysElapsed,
+      };
+    });
+
+    res.json(reminders);
+  } catch (error) {
+    console.error("Error in getCreditReminders:", error);
+    res.status(500).json({ message: "Server error fetching credit reminders", error: error.message });
+  }
+};
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -831,4 +871,5 @@ module.exports = {
   lookupInvoice,
   getPendingCreditInvoices,
   recordCollection,
+  getCreditReminders,
 };

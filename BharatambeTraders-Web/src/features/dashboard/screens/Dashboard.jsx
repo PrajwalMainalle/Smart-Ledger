@@ -93,6 +93,38 @@ function Dashboard() {
           </button>
         </div>
 
+        {/* Overdue Credit Warning Banner */}
+        {(() => {
+          const overdueCredits = data.reports?.pendingCreditInvoices?.filter(inv => {
+            const daysElapsed = Math.floor((Date.now() - new Date(inv.date)) / (1000 * 60 * 60 * 24));
+            return daysElapsed >= 20;
+          }) || [];
+
+          if (overdueCredits.length === 0) return null;
+
+          return (
+            <div className="bg-rose-500/10 border border-rose-500/20 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-rose-500/20 text-rose-450 rounded-xl mt-0.5 animate-pulse">
+                  <FaExclamationTriangle className="text-xl" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-100 text-sm md:text-base">Pending Credit Payments Attention Required!</h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    There {overdueCredits.length === 1 ? "is 1 customer credit invoice" : `are ${overdueCredits.length} customer credit invoices`} that {overdueCredits.length === 1 ? "has" : "have"} been outstanding for more than 20 days.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("/invoices", { state: { searchInvoiceId: overdueCredits[0].invoiceId } })}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-lg transition-transform active:scale-95 whitespace-nowrap self-stretch md:self-auto text-center"
+              >
+                Review &amp; Settle Credit
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Top Analytics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           

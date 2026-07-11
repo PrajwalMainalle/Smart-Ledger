@@ -1,14 +1,49 @@
+import { useState, useEffect, useRef } from "react";
 import { HiOutlineMenu } from "react-icons/hi";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import defaultLogo from "../assets/SLLogo.png";
 import { useTheme } from "./ThemeContext";
-import { FaSun, FaMoon, FaClock } from "react-icons/fa";
+import { FaSun, FaMoon, FaClock, FaBell } from "react-icons/fa";
+import axiosInstance from "../app/api/axiosInstance";
 
 const Headers = ({ onMenuClick }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { themeMode, theme, selectThemeMode } = useTheme();
+
+  const [reminders, setReminders] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const fetchReminders = async () => {
+    try {
+      const response = await axiosInstance.get("/billing/credit-reminders");
+      setReminders(response.data);
+    } catch (error) {
+      console.error("Failed to fetch credit reminders", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchReminders();
+      // Poll every 5 minutes
+      const interval = setInterval(fetchReminders, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const getPageName = () => {
     const path = location.pathname.split("/").filter(Boolean);
@@ -70,6 +105,79 @@ const Headers = ({ onMenuClick }) => {
             </>
           )}
         </button>
+
+        {/* Notifications (Overdue Credits) Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/50 hover:border-slate-600 transition flex items-center justify-center shadow-sm relative"
+            title="Notifications"
+          >
+            <FaBell className={`text-sm ${reminders.length > 0 ? "text-orange-400" : "text-slate-400"}`} />
+            {reminders.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 text-white rounded-full flex items-center justify-center text-[9px] font-black animate-bounce shadow">
+                {reminders.length}
+              </span>
+            )}
+          </button>
+
+          {showDropdown && (
+            <div className="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-200">Credit Reminders</span>
+                <span className="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full font-bold">
+                  {reminders.length} Overdue
+                </span>
+              </div>
+              <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/40">
+                {reminders.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                    <FaBell className="text-lg text-slate-700" />
+                    <span>No overdue credit reminders (20+ days).</span>
+                  </div>
+                ) : (
+                  reminders.map((rem) => (
+                    <div
+                      key={rem._id}
+                      className="p-3 hover:bg-slate-850/50 transition cursor-pointer"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        navigate("/invoices", { state: { searchInvoiceId: rem.invoiceId } });
+                      }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold text-slate-100 hover:text-orange-400 transition">{rem.customerName}</span>
+                        <span className="text-xs font-black text-rose-450">
+                          ₹{rem.outstandingAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Phone: {rem.customerPhone}
+                      </p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-[9px] bg-slate-800 text-slate-350 px-1.5 py-0.5 rounded font-mono border border-slate-700/50">
+                          {rem.invoiceId}
+                        </span>
+                        <span className="text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded font-bold">
+                          {rem.daysElapsed} days overdue
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div
+                className="px-4 py-2.5 bg-slate-850 border-t border-slate-800 text-center text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                onClick={() => {
+                  setShowDropdown(false);
+                  navigate("/invoices");
+                }}
+              >
+                View All Invoices
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="hidden lg:flex flex-col text-right">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider">Merchant Portal</span>
