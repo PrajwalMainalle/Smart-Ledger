@@ -95,10 +95,15 @@ function InvoiceList() {
 
   // Filtered List
   const filteredInvoices = invoices.filter((inv) => {
+    if (!inv) return false;
+    const invoiceId = inv.invoiceId || "";
+    const customerName = inv.customerName || "";
+    const customerPhone = inv.customerPhone || "";
+
     const matchesSearch = 
-      inv.invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.customerPhone.toLowerCase().includes(searchTerm.toLowerCase());
+      invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerPhone.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesPayment = paymentFilter === "All" || inv.paymentMethod === paymentFilter;
     

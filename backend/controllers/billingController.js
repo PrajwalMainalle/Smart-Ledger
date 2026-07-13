@@ -13,7 +13,7 @@ const fs = require("fs");
 // @access  Private
 const getInvoices = async (req, res) => {
   try {
-    const invoices = await Invoice.find({ tenantId: req.user._id }).sort({ date: -1 });
+    const invoices = await Invoice.find({ tenantId: req.user._id }).sort({ date: -1 }).lean();
     res.json(invoices);
   } catch (error) {
     console.error(error);

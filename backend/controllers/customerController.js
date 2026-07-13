@@ -6,7 +6,7 @@ const CustomerLedger = require("../models/CustomerLedger");
 // @access  Private
 const getCustomers = async (req, res) => {
   try {
-    const customers = await Customer.find({ tenantId: req.user._id }).sort({ name: 1 });
+    const customers = await Customer.find({ tenantId: req.user._id }).sort({ name: 1 }).lean();
     res.json(customers);
   } catch (error) {
     console.error(error);

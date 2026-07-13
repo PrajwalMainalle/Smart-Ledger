@@ -80,44 +80,6 @@ function POS() {
   const [returnQuantities, setReturnQuantities] = useState({});
   const [returnDefects, setReturnDefects] = useState({});
 
-  // Load products and customers on mount
-  useEffect(() => {
-    dispatch(fetchProducts());
-    dispatch(fetchCustomers());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (paymentMethod === "Split") {
-      setCashAmount(grandTotal);
-      setUpiAmount(0);
-    } else {
-      setCashAmount(0);
-      setUpiAmount(0);
-    }
-  }, [paymentMethod, grandTotal]);
-
-  useEffect(() => {
-    if (receiptData) {
-      setEditMethod(receiptData.paymentMethod);
-      setEditCash(receiptData.cashAmount || 0);
-      setEditUpi(receiptData.upiAmount || 0);
-      setEditAmountPaid(receiptData.amountPaid || 0);
-    }
-  }, [receiptData]);
-
-  // Categories list based on items
-  const categories = ["All", ...new Set(products.map((p) => p.category))];
-
-  // Filters
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory = activeCategory === "All" || product.category === activeCategory;
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
-
   // Totals calculations
   const calculateCartSubtotal = () => {
     return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -158,6 +120,48 @@ function POS() {
 
   const newTotal = discountedSubtotal + gstAmt;
   const grandTotal = Math.max(0, newTotal - returnedTotalWithTax);
+
+  // Load products and customers on mount
+  useEffect(() => {
+    dispatch(fetchProducts());
+    dispatch(fetchCustomers());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (paymentMethod === "Split") {
+      setCashAmount(grandTotal);
+      setUpiAmount(0);
+    } else {
+      setCashAmount(0);
+      setUpiAmount(0);
+    }
+  }, [paymentMethod, grandTotal]);
+
+  useEffect(() => {
+    if (receiptData) {
+      setEditMethod(receiptData.paymentMethod);
+      setEditCash(receiptData.cashAmount || 0);
+      setEditUpi(receiptData.upiAmount || 0);
+      setEditAmountPaid(receiptData.amountPaid || 0);
+    }
+  }, [receiptData]);
+
+  // Categories list based on items
+  const categories = ["All", ...new Set(products.map((p) => p?.category || "Stationery"))];
+
+  // Filters
+  const filteredProducts = products.filter((product) => {
+    if (!product) return false;
+    const matchesCategory = activeCategory === "All" || product.category === activeCategory;
+    const name = product.name || "";
+    const sku = product.sku || "";
+    const desc = product.description || "";
+    const matchesSearch = 
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      desc.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   // Handle SKU Quick add
   const handleSkuSearch = (e) => {
@@ -651,11 +655,17 @@ function POS() {
             />
             <IoSearch size={12} className="absolute left-3 top-3 text-slate-600" />
             
-            {showCustDropdown && customerSearch.trim() !== "" && (
-              <div className="absolute left-0 right-0 mt-1 z-30 bg-slate-900 border border-slate-800 rounded-lg max-h-48 overflow-y-auto shadow-2xl divide-y divide-slate-850">
-                {customers
-                  .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch))
-                  .map(cust => (
+            {showCustDropdown && customerSearch.trim() !== "" && (() => {
+              const matchedCustomers = customers.filter(c => {
+                if (!c) return false;
+                const name = c.name || "";
+                const phone = c.phone || "";
+                return name.toLowerCase().includes(customerSearch.toLowerCase()) || phone.includes(customerSearch);
+              });
+
+              return (
+                <div className="absolute left-0 right-0 mt-1 z-30 bg-slate-900 border border-slate-800 rounded-lg max-h-48 overflow-y-auto shadow-2xl divide-y divide-slate-850">
+                  {matchedCustomers.map(cust => (
                     <div 
                       key={cust._id}
                       onClick={() => {
@@ -676,13 +686,13 @@ function POS() {
                         <span className="text-orange-400 font-semibold">{cust.customerType} ({cust.priceCategory})</span>
                       </div>
                     </div>
-                  ))
-                }
-                {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch)).length === 0 && (
-                  <div className="p-2 text-center text-slate-500 text-xs">No customer profiles found.</div>
-                )}
-              </div>
-            )}
+                  ))}
+                  {matchedCustomers.length === 0 && (
+                    <div className="p-2 text-center text-slate-500 text-xs">No customer profiles found.</div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Current selected customer details panel */}

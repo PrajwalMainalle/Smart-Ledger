@@ -5,7 +5,7 @@ const Product = require("../models/Product");
 // @access  Private
 const getProducts = async (req, res) => {
   try {
-    const products = await Product.find({ tenantId: req.user._id }).sort({ createdAt: -1 });
+    const products = await Product.find({ tenantId: req.user._id }).sort({ createdAt: -1 }).lean();
     res.json(products);
   } catch (error) {
     console.error(error);

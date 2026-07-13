@@ -44,21 +44,25 @@ function ProductList() {
   }, [dispatch]);
 
   // Unique categories list for filters
-  const categories = ["All", ...new Set(products.map((p) => p.category))];
+  const categories = ["All", ...new Set(products.map((p) => p?.category || "Stationery"))];
 
   // Calculations for KPI banners
   const totalProducts = products.length;
-  const totalStockCount = products.reduce((acc, curr) => acc + curr.stock, 0);
-  const totalInventoryValue = products.reduce((acc, curr) => acc + (curr.price * curr.stock), 0);
-  const outOfStockCount = products.filter(p => p.stock === 0).length;
+  const totalStockCount = products.reduce((acc, curr) => acc + (curr.stock || 0), 0);
+  const totalInventoryValue = products.reduce((acc, curr) => acc + ((curr.price || 0) * (curr.stock || 0)), 0);
+  const outOfStockCount = products.filter(p => (p.stock || 0) === 0).length;
 
   // Filtered products list
   const filteredProducts = products.filter((prod) => {
+    if (!prod) return false;
     const matchesCategory = categoryFilter === "All" || prod.category === categoryFilter;
+    const name = prod.name || "";
+    const sku = prod.sku || "";
+    const desc = prod.description || "";
     const matchesSearch = 
-      prod.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prod.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (prod.description && prod.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      desc.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesCategory && matchesSearch;
   });

@@ -64,11 +64,16 @@ function PurchaseList() {
 
   // Filtered purchases list
   const filteredPurchases = purchases.filter((item) => {
+    if (!item) return false;
     const matchesPayment = paymentFilter === "All" || item.paymentMethod === paymentFilter;
+    const supplierName = item.supplierName || "";
+    const billNumber = item.billNumber || "";
+    const itemsList = item.items || [];
+    
     const matchesSearch =
-      item.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.items.some(it => it.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemsList.some(it => (it.name || "").toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesPayment && matchesSearch;
   });

@@ -12,11 +12,11 @@ const getDashboardSummary = async (req, res) => {
     const tenantId = req.user._id;
 
     // Fetch all invoices for tenant (excluding quotations)
-    const invoices = await Invoice.find({ tenantId, isQuotation: { $ne: true } }).sort({ date: -1 });
+    const invoices = await Invoice.find({ tenantId, isQuotation: { $ne: true } }).sort({ date: -1 }).lean();
     const paidInvoices = invoices.filter(inv => inv.status === "Paid");
 
     // Fetch all products
-    const products = await Product.find({ tenantId });
+    const products = await Product.find({ tenantId }).lean();
 
     // 1. Core KPIs
     const totalSales = paidInvoices.reduce((sum, inv) => sum + inv.total, 0);
@@ -185,28 +185,30 @@ const getDashboardSummary = async (req, res) => {
     });
 
     // Fetch Credit / Debtors, Collections, Returns & Damaged Stock Reports
-    const creditCustomers = await Customer.find({ tenantId, outstandingBalance: { $gt: 0 } }).sort({ outstandingBalance: -1 });
+    const creditCustomers = await Customer.find({ tenantId, outstandingBalance: { $gt: 0 } }).sort({ outstandingBalance: -1 }).lean();
     const pendingCreditInvoices = await Invoice.find({ 
       tenantId, 
       paymentMethod: "Credit", 
       outstandingAmount: { $gt: 0 }, 
       status: "Paid", 
       isQuotation: { $ne: true } 
-    }).sort({ date: -1 });
+    }).sort({ date: -1 }).lean();
     
     const paymentsCollected = await CustomerLedger.find({ tenantId, type: "Payment" })
       .populate("customerId", "name phone")
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
       
     const salesReturns = await Invoice.find({ 
       tenantId, 
       isReturnExchange: true, 
       isQuotation: { $ne: true } 
-    }).sort({ date: -1 });
+    }).sort({ date: -1 }).lean();
     
     const damagedStock = await DamagedStock.find({ tenantId })
       .populate("productId", "name sku")
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
 
     res.json({
       kpis: {

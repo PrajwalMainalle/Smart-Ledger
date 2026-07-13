@@ -47,10 +47,13 @@ function CustomerList() {
 
   // Filtered customer list
   const filteredCustomers = customers.filter((cust) => {
+    if (!cust) return false;
     const matchesType = typeFilter === "All" || cust.customerType === typeFilter;
+    const name = cust.name || "";
+    const phone = cust.phone || "";
     const matchesSearch = 
-      cust.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cust.phone.includes(searchTerm);
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      phone.includes(searchTerm);
     
     return matchesType && matchesSearch;
   });

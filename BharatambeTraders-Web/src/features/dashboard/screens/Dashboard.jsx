@@ -58,16 +58,17 @@ function Dashboard() {
   const { kpis, recentInvoices, lowStockProducts, paymentBreakdown, topSellingProducts } = data;
 
   // Generate SVG Chart Data points (last 6 daily sales logs)
-  const chartSales = [...data.reports.dailySales].slice(0, 6).reverse();
-  const maxTotal = Math.max(...chartSales.map(day => day.sales), 1000);
+  const chartSales = [...(data.reports?.dailySales || [])].slice(0, 6).reverse();
+  const maxTotal = Math.max(...chartSales.map(day => day?.sales || 0), 1000);
   const svgWidth = 500;
   const svgHeight = 200;
   const padding = 30;
 
   const points = chartSales.map((day, idx) => {
     const x = padding + (idx * (svgWidth - padding * 2)) / (Math.max(chartSales.length - 1, 1));
-    const y = svgHeight - padding - (day.sales * (svgHeight - padding * 2)) / maxTotal;
-    return { x, y, label: day.date.slice(5), total: day.sales }; // MM-DD label
+    const y = svgHeight - padding - ((day?.sales || 0) * (svgHeight - padding * 2)) / maxTotal;
+    const label = day?.date ? day.date.slice(5) : "";
+    return { x, y, label, total: day?.sales || 0 }; // MM-DD label
   });
 
   const svgLinePath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
