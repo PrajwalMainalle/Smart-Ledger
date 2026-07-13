@@ -100,8 +100,16 @@ const InvoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "UPI", "Card", "Credit"],
+      enum: ["Cash", "UPI", "Card", "Credit", "Split"],
       default: "Cash",
+    },
+    cashAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    upiAmount: {
+      type: Number,
+      default: 0.0,
     },
     status: {
       type: String,

@@ -90,6 +90,25 @@ export const settleInvoice = createAsyncThunk(
   }
 );
 
+export const updateInvoicePaymentMethod = createAsyncThunk(
+  "billing/updatePaymentMethod",
+  async ({ invoiceId, paymentMethod, cashAmount, upiAmount, amountPaid }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put(`/billing/${invoiceId}/payment-method`, {
+        paymentMethod,
+        cashAmount,
+        upiAmount,
+        amountPaid
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update payment method"
+      );
+    }
+  }
+);
+
 const billingSlice = createSlice({
   name: "billing",
   initialState: {
@@ -300,6 +319,27 @@ const billingSlice = createSlice({
         }
       })
       .addCase(convertQuotation.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Update Payment Method
+      .addCase(updateInvoicePaymentMethod.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateInvoicePaymentMethod.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.invoices.findIndex(
+          inv => (inv._id === action.payload._id || inv.id === action.payload.invoiceId)
+        );
+        if (index !== -1) {
+          state.invoices[index] = {
+            ...action.payload,
+            id: action.payload.invoiceId,
+          };
+        }
+      })
+      .addCase(updateInvoicePaymentMethod.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

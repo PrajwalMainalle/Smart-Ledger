@@ -37,7 +37,9 @@ const createInvoice = async (req, res) => {
     isQuotation, 
     isGstBilling,
     amountPaid,
-    returnedItems
+    returnedItems,
+    cashAmount,
+    upiAmount
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -224,10 +226,17 @@ const createInvoice = async (req, res) => {
     // Determine Paid Amount and Outstanding
     let paidAmount = 0;
     let outstandingAmount = 0;
+    let savedCashAmount = 0.0;
+    let savedUpiAmount = 0.0;
 
     if (paymentMethod === "Credit") {
       paidAmount = parseFloat(amountPaid) || 0.0;
       outstandingAmount = netTotal - paidAmount;
+    } else if (paymentMethod === "Split") {
+      savedCashAmount = parseFloat(cashAmount) || 0.0;
+      savedUpiAmount = parseFloat(upiAmount) || 0.0;
+      paidAmount = savedCashAmount + savedUpiAmount;
+      outstandingAmount = Math.max(0, netTotal - paidAmount);
     } else {
       paidAmount = netTotal;
       outstandingAmount = 0.0;
@@ -260,6 +269,8 @@ const createInvoice = async (req, res) => {
       gstAmount,
       total: netTotal,
       paymentMethod: paymentMethod || "Cash",
+      cashAmount: savedCashAmount,
+      upiAmount: savedUpiAmount,
       status: isQuotation ? "Quotation" : "Paid",
       isQuotation: isQuotation || false,
       isGstBilling: isGstBilling !== undefined ? isGstBilling : true,
@@ -860,6 +871,130 @@ const getCreditReminders = async (req, res) => {
   }
 };
 
+// @desc    Update invoice payment method and details after creation
+// @route   PUT /api/billing/:id/payment-method
+// @access  Private
+const updateInvoicePaymentMethod = async (req, res) => {
+  const { paymentMethod, cashAmount, upiAmount, amountPaid } = req.body;
+  try {
+    const invoice = await Invoice.findOne({ _id: req.params.id, tenantId: req.user._id });
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found or unauthorized" });
+    }
+
+    if (invoice.status === "Refunded") {
+      return res.status(400).json({ message: "Cannot update payment method for a refunded invoice" });
+    }
+
+    const oldPaidAmount = invoice.amountPaid || 0.0;
+    const oldPaymentMethod = invoice.paymentMethod;
+
+    // Validate paymentMethod
+    const validMethods = ["Cash", "UPI", "Card", "Credit", "Split"];
+    if (!validMethods.includes(paymentMethod)) {
+      return res.status(400).json({ message: "Invalid payment method" });
+    }
+
+    let newPaidAmount = 0.0;
+    let newCashAmount = 0.0;
+    let newUpiAmount = 0.0;
+
+    if (paymentMethod === "Credit") {
+      newPaidAmount = parseFloat(amountPaid) || 0.0;
+    } else if (paymentMethod === "Split") {
+      newCashAmount = parseFloat(cashAmount) || 0.0;
+      newUpiAmount = parseFloat(upiAmount) || 0.0;
+      newPaidAmount = newCashAmount + newUpiAmount;
+    } else {
+      // Cash, UPI, Card are fully paid
+      newPaidAmount = invoice.total;
+    }
+
+    const newOutstandingAmount = Math.max(0, invoice.total - newPaidAmount);
+
+    // Update invoice fields
+    invoice.paymentMethod = paymentMethod;
+    invoice.cashAmount = newCashAmount;
+    invoice.upiAmount = newUpiAmount;
+    invoice.amountPaid = newPaidAmount;
+    invoice.outstandingAmount = newOutstandingAmount;
+
+    // If it was a credit bill and is now fully paid (by cash/upi/split), or outstanding is 0
+    if (paymentMethod !== "Credit" || newOutstandingAmount <= 0) {
+      invoice.creditSettled = true;
+      invoice.settlementDate = new Date();
+      invoice.settlementMethod = paymentMethod === "Split" ? "UPI" : (["Cash", "UPI", "Card"].includes(paymentMethod) ? paymentMethod : "Cash");
+    } else {
+      // If it's credit and has outstanding, it's not settled
+      invoice.creditSettled = false;
+      invoice.settlementDate = undefined;
+      invoice.settlementMethod = undefined;
+    }
+
+    // Save invoice to DB
+    const savedInvoice = await invoice.save();
+
+    // Re-generate the invoice PDF file to show updated payment method & amounts
+    const tenantUser = await User.findById(req.user._id);
+    try {
+      const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
+      const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+      await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Failed to regenerate invoice PDF during payment method update:", pdfErr.message);
+    }
+
+    // Adjust customer ledger and outstanding balance if customer exists
+    if (invoice.customerPhone && invoice.customerPhone !== "N/A") {
+      const customer = await Customer.findOne({ tenantId: req.user._id, phone: invoice.customerPhone });
+      if (customer) {
+        // Revert old Payment ledger entries for this invoice
+        const paymentEntries = await CustomerLedger.find({
+          tenantId: req.user._id,
+          customerId: customer._id,
+          invoiceObjectId: invoice._id,
+          type: "Payment"
+        });
+
+        const totalOldPaymentCredit = paymentEntries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
+
+        await CustomerLedger.deleteMany({
+          tenantId: req.user._id,
+          customerId: customer._id,
+          invoiceObjectId: invoice._id,
+          type: "Payment"
+        });
+
+        // Revert the old payment credit, and apply new payment credit
+        customer.outstandingBalance = customer.outstandingBalance + totalOldPaymentCredit - newPaidAmount;
+        await customer.save();
+
+        // Create new Payment ledger entry if newPaidAmount > 0
+        if (newPaidAmount > 0) {
+          const newEntry = new CustomerLedger({
+            tenantId: req.user._id,
+            customerId: customer._id,
+            invoiceId: invoice.invoiceId,
+            invoiceObjectId: invoice._id,
+            type: "Payment",
+            debit: 0,
+            credit: newPaidAmount,
+            balance: customer.outstandingBalance,
+            description: `Payment details updated: ${paymentMethod} (Paid: ₹${newPaidAmount.toFixed(2)})`
+          });
+          await newEntry.save();
+        }
+      }
+    }
+
+    res.json(savedInvoice);
+
+  } catch (error) {
+    console.error("Error updating payment method:", error);
+    res.status(500).json({ message: "Server error updating payment method", error: error.message });
+  }
+};
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -872,4 +1007,5 @@ module.exports = {
   getPendingCreditInvoices,
   recordCollection,
   getCreditReminders,
+  updateInvoicePaymentMethod,
 };

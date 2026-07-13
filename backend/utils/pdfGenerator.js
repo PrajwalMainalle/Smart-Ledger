@@ -110,17 +110,22 @@ const drawPageHeader = (doc, invoice, tenant, pageNum) => {
     }
 
     let offset = 0;
-    if (invoice.paymentMethod === "Credit") {
-      offset = 12;
-      doc.font(fontBold).fontSize(8.5);
-      if (invoice.creditSettled) {
+    const isCredit = invoice.paymentMethod === "Credit";
+    const isSplit = invoice.paymentMethod === "Split";
+    if (isCredit || isSplit) {
+      if (invoice.outstandingAmount > 0) {
+        offset = 12;
+        doc.font(fontBold).fontSize(8.5);
+        doc.fillColor("#b91c1c"); // red
+        doc.text(isCredit ? "STATUS: UNPAID (CREDIT OUTSTANDING)" : "STATUS: PARTIALLY PAID (CREDIT OUTSTANDING)", margin + 5, metaY + 30);
+        doc.fillColor("#000000"); // reset
+      } else if (isCredit && invoice.creditSettled) {
+        offset = 12;
+        doc.font(fontBold).fontSize(8.5);
         doc.fillColor("#16a34a"); // green
         doc.text(`STATUS: SETTLED via ${invoice.settlementMethod.toUpperCase()} on ${new Date(invoice.settlementDate).toLocaleDateString("en-IN")}`, margin + 5, metaY + 30);
-      } else {
-        doc.fillColor("#b91c1c"); // red
-        doc.text("STATUS: UNPAID (CREDIT OUTSTANDING)", margin + 5, metaY + 30);
+        doc.fillColor("#000000"); // reset
       }
-      doc.fillColor("#000000"); // reset
     }
 
     doc.moveTo(margin, metaY + 30 + offset).lineTo(pageWidth - margin, metaY + 30 + offset).stroke(borderColor);
@@ -305,12 +310,17 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       // summary parameters
       const discountAmount = invoice.discountAmount || 0;
       const isCredit = invoice.paymentMethod === "Credit";
+      const isSplit = invoice.paymentMethod === "Split";
 
       // Calculate height needed for calculations column
       let calcRowsHeight = 0;
       if (discountAmount > 0) calcRowsHeight += 20;
       if (hasGst) calcRowsHeight += 40;
       if (isCredit) calcRowsHeight += 40;
+      if (isSplit) {
+        calcRowsHeight += 40;
+        if (invoice.outstandingAmount > 0) calcRowsHeight += 20;
+      }
 
       // The Grand Total row needs at least 20 points, but expands if needed to ensure the box is at least 75 points tall (so bank details don't overflow)
       const grandTotalHeight = Math.max(20, 75 - 20 - (discountAmount > 0 ? 20 : 0) - (hasGst ? 40 : 0));
@@ -344,12 +354,16 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
       }
       
-      // Divider below Grand Total (since we have extra rows under it for credit)
-      if (isCredit) {
+      // Divider below Grand Total (since we have extra rows under it for credit or split)
+      if (isCredit || isSplit) {
         lineY += grandTotalHeight;
         doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
         lineY += 20;
         doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
+        if (isSplit && invoice.outstandingAmount > 0) {
+          lineY += 20;
+          doc.moveTo(col3X, lineY).lineTo(pageWidth - margin, lineY).stroke(borderColor);
+        }
       }
 
       // Row 1: TOTAL columns
@@ -448,6 +462,21 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         doc.font(fontBold).text("OUTSTANDING BALANCE", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
         doc.fillColor("#000000").text(`₹${(invoice.outstandingAmount || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
         calcY += 20;
+      } else if (isSplit) {
+        doc.fillColor("#000000").font(fontBold).fontSize(7.5);
+        doc.text("CASH PAID", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+        doc.font(fontRegular).text(`₹${(invoice.cashAmount || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+        calcY += 20;
+
+        doc.font(fontBold).text("UPI PAID", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+        doc.font(fontRegular).text(`₹${(invoice.upiAmount || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+        calcY += 20;
+
+        if (invoice.outstandingAmount > 0) {
+          doc.font(fontBold).text("OUTSTANDING BALANCE", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+          doc.fillColor("#000000").text(`₹${(invoice.outstandingAmount || 0).toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+          calcY += 20;
+        }
       }
 
       // Signatures row

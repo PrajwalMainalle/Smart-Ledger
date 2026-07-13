@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload } from "react-icons/fa";
-import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice } from "../billingSlice";
+import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod } from "../billingSlice";
 import { fetchProducts } from "../../inventory/inventorySlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import logo from "../../../assets/SLLogo.png";
@@ -28,6 +28,46 @@ function InvoiceList() {
   // PDF Page Size & Orientation settings
   const [pageSize, setPageSize] = useState("auto");
   const [orientation, setOrientation] = useState("portrait");
+
+  // Edit payment method states for receipt modal
+  const [editMethod, setEditMethod] = useState("");
+  const [editCash, setEditCash] = useState(0);
+  const [editUpi, setEditUpi] = useState(0);
+  const [editAmountPaid, setEditAmountPaid] = useState(0);
+
+  useEffect(() => {
+    if (selectedInvoice) {
+      setEditMethod(selectedInvoice.paymentMethod);
+      setEditCash(selectedInvoice.cashAmount || 0);
+      setEditUpi(selectedInvoice.upiAmount || 0);
+      setEditAmountPaid(selectedInvoice.amountPaid || 0);
+    }
+  }, [selectedInvoice]);
+
+  const handleUpdatePaymentMethod = () => {
+    dispatch(updateInvoicePaymentMethod({
+      invoiceId: selectedInvoice._id,
+      paymentMethod: editMethod,
+      cashAmount: editMethod === "Split" ? editCash : 0,
+      upiAmount: editMethod === "Split" ? editUpi : 0,
+      amountPaid: editMethod === "Credit" ? editAmountPaid : (editMethod === "Split" ? (editCash + editUpi) : selectedInvoice.total)
+    })).then((res) => {
+      if (!res.error) {
+        const updated = res.payload;
+        setSelectedInvoice({
+          ...selectedInvoice,
+          paymentMethod: updated.paymentMethod,
+          cashAmount: updated.cashAmount,
+          upiAmount: updated.upiAmount,
+          amountPaid: updated.amountPaid,
+          outstandingAmount: updated.outstandingAmount,
+        });
+        alert("Payment method updated successfully!");
+      } else {
+        alert(res.payload || "Failed to update payment method");
+      }
+    });
+  };
 
   useEffect(() => {
     dispatch(fetchInvoices());
@@ -250,6 +290,7 @@ function InvoiceList() {
                 <option value="UPI">UPI</option>
                 <option value="Card">Card</option>
                 <option value="Credit">Credit</option>
+                <option value="Split">Split</option>
               </select>
             </div>
 
@@ -324,6 +365,7 @@ function InvoiceList() {
                             ${inv.paymentMethod === "UPI" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : ""}
                             ${inv.paymentMethod === "Cash" ? "bg-orange-500/10 border-orange-500/20 text-orange-400" : ""}
                             ${inv.paymentMethod === "Card" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : ""}
+                            ${inv.paymentMethod === "Split" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : ""}
                           `}>
                             {inv.paymentMethod}
                           </span>
@@ -613,6 +655,46 @@ function InvoiceList() {
                                         ₹{selectedInvoice.total.toFixed(2)}
                                       </td>
                                     </tr>
+                                    {selectedInvoice.paymentMethod === "Credit" && (
+                                      <>
+                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
+                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>PAID TODAY:</td>
+                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
+                                            ₹{(selectedInvoice.amountPaid || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                          <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
+                                          <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
+                                            ₹{(selectedInvoice.outstandingAmount || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      </>
+                                    )}
+                                    {selectedInvoice.paymentMethod === "Split" && (
+                                      <>
+                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
+                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>CASH PAID:</td>
+                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
+                                            ₹{(selectedInvoice.cashAmount || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>UPI PAID:</td>
+                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
+                                            ₹{(selectedInvoice.upiAmount || 0).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                        {selectedInvoice.outstandingAmount > 0 && (
+                                          <tr>
+                                            <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
+                                            <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
+                                              ₹{(selectedInvoice.outstandingAmount || 0).toFixed(2)}
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </>
+                                    )}
                                   </tbody>
                                 </table>
                               </td>
@@ -654,6 +736,95 @@ function InvoiceList() {
                   <FaDownload /> Download PDF
                 </a>
               </div>
+
+              {/* Payment Method Quick Change Option */}
+              {selectedInvoice.status === "Paid" && (
+                <div className="mt-2 p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2 text-xs text-left">
+                  <span className="font-bold text-slate-400 block">Change Payment Method:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Cash", "UPI", "Card", "Credit", "Split"].map((method) => {
+                      const active = editMethod === method;
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => {
+                            setEditMethod(method);
+                            if (method === "Split") {
+                              setEditCash(selectedInvoice.cashAmount || selectedInvoice.total);
+                              setEditUpi(selectedInvoice.upiAmount || 0);
+                            } else if (method === "Credit") {
+                              setEditAmountPaid(selectedInvoice.amountPaid || 0);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150
+                            ${active 
+                              ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
+                              : "bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200"
+                            }
+                          `}
+                        >
+                          {method}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {editMethod === "Split" && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Cash Amount (₹)</label>
+                        <input 
+                          type="number"
+                          value={editCash}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setEditCash(val);
+                            setEditUpi(Math.max(0, selectedInvoice.total - val));
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5">UPI Amount (₹)</label>
+                        <input 
+                          type="number"
+                          value={editUpi}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setEditUpi(val);
+                            setEditCash(Math.max(0, selectedInvoice.total - val));
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {editMethod === "Credit" && (
+                    <div className="mt-2">
+                      <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Amount Paid Today (₹)</label>
+                      <input 
+                        type="number"
+                        value={editAmountPaid}
+                        onChange={(e) => setEditAmountPaid(parseFloat(e.target.value) || 0)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
+                      />
+                    </div>
+                  )}
+
+                  {editMethod !== selectedInvoice.paymentMethod && (
+                    <button
+                      type="button"
+                      onClick={handleUpdatePaymentMethod}
+                      className="w-full mt-2 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold text-xs shadow-md"
+                    >
+                      Confirm Change (Updates Bill & PDF)
+                    </button>
+                  )}
+                </div>
+              )}
+
               {selectedInvoice.status === "Paid" && (
                 <button
                   onClick={() => handleRefund(selectedInvoice)}
