@@ -9,6 +9,8 @@ import {
   FaTrashAlt,
   FaExclamationTriangle,
   FaFileCsv,
+  FaChevronDown,
+  FaChevronRight,
 } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
@@ -26,6 +28,7 @@ function PurchaseList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentPurchaseId, setCurrentPurchaseId] = useState(null);
+  const [expandedPurchaseId, setExpandedPurchaseId] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -36,6 +39,7 @@ function PurchaseList() {
     paymentMethod: "Cash",
     status: "Paid",
     remarks: "",
+    transport: "",
     items: [
       { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18" }
     ]
@@ -116,7 +120,8 @@ function PurchaseList() {
       subtotal += itemSubtotal;
       gstAmount += itemGst;
     });
-    return { subtotal, gstAmount, total: subtotal + gstAmount };
+    const transportCost = parseFloat(formData.transport) || 0;
+    return { subtotal, gstAmount, transport: transportCost, total: subtotal + gstAmount + transportCost };
   };
 
   const formTotals = calculateFormTotals();
@@ -131,6 +136,7 @@ function PurchaseList() {
       paymentMethod: "Cash",
       status: "Paid",
       remarks: "",
+      transport: "",
       items: [{ productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18" }]
     });
     setCurrentPurchaseId(null);
@@ -194,6 +200,7 @@ function PurchaseList() {
       paymentMethod: purchase.paymentMethod,
       status: purchase.status,
       remarks: purchase.remarks || "",
+      transport: purchase.transport !== undefined ? purchase.transport.toString() : "",
       items: purchase.items.map(item => ({
         productId: item.productId || "",
         sku: item.sku || "",
@@ -249,7 +256,8 @@ function PurchaseList() {
 
   // Export to CSV for CA
   const exportToCSV = () => {
-    if (purchases.length === 0) return alert("No purchase data available to export");
+    const gstPurchases = purchases.filter(p => p.supplierGst && p.supplierGst.trim() !== "");
+    if (gstPurchases.length === 0) return alert("No GST purchase bills (with Supplier GSTIN) are available to export to CA.");
     
     // CSV Headers
     const headers = [
@@ -260,6 +268,7 @@ function PurchaseList() {
       "Payment Status",
       "Payment Method",
       "Taxable Value (Subtotal)",
+      "Transport Charges",
       "GST Paid (ITC)",
       "Total Amount Paid",
       "Item Details"
@@ -267,7 +276,7 @@ function PurchaseList() {
     
     const csvRows = [headers.join(",")];
     
-    purchases.forEach((p) => {
+    gstPurchases.forEach((p) => {
       const pDate = new Date(p.date).toLocaleDateString("en-IN");
       const itemSummaries = p.items.map(it => `${it.name} (x${it.qty} @ ${it.gstRate}%)`).join(" | ");
       
@@ -279,6 +288,7 @@ function PurchaseList() {
         `"${p.status}"`,
         `"${p.paymentMethod}"`,
         `"${p.subtotal.toFixed(2)}"`,
+        `"${(p.transport || 0).toFixed(2)}"`,
         `"${p.gstAmount.toFixed(2)}"`,
         `"${p.total.toFixed(2)}"`,
         `"${itemSummaries.replace(/"/g, '""')}"`
@@ -286,7 +296,7 @@ function PurchaseList() {
       csvRows.push(values.join(","));
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(r => r).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -376,8 +386,7 @@ function PurchaseList() {
         {/* Purchases log Table */}
         <div className="bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           {loading && <LoadingOverlay message="Syncing supplier bills..." />}
-          
-          <div className="overflow-x-auto">
+                 <div className="overflow-x-auto">
             <table className="w-full text-left text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-900/40 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
@@ -386,6 +395,7 @@ function PurchaseList() {
                   <th className="py-3 px-2">Bill Number</th>
                   <th className="py-3 px-2 text-center">Payment Status</th>
                   <th className="py-3 px-2 text-right">Taxable Value</th>
+                  <th className="py-3 px-2 text-right">Transport</th>
                   <th className="py-3 px-2 text-right">GST Paid</th>
                   <th className="py-3 px-2 text-right">Grand Total</th>
                   <th className="py-3 px-4 text-center">Actions</th>
@@ -395,57 +405,120 @@ function PurchaseList() {
                 {filteredPurchases.map((p) => {
                   const billDate = new Date(p.date).toLocaleDateString("en-IN");
                   const isPending = p.status === "Pending";
+                  const isExpanded = expandedPurchaseId === p._id;
 
                   return (
-                    <tr key={p._id} className="hover:bg-slate-900/20 transition-colors">
-                      <td className="py-4 px-4 font-mono font-semibold text-slate-400">{billDate}</td>
-                      <td className="py-4 px-2">
-                        <div>
-                          <div className="font-bold text-slate-100">{p.supplierName}</div>
-                          {p.supplierGst && (
-                            <div className="text-[10px] text-slate-500 font-mono">GSTIN: {p.supplierGst}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-2 font-mono font-bold text-slate-350">{p.billNumber}</td>
-                      <td className="py-4 px-2 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                          ${isPending 
-                            ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
-                            : "bg-emerald-500/10 text-emerald-450 border border-emerald-500/20"
-                          }
-                        `}>
-                          {p.status} ({p.paymentMethod})
-                        </span>
-                      </td>
-                      <td className="py-4 px-2 text-right font-mono">₹{p.subtotal.toFixed(2)}</td>
-                      <td className="py-4 px-2 text-right font-mono text-emerald-450">₹{p.gstAmount.toFixed(2)}</td>
-                      <td className="py-4 px-2 text-right font-mono font-bold text-slate-100">₹{p.total.toFixed(2)}</td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => openEditModal(p)}
-                            className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded border border-slate-700 transition"
-                            title="Edit purchase record"
-                          >
-                            <FaEdit size={12} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(p._id, p.billNumber, p.supplierName)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded border border-rose-500/20 transition"
-                            title="Delete purchase record"
-                          >
-                            <FaTrashAlt size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                    <React.Fragment key={p._id}>
+                      <tr className="hover:bg-slate-900/20 transition-colors">
+                        <td className="py-4 px-4 font-mono font-semibold text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setExpandedPurchaseId(isExpanded ? null : p._id); }}
+                              className="text-slate-500 hover:text-slate-300 focus:outline-none transition p-1"
+                              title={isExpanded ? "Collapse details" : "Expand details"}
+                            >
+                              {isExpanded ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />}
+                            </button>
+                            <span>{billDate}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-2">
+                          <div>
+                            <div className="font-bold text-slate-100">{p.supplierName}</div>
+                            {p.supplierGst && (
+                              <div className="text-[10px] text-slate-500 font-mono">GSTIN: {p.supplierGst}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-2 font-mono font-bold text-slate-350">{p.billNumber}</td>
+                        <td className="py-4 px-2 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                            ${isPending 
+                              ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" 
+                              : "bg-emerald-500/10 text-emerald-450 border border-emerald-500/20"
+                            }
+                          `}>
+                            {p.status} ({p.paymentMethod})
+                          </span>
+                        </td>
+                        <td className="py-4 px-2 text-right font-mono">₹{p.subtotal.toFixed(2)}</td>
+                        <td className="py-4 px-2 text-right font-mono text-orange-450">₹{(p.transport || 0).toFixed(2)}</td>
+                        <td className="py-4 px-2 text-right font-mono text-emerald-450">₹{p.gstAmount.toFixed(2)}</td>
+                        <td className="py-4 px-2 text-right font-mono font-bold text-slate-100">₹{p.total.toFixed(2)}</td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => openEditModal(p)}
+                              className="p-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded border border-slate-700 transition"
+                              title="Edit purchase record"
+                            >
+                              <FaEdit size={12} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(p._id, p.billNumber, p.supplierName)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded border border-rose-500/20 transition"
+                              title="Delete purchase record"
+                            >
+                              <FaTrashAlt size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-slate-950/60">
+                          <td colSpan="9" className="py-4 px-6 border-b border-slate-900">
+                            <div className="space-y-3">
+                              <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Purchase Bill Items Details</div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {p.items.map((it, itemIdx) => {
+                                  const price = it.price || 0;
+                                  const qty = it.qty || 1;
+                                  const itemSubtotal = price * qty;
+                                  const itemGst = (itemSubtotal * (it.gstRate || 0)) / 100;
+                                  const subtotal = p.subtotal || 0;
+                                  const transport = p.transport || 0;
+                                  let priceWithTransport = price;
+                                  if (subtotal > 0 && transport > 0) {
+                                    priceWithTransport = price * (1 + transport / subtotal);
+                                  }
+
+                                  return (
+                                    <div key={itemIdx} className="bg-slate-900/40 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between space-y-2">
+                                      <div className="flex justify-between items-start">
+                                        <div className="font-semibold text-slate-200">{it.name}</div>
+                                        <div className="text-slate-400 font-mono text-[11px]">Qty: <span className="text-slate-200 font-bold">{qty}</span></div>
+                                      </div>
+                                      
+                                      <div className="flex justify-between items-center text-[11px] font-mono text-slate-400 border-t border-slate-800/40 pt-2 mt-1">
+                                        <div>
+                                          <span className="text-slate-500">Price (No Transport): </span>
+                                          <span className="text-slate-300">₹{price.toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-slate-500">With Transport: </span>
+                                          <span className="text-orange-400 font-bold">₹{priceWithTransport.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex justify-between items-center text-[10px] font-mono text-slate-500">
+                                        <span>GST: {it.gstRate}% (₹{itemGst.toFixed(2)})</span>
+                                        <span>Total: ₹{(itemSubtotal + itemGst).toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
 
                 {filteredPurchases.length === 0 && !loading && (
                   <tr>
-                    <td colSpan="8" className="py-12 text-center text-slate-500 text-sm">No supplier purchase bills found.</td>
+                    <td colSpan="9" className="py-12 text-center text-slate-500 text-sm">No supplier purchase bills found.</td>
                   </tr>
                 )}
               </tbody>
@@ -475,7 +548,7 @@ function PurchaseList() {
             <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit} className="p-6 space-y-4 text-xs">
               
               {/* Supplier & Bill Metadata */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-slate-400 font-semibold">Supplier Name *</label>
                   <input 
@@ -495,6 +568,17 @@ function PurchaseList() {
                     maxLength={15}
                     value={formData.supplierGst}
                     onChange={(e) => setFormData({ ...formData, supplierGst: e.target.value.toUpperCase() })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Transport Charges (Optional)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="e.g. 150"
+                    value={formData.transport}
+                    onChange={(e) => setFormData({ ...formData, transport: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
                   />
                 </div>
@@ -562,75 +646,102 @@ function PurchaseList() {
                 </div>
 
                 <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-                  {formData.items.map((item, idx) => (
-                    <div key={idx} className="flex gap-3 items-end bg-slate-950/40 p-3 rounded-lg border border-slate-800/60 relative group">
-                      <div className="flex-1 space-y-1">
-                        <label className="text-slate-500 font-medium">Item Name *</label>
-                        <input 
-                          type="text" 
-                          required
-                          placeholder="Search or type product name..."
-                          list={`product-options-${idx}`}
-                          value={item.name}
-                          onChange={(e) => handleItemNameChange(idx, e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500"
-                        />
-                        <datalist id={`product-options-${idx}`}>
-                          {products.map(p => (
-                            <option key={p._id || p.id} value={p.name}>
-                              SKU: {p.sku} | Cost: ₹{(p.prices?.purchase || p.price || 0).toFixed(2)}
-                            </option>
-                          ))}
-                        </datalist>
-                      </div>
-                      
-                      <div className="w-24 space-y-1">
-                        <label className="text-slate-500 font-medium">Net Price *</label>
-                        <input 
-                          type="number" step="0.01" required
-                          placeholder="₹"
-                          value={item.price}
-                          onChange={(e) => handleItemChange(idx, "price", e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
-                        />
-                      </div>
+                  {formData.items.map((item, idx) => {
+                    const price = parseFloat(item.price) || 0;
+                    const qty = parseInt(item.qty) || 0;
+                    const subtotal = formTotals.subtotal;
+                    const transport = formTotals.transport;
+                    let priceWithTransport = price;
+                    if (subtotal > 0 && transport > 0) {
+                      priceWithTransport = price * (1 + transport / subtotal);
+                    }
 
-                      <div className="w-20 space-y-1">
-                        <label className="text-slate-500 font-medium">Qty *</label>
-                        <input 
-                          type="number" required
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
-                        />
-                      </div>
+                    return (
+                      <div key={idx} className="bg-slate-950/40 p-3 rounded-lg border border-slate-800/60 space-y-2 relative group">
+                        <div className="flex gap-3 items-end">
+                          <div className="flex-1 space-y-1">
+                            <label className="text-slate-500 font-medium">Item Name *</label>
+                            <input 
+                              type="text" 
+                              required
+                              placeholder="Search or type product name..."
+                              list={`product-options-${idx}`}
+                              value={item.name}
+                              onChange={(e) => handleItemNameChange(idx, e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500"
+                            />
+                            <datalist id={`product-options-${idx}`}>
+                              {products.map(p => (
+                                <option key={p._id || p.id} value={p.name}>
+                                  SKU: {p.sku} | Cost: ₹{(p.prices?.purchase || p.price || 0).toFixed(2)}
+                                </option>
+                              ))}
+                            </datalist>
+                          </div>
+                          
+                          <div className="w-24 space-y-1">
+                            <label className="text-slate-500 font-medium">Net Price *</label>
+                            <input 
+                              type="number" step="0.01" required
+                              placeholder="₹"
+                              value={item.price}
+                              onChange={(e) => handleItemChange(idx, "price", e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                            />
+                          </div>
 
-                      <div className="w-28 space-y-1">
-                        <label className="text-slate-500 font-medium">GST Rate</label>
-                        <select 
-                          value={item.gstRate}
-                          onChange={(e) => handleItemChange(idx, "gstRate", e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none"
-                        >
-                          <option value="0">0% (Exempt)</option>
-                          <option value="5">5% GST</option>
-                          <option value="12">12% GST</option>
-                          <option value="18">18% GST</option>
-                        </select>
-                      </div>
+                          <div className="w-20 space-y-1">
+                            <label className="text-slate-500 font-medium">Qty *</label>
+                            <input 
+                              type="number" required
+                              value={item.qty}
+                              onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                            />
+                          </div>
 
-                      {formData.items.length > 1 && (
-                        <button 
-                          type="button"
-                          onClick={() => handleRemoveItemRow(idx)}
-                          className="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded border border-rose-500/20 transition mb-0.5"
-                          title="Remove item"
-                        >
-                          <FaTrashAlt size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                          <div className="w-28 space-y-1">
+                            <label className="text-slate-500 font-medium">GST Rate</label>
+                            <select 
+                              value={item.gstRate}
+                              onChange={(e) => handleItemChange(idx, "gstRate", e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none"
+                            >
+                              <option value="0">0% (Exempt)</option>
+                              <option value="5">5% GST</option>
+                              <option value="12">12% GST</option>
+                              <option value="18">18% GST</option>
+                            </select>
+                          </div>
+
+                          {formData.items.length > 1 && (
+                            <button 
+                              type="button"
+                              onClick={() => handleRemoveItemRow(idx)}
+                              className="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded border border-rose-500/20 transition mb-0.5"
+                              title="Remove item"
+                            >
+                              <FaTrashAlt size={12} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Cost comparison line */}
+                        <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 px-1 border-t border-slate-900/60 pt-1.5">
+                          <div>
+                            <span>Value per unit (no transport): </span>
+                            <span className="text-slate-200 font-semibold">₹{price.toFixed(2)}</span>
+                          </div>
+                          {transport > 0 && subtotal > 0 && (
+                            <div className="text-orange-400">
+                              <span>Value per unit (with transport): </span>
+                              <span className="font-bold">₹{priceWithTransport.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

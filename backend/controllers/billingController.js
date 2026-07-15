@@ -995,6 +995,62 @@ const updateInvoicePaymentMethod = async (req, res) => {
   }
 };
 
+// @desc    Delete an invoice (reverts stock adjustments and customer ledger/balance)
+// @route   DELETE /api/billing/:id
+// @access  Private
+const deleteInvoice = async (req, res) => {
+  try {
+    const invoice = await Invoice.findOne({ _id: req.params.id, tenantId: req.user._id });
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found or unauthorized" });
+    }
+
+    // 1. Restock items back to inventory (only if not a quotation)
+    if (!invoice.isQuotation) {
+      for (const item of invoice.items) {
+        if (item.isManualItem) continue;
+        const product = await Product.findOne({ _id: item.productId, tenantId: req.user._id });
+        if (product) {
+          product.stock += item.qty;
+          await product.save();
+        }
+      }
+    }
+
+    // 2. Adjust customer outstanding balance and delete customer ledger entries if credit/payment registered
+    if (!invoice.isQuotation && invoice.customerPhone && invoice.customerPhone !== "N/A") {
+      const customer = await Customer.findOne({ tenantId: req.user._id, phone: invoice.customerPhone });
+      if (customer) {
+        const netChange = invoice.outstandingAmount || 0;
+        customer.outstandingBalance -= netChange;
+        await customer.save();
+
+        // Delete all ledger entries associated with this invoice ID
+        await CustomerLedger.deleteMany({ tenantId: req.user._id, customerId: customer._id, invoiceId: invoice.invoiceId });
+      }
+    }
+
+    // 3. Delete the PDF file on disk
+    const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
+    const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+    if (fs.existsSync(absolutePdfPath)) {
+      try {
+        fs.unlinkSync(absolutePdfPath);
+      } catch (err) {
+        console.error(`Failed to delete invoice PDF file: ${pdfFilename}`, err);
+      }
+    }
+
+    // 4. Delete the invoice from database
+    await Invoice.deleteOne({ _id: invoice._id });
+
+    res.json({ success: true, message: "Invoice deleted and stock/ledger reverted successfully" });
+  } catch (error) {
+    console.error("Delete Invoice Error:", error);
+    res.status(500).json({ message: "Failed to delete invoice", error: error.message });
+  }
+};
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -1008,4 +1064,5 @@ module.exports = {
   recordCollection,
   getCreditReminders,
   updateInvoicePaymentMethod,
+  deleteInvoice,
 };

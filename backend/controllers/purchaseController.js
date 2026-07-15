@@ -18,7 +18,7 @@ const getPurchaseBills = async (req, res) => {
 // @route   POST /api/purchases
 // @access  Private
 const createPurchaseBill = async (req, res) => {
-  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks } = req.body;
+  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport } = req.body;
 
   if (!billNumber || !supplierName) {
     return res.status(400).json({ message: "Bill number and supplier name are required" });
@@ -66,13 +66,15 @@ const createPurchaseBill = async (req, res) => {
       });
     });
 
-    const total = subtotal + gstAmount;
+    const transportCost = parseFloat(transport) || 0;
+    const total = subtotal + gstAmount + transportCost;
 
     const purchase = new Purchase({
       tenantId: req.user._id,
       billNumber: billNumber.trim(),
       supplierName: supplierName.trim(),
       supplierGst: (supplierGst || "").trim(),
+      transport: transportCost,
       date: date || new Date(),
       items: purchaseItems,
       subtotal,
@@ -114,7 +116,7 @@ const createPurchaseBill = async (req, res) => {
 // @access  Private
 const updatePurchaseBill = async (req, res) => {
   const { id } = req.params;
-  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks } = req.body;
+  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport } = req.body;
 
   try {
     const purchase = await Purchase.findOne({ _id: id, tenantId: req.user._id });
@@ -150,6 +152,7 @@ const updatePurchaseBill = async (req, res) => {
     if (paymentMethod) purchase.paymentMethod = paymentMethod;
     if (status) purchase.status = status;
     if (remarks !== undefined) purchase.remarks = remarks;
+    if (transport !== undefined) purchase.transport = parseFloat(transport) || 0;
 
     if (items && items.length > 0) {
       // Revert old stock levels first
@@ -191,8 +194,9 @@ const updatePurchaseBill = async (req, res) => {
       purchase.items = purchaseItems;
       purchase.subtotal = subtotal;
       purchase.gstAmount = gstAmount;
-      purchase.total = subtotal + gstAmount;
     }
+
+    purchase.total = purchase.subtotal + purchase.gstAmount + purchase.transport;
 
     const updatedPurchase = await purchase.save();
 

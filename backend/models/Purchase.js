@@ -55,6 +55,10 @@ const PurchaseSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    transport: {
+      type: Number,
+      default: 0.0,
+    },
     date: {
       type: Date,
       default: Date.now,

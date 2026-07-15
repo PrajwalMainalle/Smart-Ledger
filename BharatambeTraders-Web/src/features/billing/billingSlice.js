@@ -238,6 +238,16 @@ const billingSlice = createSlice({
       state.discount = 0;
       state.paymentMethod = "Cash";
     },
+    restoreCartAndBillingState: (state, action) => {
+      const { cart, customerName, customerPhone, customerType, priceCategory, discount, paymentMethod } = action.payload;
+      state.cart = cart || [];
+      state.customerName = customerName || "";
+      state.customerPhone = customerPhone || "";
+      state.customerType = customerType || "Retail";
+      state.priceCategory = priceCategory || "retail";
+      state.discount = discount || 0;
+      state.paymentMethod = paymentMethod || "Cash";
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -376,7 +386,8 @@ export const {
   setCustomerInfo,
   setPaymentMethod,
   setDiscount,
-  clearCart
+  clearCart,
+  restoreCartAndBillingState
 } = billingSlice.actions;
 
 export default billingSlice.reducer;

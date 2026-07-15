@@ -13,7 +13,8 @@ import {
   setPaymentMethod, 
   checkout,
   clearCart,
-  updateInvoicePaymentMethod
+  updateInvoicePaymentMethod,
+  restoreCartAndBillingState
 } from "../billingSlice";
 import { fetchProducts } from "../../inventory/inventorySlice";
 import { fetchCustomers, addCustomer } from "../../customers/customerSlice";
@@ -289,6 +290,87 @@ function POS() {
         alert(res.payload || "Failed to update payment method");
       }
     });
+  };
+
+  const handleEditCurrentBill = async () => {
+    if (!receiptData) return;
+
+    if (!window.confirm("Are you sure you want to cancel this generated invoice and load items back to the cart to edit them?")) {
+      return;
+    }
+
+    try {
+      await axiosInstance.delete(`/billing/${receiptData._id}`);
+
+      const restoredCart = receiptData.items.map(item => {
+        if (item.isManualItem) {
+          return {
+            id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            productId: null,
+            name: item.name,
+            price: item.price,
+            originalPrice: item.price,
+            prices: { retail: item.price },
+            priceCategoryUsed: "manual",
+            qty: item.qty,
+            gstRate: item.gstRate || 0,
+            sku: "MANUAL",
+            maxStock: 999999,
+            isManualItem: true
+          };
+        } else {
+          const prod = products.find(p => p._id === item.productId);
+          const currentStock = prod ? prod.stock : 0;
+          return {
+            id: item.productId,
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            originalPrice: prod ? prod.price : item.price,
+            prices: prod ? prod.prices : {},
+            priceCategoryUsed: item.priceCategoryUsed || "retail",
+            qty: item.qty,
+            gstRate: item.gstRate || 0,
+            sku: item.sku,
+            maxStock: currentStock + item.qty,
+            isManualItem: false
+          };
+        }
+      });
+
+      dispatch(restoreCartAndBillingState({
+        cart: restoredCart,
+        customerName: receiptData.customerName,
+        customerPhone: receiptData.customerPhone,
+        customerType: receiptData.customerType || "Retail",
+        priceCategory: receiptData.priceCategory || "retail",
+        discount: receiptData.discountPercent || 0,
+        paymentMethod: receiptData.paymentMethod || "Cash"
+      }));
+
+      setDiscountValue(receiptData.discountPercent || 0);
+      setDiscountType("percent");
+      setIsGstBilling(receiptData.isGstBilling !== false);
+      setIsQuotation(receiptData.isQuotation || false);
+      if (receiptData.paymentMethod === "Credit") {
+        setAmountPaidToday(receiptData.amountPaid || 0);
+      } else if (receiptData.paymentMethod === "Split") {
+        setCashAmount(receiptData.cashAmount || 0);
+        setUpiAmount(receiptData.upiAmount || 0);
+      }
+      
+      setCustomerSearch(receiptData.customerName === "Walk-in Customer" ? "" : receiptData.customerName);
+
+      dispatch(fetchProducts());
+
+      setShowCheckoutModal(false);
+      setReceiptData(null);
+
+      alert("Invoice cancelled and items restored to cart. You can now modify and checkout again.");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to edit bill items");
+    }
   };
 
   // Browser Printing Trigger using dynamic PDF streaming (via blob same-origin URL to avoid CORS blocks)
@@ -1372,6 +1454,13 @@ function POS() {
                 >
                   <FaDownload /> Download PDF
                 </a>
+                <button
+                  type="button"
+                  onClick={handleEditCurrentBill}
+                  className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition"
+                >
+                  ✏️ Edit items / Add to Bill
+                </button>
               </div>
 
               {/* Payment Method Quick Change Option */}

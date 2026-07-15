@@ -38,6 +38,7 @@ function Reports() {
     const rateMap = {};
 
     purchaseData.forEach(p => {
+      if (!p.supplierGst || p.supplierGst.trim() === "") return;
       if (!p.items) return;
       p.items.forEach(item => {
         const price = parseFloat(item.price) || 0;
