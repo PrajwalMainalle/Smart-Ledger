@@ -188,7 +188,8 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       if (!hasGst) {
         try {
           const qrPhone = invoice.total >= 5000 ? "6364676448" : "6361037157";
-          const upiString = `upi://pay?pa=${qrPhone}@ybl&pn=Bharatambe%20Traders&cu=INR&am=${invoice.total.toFixed(2)}`;
+          const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
+          const upiString = `upi://pay?pa=${qrPhone}@ybl&pn=Bharatambe%20Traders&cu=INR&am=${qrAmount.toFixed(2)}`;
           qrBuffer = await QRCode.toBuffer(upiString, { width: 120, margin: 1 });
         } catch (qrErr) {
           console.error("Failed to generate QR Code for invoice PDF:", qrErr);
@@ -419,8 +420,9 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         doc.fillColor("#000000").font(fontBold).fontSize(7.5);
         doc.text("BHARATAMBE TRADERS", margin + 56, bankDetailsY + 10);
         const qrPhone = invoice.total >= 5000 ? "6364676448" : "6361037157";
+        const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
         doc.text(`Mobile: ${qrPhone}`, margin + 56, bankDetailsY + 18);
-        doc.text(`Amount: ₹${invoice.total.toFixed(2)}`, margin + 56, bankDetailsY + 26);
+        doc.text(`Amount: ₹${qrAmount.toFixed(2)}`, margin + 56, bankDetailsY + 26);
         doc.fillColor("#000000").fontSize(6.5).text("Scan with GPay/PhonePe/Paytm", margin + 56, bankDetailsY + 34);
       }
 
