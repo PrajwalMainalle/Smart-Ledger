@@ -1,7 +1,7 @@
 // Trigger Vercel build
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload } from "react-icons/fa";
 import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod } from "../billingSlice";
@@ -12,6 +12,7 @@ import logo from "../../../assets/SLLogo.png";
 function InvoiceList() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
   const { invoices, loading, error } = useSelector((state) => state.billing);
   const { user, token: authStoreToken } = useSelector((state) => state.auth);
 
@@ -133,6 +134,13 @@ function InvoiceList() {
           setSelectedInvoice(prev => ({ ...prev, status: "Refunded" }));
         }
       });
+    }
+  };
+
+  // Handle Edit/Exchange Action
+  const handleEditInvoice = (inv) => {
+    if (window.confirm(`Are you sure you want to edit Invoice ${inv.invoiceId}?\nThis will load its items into the POS screen, where you can modify items and save the updated bill.`)) {
+      navigate("/billing", { state: { editInvoice: inv } });
     }
   };
 
@@ -831,12 +839,20 @@ function InvoiceList() {
               )}
 
               {selectedInvoice.status === "Paid" && (
-                <button
-                  onClick={() => handleRefund(selectedInvoice)}
-                  className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs"
-                >
-                  Issue Return Refund
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleRefund(selectedInvoice)}
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs"
+                  >
+                    Issue Return Refund
+                  </button>
+                  <button
+                    onClick={() => handleEditInvoice(selectedInvoice)}
+                    className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-xs"
+                  >
+                    ✏️ Edit / Exchange Items
+                  </button>
+                </div>
               )}
               {selectedInvoice.status === "Quotation" && (
                 <button

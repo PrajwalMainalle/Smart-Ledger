@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { MdDeleteOutline, MdClear } from "react-icons/md";
 import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload } from "react-icons/fa";
@@ -12,6 +13,7 @@ import {
   setCustomerInfo, 
   setPaymentMethod, 
   checkout,
+  updateInvoice,
   clearCart,
   updateInvoicePaymentMethod,
   restoreCartAndBillingState
@@ -25,6 +27,8 @@ import axiosInstance from "../../../app/api/axiosInstance";
 
 function POS() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   
   // Selectors
   const { products, loading: productsLoading } = useSelector((state) => state.inventory);
@@ -80,6 +84,8 @@ function POS() {
   const [selectedInvoiceForReturn, setSelectedInvoiceForReturn] = useState(null);
   const [returnQuantities, setReturnQuantities] = useState({});
   const [returnDefects, setReturnDefects] = useState({});
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null);
+  const [editingInvoiceNumber, setEditingInvoiceNumber] = useState("");
 
   // Totals calculations
   const calculateCartSubtotal = () => {
@@ -128,6 +134,77 @@ function POS() {
     dispatch(fetchCustomers());
   }, [dispatch]);
 
+  // Load invoice back to POS for editing/exchange if passed in state
+  useEffect(() => {
+    if (location.state && location.state.editInvoice && products.length > 0) {
+      const invoice = location.state.editInvoice;
+      
+      const restoredCart = invoice.items.map(item => {
+        if (item.isManualItem) {
+          return {
+            id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            productId: null,
+            name: item.name,
+            price: item.price,
+            originalPrice: item.price,
+            prices: { retail: item.price },
+            priceCategoryUsed: "manual",
+            qty: item.qty,
+            gstRate: item.gstRate || 0,
+            sku: "MANUAL",
+            maxStock: 999999,
+            isManualItem: true
+          };
+        } else {
+          const prod = products.find(p => p._id === item.productId);
+          const currentStock = prod ? prod.stock : 0;
+          return {
+            id: item.productId,
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            originalPrice: prod ? prod.price : item.price,
+            prices: prod ? prod.prices : {},
+            priceCategoryUsed: item.priceCategoryUsed || "retail",
+            qty: item.qty,
+            gstRate: item.gstRate || 0,
+            sku: item.sku,
+            maxStock: currentStock + item.qty,
+            isManualItem: false
+          };
+        }
+      });
+
+      dispatch(restoreCartAndBillingState({
+        cart: restoredCart,
+        customerName: invoice.customerName,
+        customerPhone: invoice.customerPhone,
+        customerType: invoice.customerType || "Retail",
+        priceCategory: invoice.priceCategory || "retail",
+        discount: invoice.discountPercent || 0,
+        paymentMethod: invoice.paymentMethod || "Cash"
+      }));
+
+      setDiscountValue(invoice.discountPercent || 0);
+      setDiscountType("percent");
+      setIsGstBilling(invoice.isGstBilling !== false);
+      setIsQuotation(invoice.isQuotation || false);
+      setEditingInvoiceId(invoice._id);
+      setEditingInvoiceNumber(invoice.invoiceId);
+      setCustomerSearch(invoice.customerName === "Walk-in Customer" ? "" : invoice.customerName);
+
+      if (invoice.paymentMethod === "Credit") {
+        setAmountPaidToday(invoice.amountPaid || 0);
+      } else if (invoice.paymentMethod === "Split") {
+        setCashAmount(invoice.cashAmount || 0);
+        setUpiAmount(invoice.upiAmount || 0);
+      }
+
+      // Clear router location state so it doesn't trigger on every rerender
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, products, dispatch]);
+
   useEffect(() => {
     if (paymentMethod === "Split") {
       setCashAmount(grandTotal);
@@ -137,6 +214,12 @@ function POS() {
       setUpiAmount(0);
     }
   }, [paymentMethod, grandTotal]);
+
+  useEffect(() => {
+    if (grandTotal === 0 && (returnedItems.length > 0 || editingInvoiceId)) {
+      dispatch(setPaymentMethod("Exchange"));
+    }
+  }, [grandTotal, returnedItems.length, editingInvoiceId, dispatch]);
 
   useEffect(() => {
     if (receiptData) {
@@ -212,17 +295,34 @@ function POS() {
       gstRate: isGstBilling ? (item.gstRate || 0) : 0
     }));
 
-    dispatch(checkout({
-      discountType,
-      discountValue,
-      isQuotation,
-      items: checkoutItems,
-      isGstBilling,
-      amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : grandTotal),
-      returnedItems: returnedItems,
-      cashAmount: paymentMethod === "Split" ? cashAmount : 0,
-      upiAmount: paymentMethod === "Split" ? upiAmount : 0,
-    })).then((res) => {
+    const checkoutAction = editingInvoiceId
+      ? updateInvoice({
+          invoiceId: editingInvoiceId,
+          checkoutData: {
+            discountType,
+            discountValue,
+            isQuotation,
+            items: checkoutItems,
+            isGstBilling,
+            amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+            returnedItems: returnedItems,
+            cashAmount: paymentMethod === "Split" ? cashAmount : 0,
+            upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+          }
+        })
+      : checkout({
+          discountType,
+          discountValue,
+          isQuotation,
+          items: checkoutItems,
+          isGstBilling,
+          amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+          returnedItems: returnedItems,
+          cashAmount: paymentMethod === "Split" ? cashAmount : 0,
+          upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+        });
+
+    dispatch(checkoutAction).then((res) => {
       if (!res.error) {
         const savedInvoice = res.payload;
         
@@ -258,6 +358,8 @@ function POS() {
         setIsQuotation(false); // Reset quotation toggle
         setAmountPaidToday(0);
         setReturnedItems([]);
+        setEditingInvoiceId(null);
+        setEditingInvoiceNumber("");
 
         // Open printing popup modal
         setShowCheckoutModal(true);
@@ -556,6 +658,25 @@ function POS() {
     <div className="flex flex-col xl:flex-row gap-6 bg-slate-950 text-slate-100 min-h-screen xl:min-h-0 xl:h-[calc(100vh-96px)] rounded-2xl border border-slate-900 overflow-hidden relative">
       
       {checkoutLoading && <LoadingOverlay message="Processing invoice transaction..." />}
+
+      {editingInvoiceId && (
+        <div className="absolute top-0 inset-x-0 bg-amber-500/20 border-b border-amber-500/35 px-4 py-3 flex items-center justify-between text-xs text-amber-250 font-bold z-40 backdrop-blur-md">
+          <span className="flex items-center gap-1.5">
+            ⚠️ You are editing Invoice: <span className="font-mono underline">{editingInvoiceNumber}</span>. Saving checkout will modify this bill directly.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingInvoiceId(null);
+              setEditingInvoiceNumber("");
+              dispatch(clearCart());
+            }}
+            className="text-amber-400 hover:text-amber-200 uppercase font-mono tracking-wider hover:underline"
+          >
+            Cancel Edit
+          </button>
+        </div>
+      )}
 
       {/* LEFT: PRODUCTS BROWSER */}
       <div className="flex-1 p-6 space-y-6 flex flex-col xl:h-full xl:overflow-y-auto">
@@ -1037,24 +1158,30 @@ function POS() {
         <div className="space-y-2.5">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-450 block">Payment Method</span>
           <div className="flex flex-wrap gap-1.5">
-            {["Cash", "UPI", "Card", "Credit", "Split"].map((method) => {
-              const active = paymentMethod === method;
-              return (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => dispatch(setPaymentMethod(method))}
-                  className={`flex-1 min-w-[70px] py-2 rounded-lg text-xs font-bold border transition-all duration-150
-                    ${active 
-                      ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
-                      : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
-                    }
-                  `}
-                >
-                  {method}
-                </button>
-              );
-            })}
+            {(() => {
+              const baseMethods = ["Cash", "UPI", "Card", "Credit", "Split"];
+              const methods = (returnedItems.length > 0 || editingInvoiceId)
+                ? [...baseMethods, "Exchange"]
+                : baseMethods;
+              return methods.map((method) => {
+                const active = paymentMethod === method;
+                return (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => dispatch(setPaymentMethod(method))}
+                    className={`flex-1 min-w-[70px] py-2 rounded-lg text-xs font-bold border transition-all duration-150
+                      ${active 
+                        ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
+                        : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
+                      }
+                    `}
+                  >
+                    {method}
+                  </button>
+                );
+              });
+            })()}
           </div>
         </div>
 

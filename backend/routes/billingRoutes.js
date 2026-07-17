@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getInvoices,
   createInvoice,
+  updateInvoice,
   refundInvoice,
   convertQuotationToSale,
   streamInvoicePDF,
@@ -21,6 +22,7 @@ router.use(protect); // protect all billing routes
 
 router.get("/", getInvoices);
 router.post("/", createInvoice);
+router.put("/:id", updateInvoice);
 router.get("/credit-reminders", getCreditReminders);
 router.get("/lookup-invoice", lookupInvoice);
 router.get("/customer/:phone/pending", getPendingCreditInvoices);

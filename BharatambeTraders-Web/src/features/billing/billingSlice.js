@@ -42,6 +42,32 @@ export const checkout = createAsyncThunk(
   }
 );
 
+export const updateInvoice = createAsyncThunk(
+  "billing/updateInvoice",
+  async ({ invoiceId, checkoutData }, { getState, rejectWithValue }) => {
+    try {
+      const state = getState().billing;
+      
+      const payload = {
+        customerName: state.customerName,
+        customerPhone: state.customerPhone,
+        customerType: state.customerType,
+        items: state.cart,
+        discountPercent: state.discount,
+        paymentMethod: state.paymentMethod,
+        ...checkoutData,
+      };
+
+      const response = await axiosInstance.put(`/billing/${invoiceId}`, payload);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Invoice update failed"
+      );
+    }
+  }
+);
+
 export const refundInvoice = createAsyncThunk(
   "billing/refundInvoice",
   async (invoiceId, { rejectWithValue }) => {
@@ -287,6 +313,33 @@ const billingSlice = createSlice({
         state.paymentMethod = "Cash";
       })
       .addCase(checkout.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Update Invoice
+      .addCase(updateInvoice.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateInvoice.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.invoices.findIndex(
+          inv => (inv._id === action.payload._id || inv.id === action.payload.invoiceId)
+        );
+        if (index !== -1) {
+          state.invoices[index] = {
+            ...action.payload,
+            id: action.payload.invoiceId,
+          };
+        }
+        // Clear cart values after checkout success
+        state.cart = [];
+        state.customerName = "";
+        state.customerPhone = "";
+        state.discount = 0;
+        state.paymentMethod = "Cash";
+      })
+      .addCase(updateInvoice.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

@@ -995,6 +995,270 @@ const updateInvoicePaymentMethod = async (req, res) => {
   }
 };
 
+// @desc    Update an existing invoice (modify items/exchange)
+// @route   PUT /api/billing/:id
+// @access  Private
+const updateInvoice = async (req, res) => {
+  const { 
+    customerName, 
+    customerPhone, 
+    customerType, 
+    items, 
+    discountType, 
+    discountValue, 
+    discountPercent, 
+    paymentMethod, 
+    isQuotation, 
+    isGstBilling,
+    amountPaid,
+    returnedItems,
+    cashAmount,
+    upiAmount
+  } = req.body;
+
+  if (!items || items.length === 0) {
+    return res.status(400).json({ message: "No items provided in cart" });
+  }
+
+  try {
+    const tenantId = req.user._id;
+    const invoice = await Invoice.findOne({ _id: req.params.id, tenantId });
+
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found or unauthorized" });
+    }
+
+    // 1. Temporarily revert stock level for the original items
+    if (!invoice.isQuotation) {
+      for (const origItem of invoice.items) {
+        if (origItem.isManualItem || !origItem.productId) continue;
+        const product = await Product.findOne({ _id: origItem.productId, tenantId });
+        if (product) {
+          product.stock += origItem.qty;
+          await product.save();
+        }
+      }
+    }
+
+    // 2. Verify stock availability for the new cart items
+    const checkedItems = [];
+    const productsMap = {};
+    for (const cartItem of items) {
+      if (cartItem.isManualItem) {
+        continue;
+      }
+      const pId = cartItem.id || cartItem.productId;
+      const product = await Product.findOne({ _id: pId, tenantId });
+      if (!product) {
+        // Revert back original stock levels if a product is missing
+        if (!invoice.isQuotation) {
+          for (const origItem of invoice.items) {
+            if (origItem.isManualItem || !origItem.productId) continue;
+            const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
+            if (origProd) {
+              origProd.stock -= origItem.qty;
+              await origProd.save();
+            }
+          }
+        }
+        return res.status(404).json({ message: `Product '${cartItem.name}' not found in inventory` });
+      }
+      if (!isQuotation && product.stock < cartItem.qty) {
+        // Revert back original stock levels if stock is insufficient
+        if (!invoice.isQuotation) {
+          for (const origItem of invoice.items) {
+            if (origItem.isManualItem || !origItem.productId) continue;
+            const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
+            if (origProd) {
+              origProd.stock -= origItem.qty;
+              await origProd.save();
+            }
+          }
+        }
+        return res.status(400).json({
+          message: `Insufficient stock for product '${product.name}'. Required: ${cartItem.qty}, Available: ${product.stock}`
+        });
+      }
+      checkedItems.push({ product, qty: cartItem.qty });
+      productsMap[pId] = product;
+    }
+
+    // 3. Compute Invoice Totals
+    let subtotal = 0;
+    const invoiceItems = [];
+
+    items.forEach((item) => {
+      const itemSubtotal = item.price * item.qty;
+      subtotal += itemSubtotal;
+
+      if (item.isManualItem) {
+        invoiceItems.push({
+          productId: null,
+          name: item.name,
+          price: item.price,
+          purchasePrice: 0,
+          priceCategoryUsed: "manual",
+          qty: item.qty,
+          gstRate: item.gstRate || 0,
+          sku: "MANUAL",
+          isManualItem: true,
+        });
+      } else {
+        const pId = item.id || item.productId;
+        const productDoc = productsMap[pId];
+        const purchasePrice = productDoc && productDoc.prices ? (productDoc.prices.get("purchase") || 0) : 0;
+        invoiceItems.push({
+          productId: pId,
+          name: item.name,
+          price: item.price,
+          purchasePrice: purchasePrice,
+          priceCategoryUsed: item.priceCategoryUsed || "retail",
+          qty: item.qty,
+          gstRate: item.gstRate || 0,
+          sku: item.sku,
+          isManualItem: false,
+        });
+      }
+    });
+
+    let discountAmount = 0;
+    let discPercent = 0;
+
+    if (discountType === "fixed") {
+      discountAmount = Math.min(parseFloat(discountValue) || 0, subtotal);
+      discPercent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+    } else {
+      discPercent = parseFloat(discountValue !== undefined ? discountValue : discountPercent) || 0;
+      discountAmount = (subtotal * discPercent) / 100;
+    }
+    const discountedSubtotal = subtotal - discountAmount;
+
+    // Compute GST
+    const discountRatio = subtotal > 0 ? discountedSubtotal / subtotal : 1;
+    let gstAmount = 0;
+    invoiceItems.forEach((item) => {
+      if (isGstBilling !== false) {
+        const itemSubtotal = item.price * item.qty;
+        const discountedItemSubtotal = itemSubtotal * discountRatio;
+        const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
+        gstAmount += itemGst;
+      }
+    });
+
+    const netTotal = discountedSubtotal + gstAmount;
+
+    // 4. Deduct Stock Levels for new purchases
+    if (!isQuotation) {
+      for (const checked of checkedItems) {
+        checked.product.stock -= checked.qty;
+        await checked.product.save();
+      }
+    }
+
+    // Determine Paid Amount and Outstanding
+    let paidAmount = 0;
+    let outstandingAmount = 0;
+    let savedCashAmount = 0.0;
+    let savedUpiAmount = 0.0;
+
+    if (paymentMethod === "Credit") {
+      paidAmount = parseFloat(amountPaid) || 0.0;
+      outstandingAmount = netTotal - paidAmount;
+    } else if (paymentMethod === "Split") {
+      savedCashAmount = parseFloat(cashAmount) || 0.0;
+      savedUpiAmount = parseFloat(upiAmount) || 0.0;
+      paidAmount = savedCashAmount + savedUpiAmount;
+      outstandingAmount = Math.max(0, netTotal - paidAmount);
+    } else if (paymentMethod === "Exchange") {
+      paidAmount = 0.0;
+      outstandingAmount = 0.0;
+    } else {
+      paidAmount = netTotal;
+      outstandingAmount = 0.0;
+    }
+
+    // 5. Revert and Update Customer Outstanding Balance and Ledger
+    if (!isQuotation) {
+      // Revert original invoice's effect on customer balance
+      if (invoice.customerPhone && invoice.customerPhone !== "N/A") {
+        const origCustomer = await Customer.findOne({ tenantId, phone: invoice.customerPhone });
+        if (origCustomer) {
+          origCustomer.outstandingBalance -= (invoice.outstandingAmount || 0);
+          await origCustomer.save();
+        }
+      }
+
+      // Apply new outstanding amount to current customer
+      if (customerPhone && customerPhone !== "N/A") {
+        const customer = await Customer.findOne({ tenantId, phone: customerPhone });
+        if (customer) {
+          customer.outstandingBalance += outstandingAmount;
+          await customer.save();
+
+          // Delete all old customer ledger entries associated with this invoice ID
+          await CustomerLedger.deleteMany({ tenantId, customerId: customer._id, invoiceId: invoice.invoiceId });
+
+          const postLedgerEntry = async (type, debit, credit, description) => {
+            const entry = new CustomerLedger({
+              tenantId,
+              customerId: customer._id,
+              invoiceId: invoice.invoiceId,
+              invoiceObjectId: invoice._id,
+              type,
+              debit,
+              credit,
+              balance: customer.outstandingBalance,
+              description,
+            });
+            await entry.save();
+          };
+
+          // Purchase entry
+          if (netTotal > 0) {
+            await postLedgerEntry("Purchase", netTotal, 0, `Purchase Invoice ${invoice.invoiceId} (Updated)`);
+          }
+          // Payment entry
+          if (paidAmount > 0) {
+            await postLedgerEntry("Payment", 0, paidAmount, `Payment received on Invoice ${invoice.invoiceId} (Updated)`);
+          }
+        }
+      }
+    }
+
+    // Update Invoice Fields
+    invoice.customerName = customerName || "Walk-in Customer";
+    invoice.customerPhone = customerPhone || "N/A";
+    invoice.customerType = customerType || "Retail";
+    invoice.items = invoiceItems;
+    invoice.subtotal = subtotal;
+    invoice.discountPercent = discPercent;
+    invoice.discountAmount = discountAmount;
+    invoice.gstAmount = gstAmount;
+    invoice.total = netTotal;
+    invoice.paymentMethod = paymentMethod || "Cash";
+    invoice.cashAmount = savedCashAmount;
+    invoice.upiAmount = savedUpiAmount;
+    invoice.amountPaid = paidAmount;
+    invoice.outstandingAmount = outstandingAmount;
+    invoice.isGstBilling = isGstBilling !== undefined ? isGstBilling : true;
+
+    // Save invoice changes to database
+    const savedInvoice = await invoice.save();
+
+    // 6. Re-generate Invoice PDF file
+    const tenantUser = await User.findById(tenantId);
+    const pdfFilename = `${tenantId}_${invoice.invoiceId}.pdf`;
+    const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+    await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+
+    res.json(savedInvoice);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error executing invoice update", error: error.message });
+  }
+};
+
 // @desc    Delete an invoice (reverts stock adjustments and customer ledger/balance)
 // @route   DELETE /api/billing/:id
 // @access  Private
@@ -1054,6 +1318,7 @@ const deleteInvoice = async (req, res) => {
 module.exports = {
   getInvoices,
   createInvoice,
+  updateInvoice,
   refundInvoice,
   convertQuotationToSale,
   streamInvoicePDF,
