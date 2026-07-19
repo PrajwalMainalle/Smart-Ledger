@@ -1,5 +1,6 @@
 const Purchase = require("../models/Purchase");
 const Product = require("../models/Product");
+const User = require("../models/User");
 
 // @desc    Get all purchase bills for tenant
 // @route   GET /api/purchases
@@ -40,21 +41,41 @@ const createPurchaseBill = async (req, res) => {
       return res.status(400).json({ message: `A purchase bill with number '${billNumber}' already exists for supplier '${supplierName}'` });
     }
 
+    // Fetch tenant user to get their GSTIN
+    const tenantUser = await User.findById(req.user._id);
+    const tenantGst = tenantUser.profile?.gstNumber || "";
+
+    const purchaseSource = req.body.purchaseSource || (supplierGst && supplierGst.trim() !== "" ? "GST" : "Non-GST");
+    const isGst = purchaseSource === "GST";
+
     // Compute subtotal, gstAmount, total
     let subtotal = 0;
+    let totalItemDiscounts = 0;
     let gstAmount = 0;
+    let taxableAmount = 0;
     const purchaseItems = [];
 
     items.forEach((item) => {
       const price = parseFloat(item.price) || 0;
       const qty = parseInt(item.qty) || 0;
-      const gstRate = parseFloat(item.gstRate) || 0;
+      const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
+      const hsnCode = item.hsnCode || "";
+      const schDiscount = parseFloat(item.schDiscount) || 0;
+      const splDiscount = parseFloat(item.splDiscount) || 0;
 
       const itemSubtotal = price * qty;
-      const itemGst = (itemSubtotal * gstRate) / 100;
+      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemGst = isGst ? ((itemTaxable * gstRate) / 100) : 0;
 
       subtotal += itemSubtotal;
+      totalItemDiscounts += (itemSubtotal - itemTaxable);
       gstAmount += itemGst;
+      
+      if (isGst && gstRate > 0) {
+        taxableAmount += itemTaxable;
+      } else if (!isGst) {
+        taxableAmount += itemTaxable;
+      }
 
       purchaseItems.push({
         productId: item.productId || null,
@@ -63,20 +84,63 @@ const createPurchaseBill = async (req, res) => {
         price,
         qty,
         gstRate,
+        hsnCode,
+        schDiscount,
+        splDiscount,
+        taxableAmount: itemTaxable
       });
     });
 
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+
+    if (isGst && gstAmount > 0) {
+      let isInterstate = false;
+      if (supplierGst && supplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+        const supplierStateCode = supplierGst.trim().substring(0, 2);
+        const tenantStateCode = tenantGst.trim().substring(0, 2);
+        if (supplierStateCode !== tenantStateCode) {
+          isInterstate = true;
+        }
+      }
+      if (isInterstate) {
+        igst = gstAmount;
+      } else {
+        cgst = gstAmount / 2;
+        sgst = gstAmount / 2;
+      }
+    }
+
     const transportCost = parseFloat(transport) || 0;
-    const total = subtotal + gstAmount + transportCost;
+    
+    // Overall invoice level discounts
+    const discountAmount = parseFloat(req.body.discountAmount) || totalItemDiscounts;
+    const cashDiscountPercent = parseFloat(req.body.cashDiscountPercent) || 0;
+    let cashDiscountAmount = parseFloat(req.body.cashDiscountAmount) || 0;
+    if (cashDiscountPercent > 0 && cashDiscountAmount === 0) {
+      cashDiscountAmount = taxableAmount * (cashDiscountPercent / 100);
+    }
+
+    const total = taxableAmount - cashDiscountAmount + gstAmount + transportCost;
 
     const purchase = new Purchase({
       tenantId: req.user._id,
       billNumber: billNumber.trim(),
       supplierName: supplierName.trim(),
       supplierGst: (supplierGst || "").trim(),
+      isGst,
+      purchaseSource,
       transport: transportCost,
       date: date || new Date(),
       items: purchaseItems,
+      taxableAmount: taxableAmount,
+      cgst,
+      sgst,
+      igst,
+      discountAmount,
+      cashDiscountPercent,
+      cashDiscountAmount,
       subtotal,
       gstAmount,
       total,
@@ -92,7 +156,12 @@ const createPurchaseBill = async (req, res) => {
       if (item.productId) {
         const product = await Product.findOne({ _id: item.productId, tenantId: req.user._id });
         if (product) {
-          product.stock += item.qty;
+          if (purchaseSource === "GST") {
+            product.gstStock = (product.gstStock || 0) + item.qty;
+          } else {
+            product.nonGstStock = (product.nonGstStock || 0) + item.qty;
+          }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
           
           if (!product.prices) {
             product.prices = new Map();
@@ -145,6 +214,94 @@ const updatePurchaseBill = async (req, res) => {
       }
     }
 
+    // Revert old stock levels first (using the old purchaseSource)
+    for (const oldItem of purchase.items) {
+      if (oldItem.productId) {
+        const product = await Product.findOne({ _id: oldItem.productId, tenantId: req.user._id });
+        if (product) {
+          if (purchase.purchaseSource === "GST") {
+            product.gstStock = Math.max(0, (product.gstStock || 0) - oldItem.qty);
+          } else {
+            product.nonGstStock = Math.max(0, (product.nonGstStock || 0) - oldItem.qty);
+          }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
+          await product.save();
+        }
+      }
+    }
+
+    const tenantUser = await User.findById(req.user._id);
+    const tenantGst = tenantUser.profile?.gstNumber || "";
+
+    const purchaseSource = req.body.purchaseSource || purchase.purchaseSource;
+    const isGst = purchaseSource === "GST";
+
+    let subtotal = 0;
+    let totalItemDiscounts = 0;
+    let gstAmount = 0;
+    let taxableAmount = 0;
+    const purchaseItems = [];
+
+    const activeItems = items && items.length > 0 ? items : purchase.items;
+
+    activeItems.forEach((item) => {
+      const price = parseFloat(item.price) || 0;
+      const qty = parseInt(item.qty) || 0;
+      const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
+      const hsnCode = item.hsnCode || "";
+      const schDiscount = parseFloat(item.schDiscount) || 0;
+      const splDiscount = parseFloat(item.splDiscount) || 0;
+
+      const itemSubtotal = price * qty;
+      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemGst = isGst ? ((itemTaxable * gstRate) / 100) : 0;
+
+      subtotal += itemSubtotal;
+      totalItemDiscounts += (itemSubtotal - itemTaxable);
+      gstAmount += itemGst;
+      
+      if (isGst && gstRate > 0) {
+        taxableAmount += itemTaxable;
+      } else if (!isGst) {
+        taxableAmount += itemTaxable;
+      }
+
+      purchaseItems.push({
+        productId: item.productId || null,
+        sku: item.sku || "",
+        name: item.name,
+        price,
+        qty,
+        gstRate,
+        hsnCode,
+        schDiscount,
+        splDiscount,
+        taxableAmount: itemTaxable
+      });
+    });
+
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+
+    if (isGst && gstAmount > 0) {
+      let isInterstate = false;
+      const finalSupplierGst = supplierGst !== undefined ? supplierGst : purchase.supplierGst;
+      if (finalSupplierGst && finalSupplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+        const supplierStateCode = finalSupplierGst.trim().substring(0, 2);
+        const tenantStateCode = tenantGst.trim().substring(0, 2);
+        if (supplierStateCode !== tenantStateCode) {
+          isInterstate = true;
+        }
+      }
+      if (isInterstate) {
+        igst = gstAmount;
+      } else {
+        cgst = gstAmount / 2;
+        sgst = gstAmount / 2;
+      }
+    }
+
     if (billNumber) purchase.billNumber = billNumber.trim();
     if (supplierName) purchase.supplierName = supplierName.trim();
     if (supplierGst !== undefined) purchase.supplierGst = supplierGst.trim();
@@ -154,67 +311,48 @@ const updatePurchaseBill = async (req, res) => {
     if (remarks !== undefined) purchase.remarks = remarks;
     if (transport !== undefined) purchase.transport = parseFloat(transport) || 0;
 
-    if (items && items.length > 0) {
-      // Revert old stock levels first
-      for (const oldItem of purchase.items) {
-        if (oldItem.productId) {
-          const product = await Product.findOne({ _id: oldItem.productId, tenantId: req.user._id });
-          if (product) {
-            product.stock -= oldItem.qty;
-            await product.save();
-          }
-        }
-      }
-
-      let subtotal = 0;
-      let gstAmount = 0;
-      const purchaseItems = [];
-
-      items.forEach((item) => {
-        const price = parseFloat(item.price) || 0;
-        const qty = parseInt(item.qty) || 0;
-        const gstRate = parseFloat(item.gstRate) || 0;
-
-        const itemSubtotal = price * qty;
-        const itemGst = (itemSubtotal * gstRate) / 100;
-
-        subtotal += itemSubtotal;
-        gstAmount += itemGst;
-
-        purchaseItems.push({
-          productId: item.productId || null,
-          sku: item.sku || "",
-          name: item.name,
-          price,
-          qty,
-          gstRate,
-        });
-      });
-
-      purchase.items = purchaseItems;
-      purchase.subtotal = subtotal;
-      purchase.gstAmount = gstAmount;
+    // Overall discounts
+    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) || 0 : (purchase.discountAmount !== undefined ? purchase.discountAmount : totalItemDiscounts);
+    const cashDiscountPercent = req.body.cashDiscountPercent !== undefined ? parseFloat(req.body.cashDiscountPercent) || 0 : (purchase.cashDiscountPercent || 0);
+    let cashDiscountAmount = req.body.cashDiscountAmount !== undefined ? parseFloat(req.body.cashDiscountAmount) || 0 : (purchase.cashDiscountAmount || 0);
+    if (cashDiscountPercent > 0 && req.body.cashDiscountAmount === undefined) {
+      cashDiscountAmount = taxableAmount * (cashDiscountPercent / 100);
     }
 
-    purchase.total = purchase.subtotal + purchase.gstAmount + purchase.transport;
+    purchase.isGst = isGst;
+    purchase.purchaseSource = purchaseSource;
+    purchase.items = purchaseItems;
+    purchase.taxableAmount = taxableAmount;
+    purchase.cgst = cgst;
+    purchase.sgst = sgst;
+    purchase.igst = igst;
+    purchase.discountAmount = discountAmount;
+    purchase.cashDiscountPercent = cashDiscountPercent;
+    purchase.cashDiscountAmount = cashDiscountAmount;
+    purchase.subtotal = subtotal;
+    purchase.gstAmount = gstAmount;
+    purchase.total = taxableAmount - cashDiscountAmount + gstAmount + purchase.transport;
 
     const updatedPurchase = await purchase.save();
 
-    if (items && items.length > 0) {
-      // Apply new stock levels & update purchase cost prices
-      for (const newItem of updatedPurchase.items) {
-        if (newItem.productId) {
-          const product = await Product.findOne({ _id: newItem.productId, tenantId: req.user._id });
-          if (product) {
-            product.stock += newItem.qty;
-            
-            if (!product.prices) {
-              product.prices = new Map();
-            }
-            product.prices.set("purchase", newItem.price);
-            
-            await product.save();
+    // Re-apply stocks with new purchaseSource
+    for (const newItem of updatedPurchase.items) {
+      if (newItem.productId) {
+        const product = await Product.findOne({ _id: newItem.productId, tenantId: req.user._id });
+        if (product) {
+          if (purchaseSource === "GST") {
+            product.gstStock = (product.gstStock || 0) + newItem.qty;
+          } else {
+            product.nonGstStock = (product.nonGstStock || 0) + newItem.qty;
           }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
+
+          if (!product.prices) {
+            product.prices = new Map();
+          }
+          product.prices.set("purchase", newItem.price);
+
+          await product.save();
         }
       }
     }
@@ -244,7 +382,12 @@ const deletePurchaseBill = async (req, res) => {
       if (item.productId) {
         const product = await Product.findOne({ _id: item.productId, tenantId: req.user._id });
         if (product) {
-          product.stock -= item.qty;
+          if (purchase.purchaseSource === "GST") {
+            product.gstStock = Math.max(0, (product.gstStock || 0) - item.qty);
+          } else {
+            product.nonGstStock = Math.max(0, (product.nonGstStock || 0) - item.qty);
+          }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
           await product.save();
         }
       }

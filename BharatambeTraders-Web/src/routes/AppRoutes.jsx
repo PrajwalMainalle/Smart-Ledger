@@ -11,6 +11,12 @@ import SettingsPage from "../features/profile/screens/Settings";
 import CustomerListPage from "../features/customers/screens/CustomerList";
 import PurchaseListPage from "../features/purchases/screens/PurchaseList";
 import ProtectedRoute from "./ProtectedRoute";
+import GstDashboard from "../features/gst/screens/GstDashboard";
+import GstSales from "../features/gst/screens/GstSales";
+import GstPurchases from "../features/gst/screens/GstPurchases";
+import GstSummary from "../features/gst/screens/GstSummary";
+import GstInventory from "../features/gst/screens/GstInventory";
+import GstCAReports from "../features/gst/screens/GstCAReports";
 
 const AppRoutes = () => {
   return (
@@ -33,6 +39,12 @@ const AppRoutes = () => {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/purchases" element={<PurchaseListPage />} />
+            <Route path="/gst/dashboard" element={<GstDashboard />} />
+            <Route path="/gst/sales" element={<GstSales />} />
+            <Route path="/gst/purchases" element={<GstPurchases />} />
+            <Route path="/gst/summary" element={<GstSummary />} />
+            <Route path="/gst/inventory" element={<GstInventory />} />
+            <Route path="/gst/ca-reports" element={<GstCAReports />} />
           </Route>
         </Route>
 

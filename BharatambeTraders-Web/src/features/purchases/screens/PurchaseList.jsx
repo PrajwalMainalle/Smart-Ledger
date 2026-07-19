@@ -40,8 +40,11 @@ function PurchaseList() {
     status: "Paid",
     remarks: "",
     transport: "",
+    discountAmount: "",
+    cashDiscountPercent: "",
+    cashDiscountAmount: "",
     items: [
-      { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18" }
+      { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" }
     ]
   });
 
@@ -92,7 +95,7 @@ function PurchaseList() {
   const handleAddItemRow = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { name: "", price: "", qty: "1", gstRate: "18" }]
+      items: [...formData.items, { name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" }]
     });
   };
 
@@ -110,18 +113,46 @@ function PurchaseList() {
   // Live calculations for the Form Modal
   const calculateFormTotals = () => {
     let subtotal = 0;
+    let totalItemDiscounts = 0;
     let gstAmount = 0;
+    const isGst = formData.supplierGst && formData.supplierGst.trim() !== "";
+
     formData.items.forEach(item => {
       const price = parseFloat(item.price) || 0;
       const qty = parseInt(item.qty) || 0;
-      const rate = parseFloat(item.gstRate) || 0;
+      const rate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
+      const schDiscount = parseFloat(item.schDiscount) || 0;
+      const splDiscount = parseFloat(item.splDiscount) || 0;
+
       const itemSubtotal = price * qty;
-      const itemGst = (itemSubtotal * rate) / 100;
+      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemGst = (itemTaxable * rate) / 100;
+
       subtotal += itemSubtotal;
+      totalItemDiscounts += (itemSubtotal - itemTaxable);
       gstAmount += itemGst;
     });
+
     const transportCost = parseFloat(formData.transport) || 0;
-    return { subtotal, gstAmount, transport: transportCost, total: subtotal + gstAmount + transportCost };
+    const baseTaxable = subtotal - totalItemDiscounts;
+
+    const cashDiscPercent = parseFloat(formData.cashDiscountPercent) || 0;
+    let cashDiscAmount = parseFloat(formData.cashDiscountAmount) || 0;
+    if (cashDiscPercent > 0 && cashDiscAmount === 0) {
+      cashDiscAmount = baseTaxable * (cashDiscPercent / 100);
+    }
+
+    const grandTotal = baseTaxable - cashDiscAmount + gstAmount + transportCost;
+
+    return { 
+      subtotal, 
+      discountAmount: totalItemDiscounts, 
+      taxableAmount: baseTaxable,
+      cashDiscountAmount: cashDiscAmount,
+      gstAmount, 
+      transport: transportCost, 
+      total: grandTotal 
+    };
   };
 
   const formTotals = calculateFormTotals();
@@ -137,7 +168,10 @@ function PurchaseList() {
       status: "Paid",
       remarks: "",
       transport: "",
-      items: [{ productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18" }]
+      discountAmount: "",
+      cashDiscountPercent: "",
+      cashDiscountAmount: "",
+      items: [{ productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" }]
     });
     setCurrentPurchaseId(null);
   };
@@ -201,13 +235,18 @@ function PurchaseList() {
       status: purchase.status,
       remarks: purchase.remarks || "",
       transport: purchase.transport !== undefined ? purchase.transport.toString() : "",
+      discountAmount: purchase.discountAmount !== undefined ? purchase.discountAmount.toString() : "",
+      cashDiscountPercent: purchase.cashDiscountPercent !== undefined ? purchase.cashDiscountPercent.toString() : "",
+      cashDiscountAmount: purchase.cashDiscountAmount !== undefined ? purchase.cashDiscountAmount.toString() : "",
       items: purchase.items.map(item => ({
         productId: item.productId || "",
         sku: item.sku || "",
         name: item.name,
         price: item.price.toString(),
         qty: item.qty.toString(),
-        gstRate: item.gstRate.toString()
+        gstRate: item.gstRate.toString(),
+        schDiscount: item.schDiscount !== undefined ? item.schDiscount.toString() : "",
+        splDiscount: item.splDiscount !== undefined ? item.splDiscount.toString() : ""
       }))
     });
     setShowEditModal(true);
@@ -474,7 +513,10 @@ function PurchaseList() {
                                   const price = it.price || 0;
                                   const qty = it.qty || 1;
                                   const itemSubtotal = price * qty;
-                                  const itemGst = (itemSubtotal * (it.gstRate || 0)) / 100;
+                                  const schDiscount = it.schDiscount || 0;
+                                  const splDiscount = it.splDiscount || 0;
+                                  const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+                                  const itemGst = (itemTaxable * (it.gstRate || 0)) / 100;
                                   const subtotal = p.subtotal || 0;
                                   const transport = p.transport || 0;
                                   let priceWithTransport = price;
@@ -502,12 +544,39 @@ function PurchaseList() {
 
                                       <div className="flex justify-between items-center text-[10px] font-mono text-slate-500">
                                         <span>GST: {it.gstRate}% (₹{itemGst.toFixed(2)})</span>
-                                        <span>Total: ₹{(itemSubtotal + itemGst).toFixed(2)}</span>
+                                        {(schDiscount > 0 || splDiscount > 0) && (
+                                          <span className="text-rose-450 font-semibold">
+                                            Disc: {schDiscount > 0 ? `Sch ${schDiscount}%` : ""}{schDiscount > 0 && splDiscount > 0 ? " + " : ""}{splDiscount > 0 ? `Spl ${splDiscount}%` : ""}
+                                          </span>
+                                        )}
+                                        <span>Total: ₹{(itemTaxable + itemGst).toFixed(2)}</span>
                                       </div>
                                     </div>
                                   );
                                 })}
                               </div>
+
+                              {/* Overall discounts summary footer */}
+                              {((p.discountAmount || 0) > 0 || (p.cashDiscountAmount || 0) > 0) && (
+                                <div className="bg-slate-900/20 border border-slate-850 p-3.5 rounded-xl flex flex-wrap gap-6 text-xs font-mono text-slate-400">
+                                  {(p.discountAmount || 0) > 0 && (
+                                    <div>
+                                      <span className="text-slate-500">Item-wise Discount: </span>
+                                      <span className="text-rose-450 font-bold">₹{(p.discountAmount || 0).toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  {(p.cashDiscountAmount || 0) > 0 && (
+                                    <div>
+                                      <span className="text-slate-500">Cash Discount {p.cashDiscountPercent > 0 ? `(${p.cashDiscountPercent}%)` : ""}: </span>
+                                      <span className="text-rose-450 font-bold">₹{(p.cashDiscountAmount || 0).toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-slate-500">Net Taxable Value: </span>
+                                    <span className="text-slate-200 font-bold">₹{(p.taxableAmount || p.subtotal).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -690,7 +759,7 @@ function PurchaseList() {
                             />
                           </div>
 
-                          <div className="w-20 space-y-1">
+                          <div className="w-16 space-y-1">
                             <label className="text-slate-500 font-medium">Qty *</label>
                             <input 
                               type="number" required
@@ -700,7 +769,29 @@ function PurchaseList() {
                             />
                           </div>
 
-                          <div className="w-28 space-y-1">
+                          <div className="w-14 space-y-1">
+                            <label className="text-slate-500 font-medium">Sch %</label>
+                            <input 
+                              type="number" step="0.01"
+                              placeholder="0"
+                              value={item.schDiscount}
+                              onChange={(e) => handleItemChange(idx, "schDiscount", e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                            />
+                          </div>
+
+                          <div className="w-14 space-y-1">
+                            <label className="text-slate-500 font-medium">Spl %</label>
+                            <input 
+                              type="number" step="0.01"
+                              placeholder="0"
+                              value={item.splDiscount}
+                              onChange={(e) => handleItemChange(idx, "splDiscount", e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                            />
+                          </div>
+
+                          <div className="w-24 space-y-1">
                             <label className="text-slate-500 font-medium">GST Rate</label>
                             <select 
                               value={item.gstRate}
@@ -745,6 +836,38 @@ function PurchaseList() {
                 </div>
               </div>
 
+              {/* Overall Bill Discount Section */}
+              <div className="border-t border-slate-800/80 pt-3 mt-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Total Item Discount (Calculated)</label>
+                  <input 
+                    type="number" readOnly disabled
+                    value={formTotals.discountAmount.toFixed(2)}
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg p-2.5 text-slate-400 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Cash Discount % (Optional)</label>
+                  <input 
+                    type="number" step="0.01"
+                    placeholder="e.g. 2"
+                    value={formData.cashDiscountPercent}
+                    onChange={(e) => setFormData({ ...formData, cashDiscountPercent: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Cash Discount ₹ (Optional)</label>
+                  <input 
+                    type="number" step="0.01"
+                    placeholder="e.g. 191.50"
+                    value={formData.cashDiscountAmount}
+                    onChange={(e) => setFormData({ ...formData, cashDiscountAmount: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+              </div>
+
               {/* Remarks */}
               <div className="space-y-1">
                 <label className="text-slate-400 font-semibold">Remarks / Internal Notes</label>
@@ -757,18 +880,26 @@ function PurchaseList() {
               </div>
 
               {/* Calculations drawer */}
-              <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex justify-between items-center text-xs md:text-sm font-mono">
+              <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 grid grid-cols-2 md:grid-cols-5 gap-4 text-xs font-mono">
                 <div className="space-y-1">
-                  <div className="text-slate-500 text-[10px] font-semibold uppercase">Base Subtotal</div>
+                  <div className="text-slate-500 text-[9px] font-semibold uppercase">Subtotal (Gross)</div>
                   <div className="text-slate-100 font-bold">₹{formTotals.subtotal.toFixed(2)}</div>
                 </div>
-                <div className="space-y-1 text-center">
-                  <div className="text-slate-500 text-[10px] font-semibold uppercase">GST Input Amount</div>
-                  <div className="text-emerald-400 font-bold">₹{formTotals.gstAmount.toFixed(2)}</div>
+                <div className="space-y-1">
+                  <div className="text-slate-500 text-[9px] font-semibold uppercase">Total Discount</div>
+                  <div className="text-rose-400 font-bold">₹{(formTotals.discountAmount + formTotals.cashDiscountAmount).toFixed(2)}</div>
                 </div>
-                <div className="space-y-1 text-right">
+                <div className="space-y-1">
+                  <div className="text-slate-500 text-[9px] font-semibold uppercase">Taxable Base</div>
+                  <div className="text-slate-100 font-bold">₹{(formTotals.taxableAmount - formTotals.cashDiscountAmount).toFixed(2)}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-slate-500 text-[9px] font-semibold uppercase">GST Input Amount</div>
+                  <div className="text-emerald-450 font-bold">₹{formTotals.gstAmount.toFixed(2)}</div>
+                </div>
+                <div className="space-y-1 text-right col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l border-slate-800 pt-2 md:pt-0 md:pl-2">
                   <div className="text-orange-500 text-[10px] font-semibold uppercase">Grand Total</div>
-                  <div className="text-lg font-black text-orange-400">₹{formTotals.total.toFixed(2)}</div>
+                  <div className="text-base font-black text-orange-400">₹{formTotals.total.toFixed(2)}</div>
                 </div>
               </div>
 

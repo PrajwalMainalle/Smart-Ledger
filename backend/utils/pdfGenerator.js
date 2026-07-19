@@ -21,7 +21,7 @@ const drawPageDecorations = (doc, pageNum) => {
   doc.page.margins.bottom = oldBottomMargin;
 };
 
-const drawPageHeader = (doc, invoice, tenant, pageNum) => {
+const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
   const margin = 40;
   const pageWidth = doc.page.width;
   const printWidth = pageWidth - 2 * margin;
@@ -110,21 +110,27 @@ const drawPageHeader = (doc, invoice, tenant, pageNum) => {
     }
 
     let offset = 0;
+    if (customer && customer.gstNumber) {
+      doc.font(fontBold).fontSize(9.5);
+      doc.text(`GSTIN: ${customer.gstNumber.toUpperCase()}`, margin + 5, metaY + 30);
+      offset += 15;
+    }
+
     const isCredit = invoice.paymentMethod === "Credit";
     const isSplit = invoice.paymentMethod === "Split";
     if (isCredit || isSplit) {
       if (invoice.outstandingAmount > 0) {
-        offset = 12;
         doc.font(fontBold).fontSize(8.5);
         doc.fillColor("#b91c1c"); // red
-        doc.text(isCredit ? "STATUS: UNPAID (CREDIT OUTSTANDING)" : "STATUS: PARTIALLY PAID (CREDIT OUTSTANDING)", margin + 5, metaY + 30);
+        doc.text(isCredit ? "STATUS: UNPAID (CREDIT OUTSTANDING)" : "STATUS: PARTIALLY PAID (CREDIT OUTSTANDING)", margin + 5, metaY + 30 + offset);
         doc.fillColor("#000000"); // reset
+        offset += 12;
       } else if (isCredit && invoice.creditSettled) {
-        offset = 12;
         doc.font(fontBold).fontSize(8.5);
         doc.fillColor("#16a34a"); // green
-        doc.text(`STATUS: SETTLED via ${invoice.settlementMethod.toUpperCase()} on ${new Date(invoice.settlementDate).toLocaleDateString("en-IN")}`, margin + 5, metaY + 30);
+        doc.text(`STATUS: SETTLED via ${invoice.settlementMethod.toUpperCase()} on ${new Date(invoice.settlementDate).toLocaleDateString("en-IN")}`, margin + 5, metaY + 30 + offset);
         doc.fillColor("#000000"); // reset
+        offset += 12;
       }
     }
 
@@ -185,15 +191,13 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
     try {
       const hasGst = invoice.isGstBilling !== false;
       let qrBuffer = null;
-      if (!hasGst) {
-        try {
-          const qrPhone = invoice.total >= 5000 ? "6364676448" : "6361037157";
-          const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
-          const upiString = `upi://pay?pa=${qrPhone}@ybl&pn=Bharatambe%20Traders&cu=INR&am=${qrAmount.toFixed(2)}`;
-          qrBuffer = await QRCode.toBuffer(upiString, { width: 120, margin: 1 });
-        } catch (qrErr) {
-          console.error("Failed to generate QR Code for invoice PDF:", qrErr);
-        }
+      try {
+        const upiVpa = hasGst ? "9845757296@cnrb" : "6361037157@ybl";
+        const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
+        const upiString = `upi://pay?pa=${upiVpa}&pn=Bharatambe%20Traders&cu=INR&am=${qrAmount.toFixed(2)}`;
+        qrBuffer = await QRCode.toBuffer(upiString, { width: 120, margin: 1 });
+      } catch (qrErr) {
+        console.error("Failed to generate QR Code for invoice PDF:", qrErr);
       }
       // Determine page size and orientation
       let size = "A4";
@@ -251,6 +255,17 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       
       doc.pipe(stream);
 
+      // Look up customer details for GST Number
+      let customer = null;
+      if (invoice.customerPhone && invoice.customerPhone !== "N/A") {
+        try {
+          const Customer = require("../models/Customer");
+          customer = await Customer.findOne({ tenantId: invoice.tenantId, phone: invoice.customerPhone });
+        } catch (custErr) {
+          console.error("Failed to load customer details in PDF generator:", custErr);
+        }
+      }
+
       const margin = 40;
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
@@ -265,7 +280,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const col6X = pageWidth - margin;
 
       let pageNum = 1;
-      let startY = drawPageHeader(doc, invoice, tenant, pageNum);
+      let startY = drawPageHeader(doc, invoice, tenant, pageNum, customer);
       drawTableHeaders(doc, startY);
       
       let currentY = startY + 20;
@@ -279,7 +294,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
           doc.addPage();
           pageNum++;
           
-          startY = drawPageHeader(doc, invoice, tenant, pageNum);
+          startY = drawPageHeader(doc, invoice, tenant, pageNum, customer);
           drawTableHeaders(doc, startY);
           currentY = startY + 20;
         }
@@ -289,7 +304,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         doc.text(String(idx + 1), col1X, currentY + 6, { width: col2X - col1X, align: "center" });
         
         // Render item name (no toUpperCase to preserve exact case as stored in inventory)
-        const displayItemName = item.name;
+        const displayItemName = item.name + (item.hsnCode ? ` (HSN: ${item.hsnCode})` : "");
         doc.text(displayItemName, col2X + 8, currentY + 6, { width: col3X - col2X - 16, height: 12, ellipsis: true });
         
         doc.text(String(item.qty), col3X, currentY + 6, { width: col4X - col3X, align: "center" });
@@ -316,7 +331,8 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       // Calculate height needed for calculations column
       let calcRowsHeight = 0;
       if (discountAmount > 0) calcRowsHeight += 20;
-      if (hasGst) calcRowsHeight += 40;
+      const gstRowsHeight = hasGst ? (invoice.igst > 0 ? 20 : 40) : 0;
+      calcRowsHeight += gstRowsHeight;
       if (isCredit) calcRowsHeight += 40;
       if (isSplit) {
         calcRowsHeight += 40;
@@ -324,7 +340,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       }
 
       // The Grand Total row needs at least 20 points, but expands if needed to ensure the box is at least 75 points tall (so bank details don't overflow)
-      const grandTotalHeight = Math.max(20, 75 - 20 - (discountAmount > 0 ? 20 : 0) - (hasGst ? 40 : 0));
+      const grandTotalHeight = Math.max(20, 75 - 20 - (discountAmount > 0 ? 20 : 0) - gstRowsHeight);
       const summaryHeight = 20 + calcRowsHeight + grandTotalHeight;
 
       // Check if we need another page for the summary rows + signature block
@@ -386,15 +402,32 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       const bankDetailsY = currentY + 25;
       if (hasGst) {
+        // Draw bank account details (left side of the block)
         doc.fillColor("#000000").font(fontBold).fontSize(8);
         doc.text("BANK ACCOUNT DETAILS:", margin + 8, bankDetailsY);
         
         doc.fillColor("#000000").font(fontRegular).fontSize(7.5);
         const profile = tenant.profile || {};
         const shopNameStr = (profile.shopName || tenant.businessName || "SmartLedger").toUpperCase();
-        doc.text(`Account Name:  ${shopNameStr}`, margin + 8, bankDetailsY + 11, { width: col3X - margin - 16 });
-        doc.text("Bank Name:      CANARA BANK, BASAVAKALYAN BRANCH", margin + 8, bankDetailsY + 20, { width: col3X - margin - 16 });
-        doc.text("A/C Number:     120033287950  |  IFSC Code: CNRB0010700", margin + 8, bankDetailsY + 29, { width: col3X - margin - 16 });
+        doc.text(`Account Name: ${shopNameStr}`, margin + 8, bankDetailsY + 11, { width: 175 });
+        doc.text("Bank Name: CANARA BANK", margin + 8, bankDetailsY + 20, { width: 175 });
+        doc.text("A/C No: 120033287950", margin + 8, bankDetailsY + 29, { width: 175 });
+        doc.text("IFSC Code: CNRB0010700", margin + 8, bankDetailsY + 38, { width: 175 });
+
+        // Draw QR code (right side of the block)
+        if (qrBuffer) {
+          try {
+            doc.image(qrBuffer, margin + 255, bankDetailsY, { width: 42, height: 42 });
+          } catch (imgErr) {
+            console.error("Failed to embed QR code image in PDF:", imgErr);
+          }
+        }
+        doc.fillColor("#000000").font(fontBold).fontSize(7);
+        doc.text("SCAN & PAY (UPI)", margin + 172, bankDetailsY + 6, { width: 80, align: "right" });
+        doc.font(fontRegular).fontSize(6.5);
+        doc.text("UPI ID: 9845757296@cnrb", margin + 172, bankDetailsY + 16, { width: 80, align: "right" });
+        doc.text(`Amount: ₹${invoice.total.toFixed(2)}`, margin + 172, bankDetailsY + 24, { width: 80, align: "right" });
+        doc.fontSize(5.5).text("GPay/PhonePe/Paytm", margin + 172, bankDetailsY + 32, { width: 80, align: "right" });
       } else if (invoice.paymentMethod === "Credit" && invoice.creditSettled) {
         doc.fillColor("#000000").font(fontBold).fontSize(8.5);
         doc.text("CREDIT STATUS:", margin + 8, bankDetailsY - 2);
@@ -419,9 +452,9 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         
         doc.fillColor("#000000").font(fontBold).fontSize(7.5);
         doc.text("BHARATAMBE TRADERS", margin + 56, bankDetailsY + 10);
-        const qrPhone = invoice.total >= 5000 ? "6364676448" : "6361037157";
         const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
-        doc.text(`Mobile: ${qrPhone}`, margin + 56, bankDetailsY + 18);
+        doc.font(fontRegular).fontSize(7);
+        doc.text("UPI ID: 6361037157@ybl", margin + 56, bankDetailsY + 18);
         doc.text(`Amount: ₹${qrAmount.toFixed(2)}`, margin + 56, bankDetailsY + 26);
         doc.fillColor("#000000").fontSize(6.5).text("Scan with GPay/PhonePe/Paytm", margin + 56, bankDetailsY + 34);
       }
@@ -436,21 +469,34 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         calcY += 20;
       }
 
-      if (hasGst) {
-        const sgstAmt = invoice.gstAmount / 2;
-        doc.fillColor("#000000").font(fontBold).fontSize(7.5);
-        doc.text("SGST (State Tax)", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
-        doc.font(fontRegular).text(`₹${sgstAmt.toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
-        calcY += 20;
+      const isInclusiveGst = hasGst && (invoice.customerType === "School" || invoice.customerType === "Retail");
 
-        doc.font(fontBold).text("CGST (Central Tax)", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
-        doc.font(fontRegular).text(`₹${sgstAmt.toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
-        calcY += 20;
+      if (hasGst && !isInclusiveGst) {
+        if (invoice.igst > 0) {
+          doc.fillColor("#000000").font(fontBold).fontSize(7.5);
+          doc.text("IGST (Integrated Tax)", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+          doc.font(fontRegular).text(`₹${invoice.igst.toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+          calcY += 20;
+        } else {
+          const cgstAmt = invoice.cgst !== undefined ? invoice.cgst : invoice.gstAmount / 2;
+          const sgstAmt = invoice.sgst !== undefined ? invoice.sgst : invoice.gstAmount / 2;
+          
+          doc.fillColor("#000000").font(fontBold).fontSize(7.5);
+          doc.text("SGST (State Tax)", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+          doc.font(fontRegular).text(`₹${sgstAmt.toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+          calcY += 20;
+
+          doc.font(fontBold).text("CGST (Central Tax)", col3X, calcY + 5, { width: col5X - col3X - 5, align: "right" });
+          doc.font(fontRegular).text(`₹${cgstAmt.toFixed(2)}`, col5X, calcY + 5, { width: col6X - col5X - 5, align: "right" });
+          calcY += 20;
+        }
       }
 
-      const grandTotalLabel = invoice.isQuotation ? "ESTIMATED TOTAL" : "GRAND TOTAL";
+      const grandTotalLabel = invoice.isQuotation 
+        ? (isInclusiveGst ? "EST. TOTAL (INCL. TAX)" : "ESTIMATED TOTAL") 
+        : (isInclusiveGst ? "GRAND TOTAL (INCL. TAX)" : "GRAND TOTAL");
       const cellPaddingY = (grandTotalHeight - 10) / 2;
-      doc.font(fontBold).fontSize(9.5).fillColor("#000000");
+      doc.font(fontBold).fontSize(isInclusiveGst ? 8.5 : 9.5).fillColor("#000000");
       doc.text(grandTotalLabel, col3X, calcY + cellPaddingY, { width: col5X - col3X - 5, align: "right" });
       doc.text(`₹${invoice.total.toFixed(2)}`, col5X, calcY + cellPaddingY, { width: col6X - col5X - 5, align: "right" });
       calcY += grandTotalHeight;

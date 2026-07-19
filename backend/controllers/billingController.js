@@ -52,6 +52,15 @@ const createInvoice = async (req, res) => {
     // 1. Verify stock availability first & cache products for cost calculations
     const checkedItems = [];
     const productsMap = {};
+    const isGst = isGstBilling !== false;
+    const salesType = isGst ? "GST" : "Non-GST";
+
+    // Fetch tenant user to check billing rules and gstNumber
+    const tenantUser = await User.findById(tenantId);
+    const billingRule = tenantUser?.gstBillingRule || "warn";
+    const tenantGst = tenantUser?.profile?.gstNumber || "";
+    const tenantState = tenantUser?.profile?.state || "";
+
     for (const cartItem of items) {
       if (cartItem.isManualItem) {
         continue;
@@ -61,10 +70,24 @@ const createInvoice = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: `Product '${cartItem.name}' not found in inventory` });
       }
-      if (!isQuotation && product.stock < cartItem.qty) {
-        return res.status(400).json({
-          message: `Insufficient stock for product '${product.name}'. Required: ${cartItem.qty}, Available: ${product.stock}`
-        });
+      if (!isQuotation) {
+        if (isGst) {
+          const requiredStock = cartItem.qty;
+          const availableStock = product.gstStock || 0;
+          if (availableStock < requiredStock && billingRule === "prevent") {
+            return res.status(400).json({
+              message: `Insufficient GST Purchased Stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+            });
+          }
+        } else {
+          const requiredStock = cartItem.qty;
+          const availableStock = product.nonGstStock || 0;
+          if (availableStock < requiredStock) {
+            return res.status(400).json({
+              message: `Insufficient Non-GST stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+            });
+          }
+        }
       }
       checkedItems.push({ product, qty: cartItem.qty });
       productsMap[pId] = product;
@@ -89,11 +112,13 @@ const createInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: "MANUAL",
           isManualItem: true,
+          hsnCode: item.hsnCode || "",
         });
       } else {
         const pId = item.id || item.productId;
         const productDoc = productsMap[pId];
         const purchasePrice = productDoc && productDoc.prices ? (productDoc.prices.get("purchase") || 0) : 0;
+        const hsnCode = productDoc ? productDoc.hsnCode : "";
         invoiceItems.push({
           productId: pId,
           name: item.name,
@@ -104,6 +129,7 @@ const createInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: item.sku,
           isManualItem: false,
+          hsnCode: hsnCode || "",
         });
       }
     });
@@ -123,16 +149,50 @@ const createInvoice = async (req, res) => {
     // Compute GST based on discounted items
     const discountRatio = subtotal > 0 ? discountedSubtotal / subtotal : 1;
     let gstAmount = 0;
+    const isInclusiveGst = isGst && (customerType === "School" || customerType === "Retail");
+
     invoiceItems.forEach((item) => {
-      if (isGstBilling !== false) {
+      if (isGst) {
         const itemSubtotal = item.price * item.qty;
         const discountedItemSubtotal = itemSubtotal * discountRatio;
-        const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
-        gstAmount += itemGst;
+        if (isInclusiveGst) {
+          const itemGst = discountedItemSubtotal - (discountedItemSubtotal / (1 + (item.gstRate || 0) / 100));
+          gstAmount += itemGst;
+        } else {
+          const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
+          gstAmount += itemGst;
+        }
       }
     });
 
-    const newItemsTotal = discountedSubtotal + gstAmount;
+    const newItemsTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmount);
+
+    // Determine CGST, SGST, IGST tax split based on interstate rules
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+
+    if (isGst && gstAmount > 0) {
+      let isInterstate = false;
+      if (customerPhone && customerPhone !== "N/A") {
+        const customer = await Customer.findOne({ tenantId, phone: customerPhone });
+        if (customer) {
+          const customerGst = customer.gstNumber || "";
+          const customerState = customer.state || "";
+          if (customerGst && customerGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+            isInterstate = customerGst.trim().substring(0, 2) !== tenantGst.trim().substring(0, 2);
+          } else if (customerState && tenantState) {
+            isInterstate = customerState.trim().toLowerCase() !== tenantState.trim().toLowerCase();
+          }
+        }
+      }
+      if (isInterstate) {
+        igst = gstAmount;
+      } else {
+        cgst = gstAmount / 2;
+        sgst = gstAmount / 2;
+      }
+    }
 
     // 3. Process Returns/Exchanges if present (and not a quotation)
     let processedReturnedItems = [];
@@ -178,15 +238,15 @@ const createInvoice = async (req, res) => {
 
         // Regenerate the original invoice PDF to reflect returns
         try {
-          const tenantUser = await User.findById(tenantId);
+          const tenantUserDoc = await User.findById(tenantId);
           const origPdfFilename = `${tenantId}_${origInvoice.invoiceId}.pdf`;
           const origAbsolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", origPdfFilename);
-          await generateInvoicePDF(origInvoice, tenantUser, origAbsolutePdfPath);
+          await generateInvoicePDF(origInvoice, tenantUserDoc, origAbsolutePdfPath);
         } catch (pdfErr) {
           console.error("Failed to regenerate original invoice PDF after return:", pdfErr.message);
         }
 
-        // Adjust stock
+        // Adjust stock (returns go to nonGstStock or gstStock based on original billing)
         if (retItem.isDefective) {
           await DamagedStock.create({
             tenantId,
@@ -200,7 +260,12 @@ const createInvoice = async (req, res) => {
           if (retItem.productId) {
             const product = await Product.findOne({ _id: retItem.productId, tenantId });
             if (product) {
-              product.stock += retItem.qty;
+              if (origInvoice.isGstBilling !== false) {
+                product.gstStock = (product.gstStock || 0) + retItem.qty;
+              } else {
+                product.nonGstStock = (product.nonGstStock || 0) + retItem.qty;
+              }
+              product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
               await product.save();
             }
           }
@@ -245,7 +310,12 @@ const createInvoice = async (req, res) => {
     // 4. Deduct Stock Levels for new purchases (only if not a quotation)
     if (!isQuotation) {
       for (const checked of checkedItems) {
-        checked.product.stock -= checked.qty;
+        if (isGst) {
+          checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
+        } else {
+          checked.product.nonGstStock = (checked.product.nonGstStock || 0) - checked.qty;
+        }
+        checked.product.stock = (checked.product.gstStock || 0) + (checked.product.nonGstStock || 0);
         await checked.product.save();
       }
     }
@@ -262,7 +332,13 @@ const createInvoice = async (req, res) => {
       customerName: customerName || "Walk-in Customer",
       customerPhone: customerPhone || "N/A",
       customerType: customerType || "Retail",
+      isGst,
+      salesType,
       items: invoiceItems,
+      taxableAmount: isGst ? (isInclusiveGst ? (discountedSubtotal - gstAmount) : discountedSubtotal) : 0.0,
+      cgst,
+      sgst,
+      igst,
       subtotal,
       discountPercent: discPercent,
       discountAmount,
@@ -285,7 +361,6 @@ const createInvoice = async (req, res) => {
     const savedInvoice = await invoice.save();
 
     // 5. Generate & Save PDF file on Server disk
-    const tenantUser = await User.findById(tenantId);
     await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
 
     // 6. Record Customer Ledger and update Outstanding Balance if not a quotation
@@ -1028,13 +1103,26 @@ const updateInvoice = async (req, res) => {
       return res.status(404).json({ message: "Invoice not found or unauthorized" });
     }
 
-    // 1. Temporarily revert stock level for the original items
+    // Fetch tenant settings for GST billing rules and state info
+    const tenantUser = await User.findById(tenantId);
+    const billingRule = tenantUser?.gstBillingRule || "warn";
+    const tenantGst = tenantUser?.profile?.gstNumber || "";
+    const tenantState = tenantUser?.profile?.state || "";
+
+    const isGst = isGstBilling !== undefined ? (isGstBilling === true || isGstBilling === 'true') : invoice.isGst;
+
+    // 1. Temporarily revert stock level for the original items (using old invoice GST setting)
     if (!invoice.isQuotation) {
       for (const origItem of invoice.items) {
         if (origItem.isManualItem || !origItem.productId) continue;
         const product = await Product.findOne({ _id: origItem.productId, tenantId });
         if (product) {
-          product.stock += origItem.qty;
+          if (invoice.isGstBilling !== false) {
+            product.gstStock = (product.gstStock || 0) + origItem.qty;
+          } else {
+            product.nonGstStock = (product.nonGstStock || 0) + origItem.qty;
+          }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
           await product.save();
         }
       }
@@ -1056,28 +1144,69 @@ const updateInvoice = async (req, res) => {
             if (origItem.isManualItem || !origItem.productId) continue;
             const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
             if (origProd) {
-              origProd.stock -= origItem.qty;
+              if (invoice.isGstBilling !== false) {
+                origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
+              } else {
+                origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
+              }
+              origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
               await origProd.save();
             }
           }
         }
         return res.status(404).json({ message: `Product '${cartItem.name}' not found in inventory` });
       }
-      if (!isQuotation && product.stock < cartItem.qty) {
-        // Revert back original stock levels if stock is insufficient
-        if (!invoice.isQuotation) {
-          for (const origItem of invoice.items) {
-            if (origItem.isManualItem || !origItem.productId) continue;
-            const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
-            if (origProd) {
-              origProd.stock -= origItem.qty;
-              await origProd.save();
+
+      if (!isQuotation) {
+        if (isGst) {
+          const requiredStock = cartItem.qty;
+          const availableStock = product.gstStock || 0;
+          if (availableStock < requiredStock && billingRule === "prevent") {
+            // Revert back original stock levels if stock is insufficient
+            if (!invoice.isQuotation) {
+              for (const origItem of invoice.items) {
+                if (origItem.isManualItem || !origItem.productId) continue;
+                const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
+                if (origProd) {
+                  if (invoice.isGstBilling !== false) {
+                    origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
+                  } else {
+                    origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
+                  }
+                  origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
+                  await origProd.save();
+                }
+              }
             }
+            return res.status(400).json({
+              message: `Insufficient GST Purchased Stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+            });
+          }
+        } else {
+          const requiredStock = cartItem.qty;
+          const availableStock = product.nonGstStock || 0;
+          if (availableStock < requiredStock) {
+            // Revert back original stock levels if stock is insufficient
+            if (!invoice.isQuotation) {
+              for (const origItem of invoice.items) {
+                if (origItem.isManualItem || !origItem.productId) continue;
+                const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
+                if (origProd) {
+                  if (invoice.isGstBilling !== false) {
+                    origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
+                  } else {
+                    origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
+                  }
+                  origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
+                  await origProd.save();
+                }
+              }
+            }
+            return res.status(400).json({
+              message: `Insufficient Non-GST stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+            });
           }
         }
-        return res.status(400).json({
-          message: `Insufficient stock for product '${product.name}'. Required: ${cartItem.qty}, Available: ${product.stock}`
-        });
       }
       checkedItems.push({ product, qty: cartItem.qty });
       productsMap[pId] = product;
@@ -1102,11 +1231,13 @@ const updateInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: "MANUAL",
           isManualItem: true,
+          hsnCode: item.hsnCode || "",
         });
       } else {
         const pId = item.id || item.productId;
         const productDoc = productsMap[pId];
         const purchasePrice = productDoc && productDoc.prices ? (productDoc.prices.get("purchase") || 0) : 0;
+        const hsnCode = productDoc ? productDoc.hsnCode : "";
         invoiceItems.push({
           productId: pId,
           name: item.name,
@@ -1117,6 +1248,7 @@ const updateInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: item.sku,
           isManualItem: false,
+          hsnCode: hsnCode || "",
         });
       }
     });
@@ -1136,21 +1268,63 @@ const updateInvoice = async (req, res) => {
     // Compute GST
     const discountRatio = subtotal > 0 ? discountedSubtotal / subtotal : 1;
     let gstAmount = 0;
+    const finalCustomerType = customerType !== undefined ? customerType : invoice.customerType;
+    const isInclusiveGst = isGst && (finalCustomerType === "School" || finalCustomerType === "Retail");
+
     invoiceItems.forEach((item) => {
-      if (isGstBilling !== false) {
+      if (isGst) {
         const itemSubtotal = item.price * item.qty;
         const discountedItemSubtotal = itemSubtotal * discountRatio;
-        const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
-        gstAmount += itemGst;
+        if (isInclusiveGst) {
+          const itemGst = discountedItemSubtotal - (discountedItemSubtotal / (1 + (item.gstRate || 0) / 100));
+          gstAmount += itemGst;
+        } else {
+          const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
+          gstAmount += itemGst;
+        }
       }
     });
 
-    const netTotal = discountedSubtotal + gstAmount;
+    const newItemsTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmount);
+    const netTotal = newItemsTotal;
+
+    // Determine CGST, SGST, IGST tax split based on interstate rules
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+
+    if (isGst && gstAmount > 0) {
+      let isInterstate = false;
+      const finalCustomerPhone = customerPhone !== undefined ? customerPhone : invoice.customerPhone;
+      if (finalCustomerPhone && finalCustomerPhone !== "N/A") {
+        const customer = await Customer.findOne({ tenantId, phone: finalCustomerPhone });
+        if (customer) {
+          const customerGst = customer.gstNumber || "";
+          const customerState = customer.state || "";
+          if (customerGst && customerGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+            isInterstate = customerGst.trim().substring(0, 2) !== tenantGst.trim().substring(0, 2);
+          } else if (customerState && tenantState) {
+            isInterstate = customerState.trim().toLowerCase() !== tenantState.trim().toLowerCase();
+          }
+        }
+      }
+      if (isInterstate) {
+        igst = gstAmount;
+      } else {
+        cgst = gstAmount / 2;
+        sgst = gstAmount / 2;
+      }
+    }
 
     // 4. Deduct Stock Levels for new purchases
     if (!isQuotation) {
       for (const checked of checkedItems) {
-        checked.product.stock -= checked.qty;
+        if (isGst) {
+          checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
+        } else {
+          checked.product.nonGstStock = (checked.product.nonGstStock || 0) - checked.qty;
+        }
+        checked.product.stock = (checked.product.gstStock || 0) + (checked.product.nonGstStock || 0);
         await checked.product.save();
       }
     }
@@ -1229,6 +1403,12 @@ const updateInvoice = async (req, res) => {
     invoice.customerName = customerName || "Walk-in Customer";
     invoice.customerPhone = customerPhone || "N/A";
     invoice.customerType = customerType || "Retail";
+    invoice.isGst = isGst;
+    invoice.salesType = isGst ? "GST" : "Non-GST";
+    invoice.taxableAmount = isGst ? (isInclusiveGst ? (discountedSubtotal - gstAmount) : discountedSubtotal) : 0.0;
+    invoice.cgst = cgst;
+    invoice.sgst = sgst;
+    invoice.igst = igst;
     invoice.items = invoiceItems;
     invoice.subtotal = subtotal;
     invoice.discountPercent = discPercent;
@@ -1246,7 +1426,6 @@ const updateInvoice = async (req, res) => {
     const savedInvoice = await invoice.save();
 
     // 6. Re-generate Invoice PDF file
-    const tenantUser = await User.findById(tenantId);
     const pdfFilename = `${tenantId}_${invoice.invoiceId}.pdf`;
     const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
     await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
@@ -1275,7 +1454,12 @@ const deleteInvoice = async (req, res) => {
         if (item.isManualItem) continue;
         const product = await Product.findOne({ _id: item.productId, tenantId: req.user._id });
         if (product) {
-          product.stock += item.qty;
+          if (invoice.isGstBilling !== false) {
+            product.gstStock = (product.gstStock || 0) + item.qty;
+          } else {
+            product.nonGstStock = (product.nonGstStock || 0) + item.qty;
+          }
+          product.stock = (product.gstStock || 0) + (product.nonGstStock || 0);
           await product.save();
         }
       }

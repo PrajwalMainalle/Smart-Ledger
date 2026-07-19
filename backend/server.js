@@ -27,6 +27,7 @@ app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/customers", require("./routes/customerRoutes"));
 app.use("/api/purchases", require("./routes/purchaseRoutes"));
+app.use("/api/gst", require("./routes/gstRoutes"));
 
 // Catch-all route for test/health check
 app.get("/health", (req, res) => {

@@ -47,6 +47,11 @@ const UserSchema = new mongoose.Schema(
       state: { type: String, default: "" },
       pincode: { type: String, default: "" },
     },
+    gstBillingRule: {
+      type: String,
+      enum: ["prevent", "warn"],
+      default: "warn",
+    },
   },
   { timestamps: true }
 );

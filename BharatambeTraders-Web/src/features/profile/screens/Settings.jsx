@@ -63,6 +63,7 @@ function Settings() {
     state: "",
     pincode: "",
     logo: "",
+    gstBillingRule: "warn",
   });
 
   const [logoPreview, setLogoPreview] = useState("");
@@ -86,6 +87,7 @@ function Settings() {
         state: profile.state || "",
         pincode: profile.pincode || "",
         logo: profile.logo || "",
+        gstBillingRule: user.gstBillingRule || "warn",
       });
       setLogoPreview(profile.logo || "");
     }
@@ -296,6 +298,21 @@ function Settings() {
                     placeholder="e.g. store@smartledger.com"
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">GST Billing Rules (On Low Stock)</label>
+                  <select 
+                    name="gstBillingRule"
+                    value={formData.gstBillingRule}
+                    onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="warn">Show Warning (Allow Billing)</option>
+                    <option value="prevent">Prevent GST Billing</option>
+                  </select>
                 </div>
               </div>
 

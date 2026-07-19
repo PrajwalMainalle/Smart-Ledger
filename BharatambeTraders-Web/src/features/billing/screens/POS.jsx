@@ -105,6 +105,8 @@ function POS() {
   const discountAmt = calculateDiscountAmount();
   const discountedSubtotal = subtotal - discountAmt;
 
+  const isInclusiveGst = isGstBilling && (customerType === "School" || customerType === "Retail");
+
   const calculateGstAmount = () => {
     if (!isGstBilling) return 0;
     const discountRatio = subtotal > 0 ? discountedSubtotal / subtotal : 1;
@@ -112,7 +114,11 @@ function POS() {
       const itemSubtotal = item.price * item.qty;
       const discountedItemSubtotal = itemSubtotal * discountRatio;
       const gstRate = item.gstRate || 0;
-      return sum + (discountedItemSubtotal * gstRate) / 100;
+      if (isInclusiveGst) {
+        return sum + (discountedItemSubtotal - (discountedItemSubtotal / (1 + gstRate / 100)));
+      } else {
+        return sum + (discountedItemSubtotal * gstRate) / 100;
+      }
     }, 0);
   };
 
@@ -125,7 +131,7 @@ function POS() {
     return sum + itemSub + itemGst;
   }, 0);
 
-  const newTotal = discountedSubtotal + gstAmt;
+  const newTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmt);
   const grandTotal = Math.max(0, newTotal - returnedTotalWithTax);
 
   // Load products and customers on mount
@@ -333,6 +339,7 @@ function POS() {
           date: savedInvoice.date,
           customerName: savedInvoice.customerName,
           customerPhone: savedInvoice.customerPhone,
+          customerType: savedInvoice.customerType,
           items: [...savedInvoice.items],
           subtotal: savedInvoice.subtotal,
           discountPercent: savedInvoice.discountPercent,
@@ -1136,19 +1143,32 @@ function POS() {
             <span className="font-semibold text-rose-400 font-mono">-₹{discountAmt.toFixed(2)}</span>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-slate-500">CGST (Central Tax)</span>
-            <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">SGST (State Tax)</span>
-            <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
-          </div>
+          {!isInclusiveGst && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-slate-500">CGST (Central Tax)</span>
+                <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">SGST (State Tax)</span>
+                <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
+              </div>
+            </>
+          )}
+
+          {isInclusiveGst && (
+            <div className="flex justify-between text-[11px] text-emerald-450 font-bold">
+              <span>GST (Included in Prices)</span>
+              <span className="font-mono">₹{gstAmt.toFixed(2)}</span>
+            </div>
+          )}
 
           <div className="h-px bg-slate-800/80 my-2"></div>
 
           <div className="flex justify-between items-end">
-            <span className="text-sm font-bold text-slate-200">Grand Total</span>
+            <span className="text-sm font-bold text-slate-200">
+              Grand Total {isInclusiveGst && <span className="text-[10px] text-slate-500 font-normal block">(Inclusive of all taxes)</span>}
+            </span>
             <span className="text-base font-black text-orange-500 font-mono">₹{grandTotal.toFixed(2)}</span>
           </div>
 
@@ -1473,34 +1493,53 @@ function POS() {
                                         </td>
                                       </tr>
                                     )}
-                                    {receiptData.isGstBilling !== false && (
-                                      <>
-                                        <tr>
-                                          <td className="bold">CGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
-                                          <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold">SGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
-                                          <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
-                                        </tr>
-                                      </>
-                                    )}
-                                    {receiptData.returnedItems && receiptData.returnedItems.length > 0 && (
-                                      <tr>
-                                        <td className="bold text-rose-600" style={{ fontSize: "8.5px" }}>RETURNS TOTAL:</td>
-                                        <td className="text-right font-mono text-rose-600 font-bold" style={{ fontSize: "8.5px" }}>
-                                          -₹{receiptData.returnedItems.reduce((sum, item) => sum + (item.price * item.qty) * (1 + (item.gstRate || 0)/100), 0).toFixed(2)}
-                                        </td>
-                                      </tr>
-                                    )}
-                                    <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                      <td className="bold font-extrabold text-orange-600" style={{ fontSize: "10px" }}>
-                                        {receiptData.isQuotation ? "ESTIMATED TOTAL" : "GRAND TOTAL"}
-                                      </td>
-                                      <td className="text-right font-mono font-black text-orange-600" style={{ fontSize: "11px" }}>
-                                        ₹{receiptData.total.toFixed(2)}
-                                      </td>
-                                    </tr>
+                                    {(() => {
+                                       const isReceiptInclusiveGst = receiptData.isGstBilling !== false && 
+                                         (receiptData.customerType === "School" || receiptData.customerType === "Retail");
+                                       
+                                       return (
+                                         <>
+                                           {receiptData.isGstBilling !== false && !isReceiptInclusiveGst && (
+                                             <>
+                                               <tr>
+                                                 <td className="bold">CGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
+                                                 <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
+                                               </tr>
+                                               <tr>
+                                                 <td className="bold">SGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
+                                                 <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
+                                               </tr>
+                                             </>
+                                           )}
+                                           
+                                           {isReceiptInclusiveGst && (
+                                             <tr>
+                                               <td className="bold text-emerald-600">GST (INCLUDED):</td>
+                                               <td className="text-right font-mono text-emerald-650">₹{receiptData.gstAmount.toFixed(2)}</td>
+                                             </tr>
+                                           )}
+
+                                           {receiptData.returnedItems && receiptData.returnedItems.length > 0 && (
+                                             <tr>
+                                               <td className="bold text-rose-600" style={{ fontSize: "8.5px" }}>RETURNS TOTAL:</td>
+                                               <td className="text-right font-mono text-rose-600 font-bold" style={{ fontSize: "8.5px" }}>
+                                                 -₹{receiptData.returnedItems.reduce((sum, item) => sum + (item.price * item.qty) * (1 + (item.gstRate || 0)/100), 0).toFixed(2)}
+                                               </td>
+                                             </tr>
+                                           )}
+                                           <tr style={{ borderTop: "1px solid #94a3b8" }}>
+                                             <td className="bold font-extrabold text-orange-600" style={{ fontSize: "9px" }}>
+                                               {receiptData.isQuotation 
+                                                 ? (isReceiptInclusiveGst ? "EST. TOTAL (INCL. TAX)" : "ESTIMATED TOTAL") 
+                                                 : (isReceiptInclusiveGst ? "GRAND TOTAL (INCL. TAX)" : "GRAND TOTAL")}
+                                             </td>
+                                             <td className="text-right font-mono font-black text-orange-600" style={{ fontSize: "11px" }}>
+                                               ₹{receiptData.total.toFixed(2)}
+                                             </td>
+                                           </tr>
+                                         </>
+                                       );
+                                     })()}
                                     {receiptData.paymentMethod === "Credit" && (
                                       <>
                                         <tr style={{ borderTop: "1px solid #94a3b8" }}>

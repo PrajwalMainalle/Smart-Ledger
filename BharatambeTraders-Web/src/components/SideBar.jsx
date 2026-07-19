@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../features/auth/authSlice";
@@ -13,6 +14,7 @@ import {
   FaSignOutAlt,
   FaUserFriends,
   FaReceipt,
+  FaPercent,
 } from "react-icons/fa";
 import { BsBoxSeamFill } from "react-icons/bs";
 
@@ -25,6 +27,7 @@ const SideBar = ({
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const [gstOpen, setGstOpen] = useState(false);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -41,6 +44,15 @@ const SideBar = ({
     { name: "Customers", path: "/customers", icon: FaUserFriends },
     { name: "Reports", path: "/reports", icon: FaChartBar },
     { name: "Settings", path: "/settings", icon: FaCog },
+  ];
+
+  const gstSubItems = [
+    { name: "GST Dashboard", path: "/gst/dashboard" },
+    { name: "Sales Summary", path: "/gst/sales" },
+    { name: "Purchases Summary", path: "/gst/purchases" },
+    { name: "Tax Variance", path: "/gst/summary" },
+    { name: "Stock Split", path: "/gst/inventory" },
+    { name: "CA Reconciliation", path: "/gst/ca-reports" },
   ];
 
   const getCurrentYear = () => {
@@ -91,47 +103,179 @@ const SideBar = ({
       <nav className="flex-1 mt-4 space-y-1 overflow-y-auto">
         {/* Desktop nav */}
         <div className="hidden md:block">
-          {desktopNavItems.map(({ name, path, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                ${
-                  isActive
-                    ? "bg-sidebar-active text-orange-400"
-                    : "text-sidebar-subtext"
+          {desktopNavItems.map(({ name, path, icon: Icon }) => {
+            if (name === "Reports") {
+              return (
+                <div key="gst-suite-desktop">
+                  {/* GST Suite Header */}
+                  <div
+                    onClick={() => {
+                      if (collapsed) {
+                        navigate("/gst/dashboard");
+                      } else {
+                        setGstOpen(!gstOpen);
+                      }
+                    }}
+                    className={`flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <FaPercent className="text-base text-orange-500" />
+                      {!collapsed && <span className="font-semibold text-xs">GST Suite</span>}
+                    </div>
+                    {!collapsed && (
+                      <span className="text-[10px] text-slate-500 transition-transform duration-200">
+                        {gstOpen ? "▲" : "▼"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* GST Sub items */}
+                  {!collapsed && gstOpen && (
+                    <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
+                      {gstSubItems.map((sub) => (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          className={({ isActive }) =>
+                            `block px-4 py-2 rounded-md text-[10px] font-bold transition
+                            ${
+                              isActive
+                                ? "bg-slate-900 text-orange-400"
+                                : "text-slate-500 hover:text-slate-350"
+                            }`
+                          }
+                        >
+                          {sub.name}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Original Reports Item */}
+                  <NavLink
+                    key={path}
+                    to={path}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                      ${
+                        isActive
+                          ? "bg-sidebar-active text-orange-400"
+                          : "text-sidebar-subtext"
+                      }
+                      hover:bg-sidebar-active hover:text-orange-400`
+                    }
+                  >
+                    <Icon className="text-base" />
+                    {!collapsed && <span>{name}</span>}
+                  </NavLink>
+                </div>
+              );
+            }
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                  ${
+                    isActive
+                      ? "bg-sidebar-active text-orange-400"
+                      : "text-sidebar-subtext"
+                  }
+                  hover:bg-sidebar-active hover:text-orange-400`
                 }
-                hover:bg-sidebar-active hover:text-orange-400`
-              }
-            >
-              <Icon className="text-base" />
-              {!collapsed && <span>{name}</span>}
-            </NavLink>
-          ))}
+              >
+                <Icon className="text-base" />
+                {!collapsed && <span>{name}</span>}
+              </NavLink>
+            );
+          })}
         </div>
 
         {/* Mobile nav */}
         <div className="md:hidden">
-          {desktopNavItems.map(({ name, path, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                ${
-                  isActive
-                    ? "bg-sidebar-active text-orange-400"
-                    : "text-sidebar-subtext"
+          {desktopNavItems.map(({ name, path, icon: Icon }) => {
+            if (name === "Reports") {
+              return (
+                <div key="gst-suite-mobile">
+                  {/* GST Suite Header */}
+                  <div
+                    onClick={() => setGstOpen(!gstOpen)}
+                    className="flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FaPercent className="text-base text-orange-500" />
+                      <span className="font-semibold text-xs">GST Suite</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {gstOpen ? "▲" : "▼"}
+                    </span>
+                  </div>
+
+                  {/* GST Sub items */}
+                  {gstOpen && (
+                    <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
+                      {gstSubItems.map((sub) => (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          onClick={() => setMobileOpen(false)}
+                          className={({ isActive }) =>
+                            `block px-4 py-2 rounded-md text-[10px] font-bold transition
+                            ${
+                              isActive
+                                ? "bg-slate-900 text-orange-400"
+                                : "text-slate-500 hover:text-slate-350"
+                            }`
+                          }
+                        >
+                          {sub.name}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Original Reports Item */}
+                  <NavLink
+                    key={path}
+                    to={path}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                      ${
+                        isActive
+                          ? "bg-sidebar-active text-orange-400"
+                          : "text-sidebar-subtext"
+                      }
+                      hover:bg-sidebar-active hover:text-orange-400`
+                    }
+                  >
+                    <Icon className="text-base" />
+                    <span>{name}</span>
+                  </NavLink>
+                </div>
+              );
+            }
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                  ${
+                    isActive
+                      ? "bg-sidebar-active text-orange-400"
+                      : "text-sidebar-subtext"
+                  }
+                  hover:bg-sidebar-active hover:text-orange-400`
                 }
-                hover:bg-sidebar-active hover:text-orange-400`
-              }
-            >
-              <Icon className="text-base" />
-              <span>{name}</span>
-            </NavLink>
-          ))}
+              >
+                <Icon className="text-base" />
+                <span>{name}</span>
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
 

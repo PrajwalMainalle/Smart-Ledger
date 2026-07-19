@@ -44,6 +44,10 @@ const InvoiceItemSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  hsnCode: {
+    type: String,
+    default: "",
+  },
 });
 
 const InvoiceSchema = new mongoose.Schema(
@@ -74,7 +78,32 @@ const InvoiceSchema = new mongoose.Schema(
       type: String,
       default: "Retail",
     },
+    isGst: {
+      type: Boolean,
+      default: true,
+    },
+    salesType: {
+      type: String,
+      enum: ["GST", "Non-GST"],
+      default: "GST",
+    },
     items: [InvoiceItemSchema],
+    taxableAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    cgst: {
+      type: Number,
+      default: 0.0,
+    },
+    sgst: {
+      type: Number,
+      default: 0.0,
+    },
+    igst: {
+      type: Number,
+      default: 0.0,
+    },
     subtotal: {
       type: Number,
       required: true,

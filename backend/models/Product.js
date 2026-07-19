@@ -47,6 +47,18 @@ const ProductSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    gstStock: {
+      type: Number,
+      default: 0,
+    },
+    nonGstStock: {
+      type: Number,
+      default: 0,
+    },
+    hsnCode: {
+      type: String,
+      default: "",
+    },
     image: {
       type: String,
       default: "",

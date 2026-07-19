@@ -109,6 +109,7 @@ const getUserProfile = async (req, res) => {
         email: user.email,
         mobileNumber: user.mobileNumber,
         profile: user.profile,
+        gstBillingRule: user.gstBillingRule,
       });
     } else {
       res.status(404).json({ message: "User not found" });
@@ -129,6 +130,9 @@ const updateUserProfile = async (req, res) => {
     if (user) {
       user.businessName = req.body.businessName || user.businessName;
       user.ownerName = req.body.ownerName || user.ownerName;
+      if (req.body.gstBillingRule !== undefined) {
+        user.gstBillingRule = req.body.gstBillingRule;
+      }
 
       // Update profile sub-fields
       const {
@@ -164,6 +168,7 @@ const updateUserProfile = async (req, res) => {
         email: updatedUser.email,
         mobileNumber: updatedUser.mobileNumber,
         profile: updatedUser.profile,
+        gstBillingRule: updatedUser.gstBillingRule,
       });
     } else {
       res.status(404).json({ message: "User not found" });

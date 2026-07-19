@@ -32,6 +32,14 @@ const CustomerSchema = new mongoose.Schema(
       type: Number,
       default: 0.0,
     },
+    gstNumber: {
+      type: String,
+      default: "",
+    },
+    state: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

@@ -30,6 +30,22 @@ const PurchaseItemSchema = new mongoose.Schema({
     required: true,
     default: 18, // standard GST rate %
   },
+  hsnCode: {
+    type: String,
+    default: "",
+  },
+  schDiscount: {
+    type: Number,
+    default: 0.0, // scheme discount %
+  },
+  splDiscount: {
+    type: Number,
+    default: 0.0, // special discount %
+  },
+  taxableAmount: {
+    type: Number,
+    default: 0.0, // taxable value after item discounts
+  },
 });
 
 const PurchaseSchema = new mongoose.Schema(
@@ -55,6 +71,15 @@ const PurchaseSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    isGst: {
+      type: Boolean,
+      default: true,
+    },
+    purchaseSource: {
+      type: String,
+      enum: ["GST", "Non-GST"],
+      default: "GST",
+    },
     transport: {
       type: Number,
       default: 0.0,
@@ -64,10 +89,38 @@ const PurchaseSchema = new mongoose.Schema(
       default: Date.now,
     },
     items: [PurchaseItemSchema],
+    taxableAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    cgst: {
+      type: Number,
+      default: 0.0,
+    },
+    sgst: {
+      type: Number,
+      default: 0.0,
+    },
+    igst: {
+      type: Number,
+      default: 0.0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0.0, // Total item discount sum + any trade discounts
+    },
+    cashDiscountPercent: {
+      type: Number,
+      default: 0.0, // Cash Discount %
+    },
+    cashDiscountAmount: {
+      type: Number,
+      default: 0.0, // Cash Discount Amount
+    },
     subtotal: {
       type: Number,
       required: true,
-      default: 0.0, // Sum of price * qty
+      default: 0.0, // Sum of price * qty before discount
     },
     gstAmount: {
       type: Number,
@@ -77,7 +130,7 @@ const PurchaseSchema = new mongoose.Schema(
     total: {
       type: Number,
       required: true,
-      default: 0.0, // subtotal + gstAmount
+      default: 0.0, // subtotal - discountAmount - cashDiscountAmount + gstAmount + transport
     },
     paymentMethod: {
       type: String,
