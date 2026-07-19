@@ -71,22 +71,20 @@ const createInvoice = async (req, res) => {
         return res.status(404).json({ message: `Product '${cartItem.name}' not found in inventory` });
       }
       if (!isQuotation) {
-        if (isGst) {
-          const requiredStock = cartItem.qty;
-          const availableStock = product.gstStock || 0;
-          if (availableStock < requiredStock && billingRule === "prevent") {
-            return res.status(400).json({
-              message: `Insufficient GST Purchased Stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
-            });
-          }
-        } else {
-          const requiredStock = cartItem.qty;
-          const availableStock = product.nonGstStock || 0;
-          if (availableStock < requiredStock && billingRule === "prevent") {
-            return res.status(400).json({
-              message: `Insufficient Non-GST stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
-            });
-          }
+        // Safe split stock initialization
+        if ((product.gstStock === undefined || product.gstStock === null || product.gstStock === 0) &&
+            (product.nonGstStock === undefined || product.nonGstStock === null || product.nonGstStock === 0) &&
+            product.stock !== 0) {
+          product.gstStock = product.stock;
+          product.nonGstStock = 0;
+        }
+
+        const requiredStock = cartItem.qty;
+        const availableStock = product.stock || 0;
+        if (availableStock < requiredStock && billingRule === "prevent") {
+          return res.status(400).json({
+            message: `Insufficient stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+          });
         }
       }
       checkedItems.push({ product, qty: cartItem.qty });
@@ -317,10 +315,25 @@ const createInvoice = async (req, res) => {
           checked.product.nonGstStock = 0;
         }
 
+        let qtyToDeduct = checked.qty;
         if (isGst) {
-          checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
+          const availGst = checked.product.gstStock || 0;
+          if (availGst >= qtyToDeduct) {
+            checked.product.gstStock = availGst - qtyToDeduct;
+          } else {
+            checked.product.gstStock = 0;
+            const remainder = qtyToDeduct - availGst;
+            checked.product.nonGstStock = (checked.product.nonGstStock || 0) - remainder;
+          }
         } else {
-          checked.product.nonGstStock = (checked.product.nonGstStock || 0) - checked.qty;
+          const availNonGst = checked.product.nonGstStock || 0;
+          if (availNonGst >= qtyToDeduct) {
+            checked.product.nonGstStock = availNonGst - qtyToDeduct;
+          } else {
+            checked.product.nonGstStock = 0;
+            const remainder = qtyToDeduct - availNonGst;
+            checked.product.gstStock = (checked.product.gstStock || 0) - remainder;
+          }
         }
         checked.product.stock = (checked.product.gstStock || 0) + (checked.product.nonGstStock || 0);
         await checked.product.save();
@@ -1165,54 +1178,36 @@ const updateInvoice = async (req, res) => {
       }
 
       if (!isQuotation) {
-        if (isGst) {
-          const requiredStock = cartItem.qty;
-          const availableStock = product.gstStock || 0;
-          if (availableStock < requiredStock && billingRule === "prevent") {
-            // Revert back original stock levels if stock is insufficient
-            if (!invoice.isQuotation) {
-              for (const origItem of invoice.items) {
-                if (origItem.isManualItem || !origItem.productId) continue;
-                const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
-                if (origProd) {
-                  if (invoice.isGstBilling !== false) {
-                    origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
-                  } else {
-                    origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
-                  }
-                  origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
-                  await origProd.save();
+        // Safe split stock initialization
+        if ((product.gstStock === undefined || product.gstStock === null || product.gstStock === 0) &&
+            (product.nonGstStock === undefined || product.nonGstStock === null || product.nonGstStock === 0) &&
+            product.stock !== 0) {
+          product.gstStock = product.stock;
+          product.nonGstStock = 0;
+        }
+
+        const requiredStock = cartItem.qty;
+        const availableStock = product.stock || 0;
+        if (availableStock < requiredStock && billingRule === "prevent") {
+          // Revert back original stock levels if stock is insufficient
+          if (!invoice.isQuotation) {
+            for (const origItem of invoice.items) {
+              if (origItem.isManualItem || !origItem.productId) continue;
+              const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
+              if (origProd) {
+                if (invoice.isGstBilling !== false) {
+                  origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
+                } else {
+                  origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
                 }
+                origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
+                await origProd.save();
               }
             }
-            return res.status(400).json({
-              message: `Insufficient GST Purchased Stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
-            });
           }
-        } else {
-          const requiredStock = cartItem.qty;
-          const availableStock = product.nonGstStock || 0;
-          if (availableStock < requiredStock && billingRule === "prevent") {
-            // Revert back original stock levels if stock is insufficient
-            if (!invoice.isQuotation) {
-              for (const origItem of invoice.items) {
-                if (origItem.isManualItem || !origItem.productId) continue;
-                const origProd = await Product.findOne({ _id: origItem.productId, tenantId });
-                if (origProd) {
-                  if (invoice.isGstBilling !== false) {
-                    origProd.gstStock = Math.max(0, (origProd.gstStock || 0) - origItem.qty);
-                  } else {
-                    origProd.nonGstStock = Math.max(0, (origProd.nonGstStock || 0) - origItem.qty);
-                  }
-                  origProd.stock = (origProd.gstStock || 0) + (origProd.nonGstStock || 0);
-                  await origProd.save();
-                }
-              }
-            }
-            return res.status(400).json({
-              message: `Insufficient Non-GST stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
-            });
-          }
+          return res.status(400).json({
+            message: `Insufficient stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
+          });
         }
       }
       checkedItems.push({ product, qty: cartItem.qty });
@@ -1333,10 +1328,25 @@ const updateInvoice = async (req, res) => {
           checked.product.nonGstStock = 0;
         }
 
+        let qtyToDeduct = checked.qty;
         if (isGst) {
-          checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
+          const availGst = checked.product.gstStock || 0;
+          if (availGst >= qtyToDeduct) {
+            checked.product.gstStock = availGst - qtyToDeduct;
+          } else {
+            checked.product.gstStock = 0;
+            const remainder = qtyToDeduct - availGst;
+            checked.product.nonGstStock = (checked.product.nonGstStock || 0) - remainder;
+          }
         } else {
-          checked.product.nonGstStock = (checked.product.nonGstStock || 0) - checked.qty;
+          const availNonGst = checked.product.nonGstStock || 0;
+          if (availNonGst >= qtyToDeduct) {
+            checked.product.nonGstStock = availNonGst - qtyToDeduct;
+          } else {
+            checked.product.nonGstStock = 0;
+            const remainder = qtyToDeduct - availNonGst;
+            checked.product.gstStock = (checked.product.gstStock || 0) - remainder;
+          }
         }
         checked.product.stock = (checked.product.gstStock || 0) + (checked.product.nonGstStock || 0);
         await checked.product.save();
