@@ -221,6 +221,17 @@ function POS() {
     }
   }, [paymentMethod, grandTotal]);
 
+  // Automatically toggle GST Invoicing based on customer selection (School and Retail default to GST; Shops, Wholesalers, Dealers, Walk-in default to Non-GST)
+  useEffect(() => {
+    if (!editingInvoiceId) {
+      if (customerName && customerName !== "Walk-in Customer" && (customerType === "School" || customerType === "Retail")) {
+        setIsGstBilling(true);
+      } else {
+        setIsGstBilling(false);
+      }
+    }
+  }, [customerName, customerType, editingInvoiceId]);
+
   useEffect(() => {
     if (grandTotal === 0 && (returnedItems.length > 0 || editingInvoiceId)) {
       dispatch(setPaymentMethod("Exchange"));

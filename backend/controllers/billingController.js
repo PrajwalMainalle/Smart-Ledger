@@ -82,7 +82,7 @@ const createInvoice = async (req, res) => {
         } else {
           const requiredStock = cartItem.qty;
           const availableStock = product.nonGstStock || 0;
-          if (availableStock < requiredStock) {
+          if (availableStock < requiredStock && billingRule === "prevent") {
             return res.status(400).json({
               message: `Insufficient Non-GST stock for product '${product.name}'. Required: ${requiredStock}, Available: ${availableStock}`
             });
@@ -1185,7 +1185,7 @@ const updateInvoice = async (req, res) => {
         } else {
           const requiredStock = cartItem.qty;
           const availableStock = product.nonGstStock || 0;
-          if (availableStock < requiredStock) {
+          if (availableStock < requiredStock && billingRule === "prevent") {
             // Revert back original stock levels if stock is insufficient
             if (!invoice.isQuotation) {
               for (const origItem of invoice.items) {
