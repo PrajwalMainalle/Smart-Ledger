@@ -655,19 +655,36 @@ const getGstCaSummary = async (req, res) => {
 const getInventoryGstSummary = async (req, res) => {
   try {
     const tenantId = req.user._id;
-    const products = await Product.find({ tenantId }).sort({ name: 1 }).lean();
+    const products = await Product.find({ tenantId }).sort({ name: 1 });
 
-    const formattedProducts = products.map(p => ({
-      _id: p._id,
-      name: p.name,
-      sku: p.sku,
-      hsnCode: p.hsnCode || "N/A",
-      gstStock: p.gstStock || 0,
-      nonGstStock: p.nonGstStock || 0,
-      totalStock: p.stock || 0,
-      purchasePrice: p.prices?.purchase || p.price || 0,
-      gstRate: p.gstRate || 0
-    }));
+    const formattedProducts = [];
+    for (const p of products) {
+      let changed = false;
+      // If split stocks are uninitialized (both are 0/undefined but total stock is non-zero)
+      if ((p.gstStock === undefined || p.gstStock === null || p.gstStock === 0) &&
+          (p.nonGstStock === undefined || p.nonGstStock === null || p.nonGstStock === 0) &&
+          p.stock !== 0) {
+        p.gstStock = p.stock;
+        p.nonGstStock = 0;
+        changed = true;
+      }
+      
+      if (changed) {
+        await p.save();
+      }
+
+      formattedProducts.push({
+        _id: p._id,
+        name: p.name,
+        sku: p.sku,
+        hsnCode: p.hsnCode || "N/A",
+        gstStock: p.gstStock || 0,
+        nonGstStock: p.nonGstStock || 0,
+        totalStock: p.stock || 0,
+        purchasePrice: p.prices?.purchase || p.price || 0,
+        gstRate: p.gstRate || 0
+      });
+    }
 
     res.json(formattedProducts);
   } catch (error) {

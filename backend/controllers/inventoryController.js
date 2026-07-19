@@ -53,6 +53,8 @@ const createProduct = async (req, res) => {
       prices: parsedPrices,
       gstRate: parseInt(gstRate),
       stock: parseInt(stock),
+      gstStock: parseInt(stock),
+      nonGstStock: 0,
       image,
     });
 
@@ -93,7 +95,14 @@ const updateProduct = async (req, res) => {
     product.description = description !== undefined ? description : product.description;
     product.category = category !== undefined ? category : product.category;
     product.gstRate = gstRate !== undefined ? parseInt(gstRate) : product.gstRate;
-    product.stock = stock !== undefined ? parseInt(stock) : product.stock;
+    
+    if (stock !== undefined) {
+      const newStock = parseInt(stock);
+      const diff = newStock - product.stock;
+      product.gstStock = (product.gstStock || 0) + diff;
+      product.stock = newStock;
+    }
+    
     product.image = image !== undefined ? image : product.image;
 
     if (prices !== undefined) {
