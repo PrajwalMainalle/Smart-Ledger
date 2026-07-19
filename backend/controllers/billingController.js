@@ -310,6 +310,13 @@ const createInvoice = async (req, res) => {
     // 4. Deduct Stock Levels for new purchases (only if not a quotation)
     if (!isQuotation) {
       for (const checked of checkedItems) {
+        if ((checked.product.gstStock === undefined || checked.product.gstStock === null || checked.product.gstStock === 0) &&
+            (checked.product.nonGstStock === undefined || checked.product.nonGstStock === null || checked.product.nonGstStock === 0) &&
+            checked.product.stock !== 0) {
+          checked.product.gstStock = checked.product.stock;
+          checked.product.nonGstStock = 0;
+        }
+
         if (isGst) {
           checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
         } else {
@@ -1319,6 +1326,13 @@ const updateInvoice = async (req, res) => {
     // 4. Deduct Stock Levels for new purchases
     if (!isQuotation) {
       for (const checked of checkedItems) {
+        if ((checked.product.gstStock === undefined || checked.product.gstStock === null || checked.product.gstStock === 0) &&
+            (checked.product.nonGstStock === undefined || checked.product.nonGstStock === null || checked.product.nonGstStock === 0) &&
+            checked.product.stock !== 0) {
+          checked.product.gstStock = checked.product.stock;
+          checked.product.nonGstStock = 0;
+        }
+
         if (isGst) {
           checked.product.gstStock = (checked.product.gstStock || 0) - checked.qty;
         } else {
