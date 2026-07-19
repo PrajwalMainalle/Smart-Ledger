@@ -219,7 +219,7 @@ function POS() {
       setCashAmount(0);
       setUpiAmount(0);
     }
-  }, [paymentMethod, grandTotal]);
+  }, [paymentMethod]);
 
   // Automatically toggle GST Invoicing based on customer selection (School and Retail default to GST; Shops, Wholesalers, Dealers, Walk-in default to Non-GST)
   useEffect(() => {
