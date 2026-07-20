@@ -198,22 +198,51 @@ const getGstSalesSummary = async (req, res) => {
               else: 1
             }
           },
-          igst: { $ifNull: ["$igst", 0] }
+          igst: { $ifNull: ["$igst", 0] },
+          customerType: { $ifNull: ["$customerType", "Retail"] }
         }
       },
       {
         $project: {
           gstRate: 1,
-          taxableValue: { $multiply: ["$qty", "$price", "$discountRatio"] },
-          isInterstate: { $cond: { if: { $gt: ["$igst", 0] }, then: true, else: false } }
+          isInterstate: { $cond: { if: { $gt: ["$igst", 0] }, then: true, else: false } },
+          isInclusive: {
+            $cond: {
+              if: { $in: ["$customerType", ["School", "Retail"]] },
+              then: true,
+              else: false
+            }
+          },
+          rawItemSubtotal: { $multiply: ["$qty", "$price", "$discountRatio"] }
+        }
+      },
+      {
+        $project: {
+          gstRate: 1,
+          isInterstate: 1,
+          isInclusive: 1,
+          rawItemSubtotal: 1,
+          taxableValue: {
+            $cond: {
+              if: "$isInclusive",
+              then: { $divide: ["$rawItemSubtotal", { $add: [1, { $divide: ["$gstRate", 100] }] }] },
+              else: "$rawItemSubtotal"
+            }
+          }
         }
       },
       {
         $project: {
           gstRate: 1,
           taxableValue: 1,
-          taxAmount: { $divide: [{ $multiply: ["$taxableValue", "$gstRate"] }, 100] },
-          isInterstate: 1
+          isInterstate: 1,
+          taxAmount: {
+            $cond: {
+              if: "$isInclusive",
+              then: { $subtract: ["$rawItemSubtotal", "$taxableValue"] },
+              else: { $divide: [{ $multiply: ["$taxableValue", "$gstRate"] }, 100] }
+            }
+          }
         }
       },
       {
