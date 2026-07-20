@@ -114,8 +114,34 @@ function PurchaseList() {
   const calculateFormTotals = () => {
     let subtotal = 0;
     let totalItemDiscounts = 0;
-    let gstAmount = 0;
+    let baseTaxable = 0;
     const isGst = formData.supplierGst && formData.supplierGst.trim() !== "";
+
+    formData.items.forEach(item => {
+      const price = parseFloat(item.price) || 0;
+      const qty = parseInt(item.qty) || 0;
+      const schDiscount = parseFloat(item.schDiscount) || 0;
+      const splDiscount = parseFloat(item.splDiscount) || 0;
+
+      const itemSubtotal = price * qty;
+      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+
+      subtotal += itemSubtotal;
+      totalItemDiscounts += (itemSubtotal - itemTaxable);
+      baseTaxable += itemTaxable;
+    });
+
+    const cashDiscPercent = parseFloat(formData.cashDiscountPercent) || 0;
+    let cashDiscAmount = parseFloat(formData.cashDiscountAmount) || 0;
+    if (cashDiscPercent > 0 && cashDiscAmount === 0) {
+      cashDiscAmount = baseTaxable * (cashDiscPercent / 100);
+    }
+    const effectiveCashDiscPercent = cashDiscPercent > 0 
+      ? cashDiscPercent 
+      : (baseTaxable > 0 ? (cashDiscAmount / baseTaxable) * 100 : 0);
+
+    let gstAmount = 0;
+    let finalTaxableAmount = 0;
 
     formData.items.forEach(item => {
       const price = parseFloat(item.price) || 0;
@@ -125,24 +151,16 @@ function PurchaseList() {
       const splDiscount = parseFloat(item.splDiscount) || 0;
 
       const itemSubtotal = price * qty;
-      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
       const itemGst = (itemTaxable * rate) / 100;
 
-      subtotal += itemSubtotal;
-      totalItemDiscounts += (itemSubtotal - itemTaxable);
       gstAmount += itemGst;
+      finalTaxableAmount += itemTaxable;
     });
 
     const transportCost = parseFloat(formData.transport) || 0;
-    const baseTaxable = subtotal - totalItemDiscounts;
-
-    const cashDiscPercent = parseFloat(formData.cashDiscountPercent) || 0;
-    let cashDiscAmount = parseFloat(formData.cashDiscountAmount) || 0;
-    if (cashDiscPercent > 0 && cashDiscAmount === 0) {
-      cashDiscAmount = baseTaxable * (cashDiscPercent / 100);
-    }
-
-    const grandTotal = baseTaxable - cashDiscAmount + gstAmount + transportCost;
+    const grandTotal = finalTaxableAmount + gstAmount + transportCost;
 
     return { 
       subtotal, 
