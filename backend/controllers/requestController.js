@@ -10,7 +10,25 @@ const getRequests = async (req, res) => {
     const requests = await CustomerRequest.find({ tenantId })
       .sort({ requestDate: -1 })
       .lean();
-    res.json(requests);
+
+    // Map legacy single-item requests to new items array format dynamically
+    const mappedRequests = requests.map((item) => {
+      if (!item.items || item.items.length === 0) {
+        return {
+          ...item,
+          items: [
+            {
+              itemName: item.itemName || "Unknown Item",
+              quantity: item.quantity || 1,
+              expectedPrice: item.expectedPrice || 0,
+            },
+          ],
+        };
+      }
+      return item;
+    });
+
+    res.json(mappedRequests);
   } catch (error) {
     console.error("Error in getRequests:", error);
     res.status(500).json({ message: "Server error fetching customer requests", error: error.message });
@@ -23,10 +41,17 @@ const getRequests = async (req, res) => {
 const createRequest = async (req, res) => {
   try {
     const tenantId = req.user._id;
-    const { customerName, customerPhone, itemName, quantity, expectedPrice, notes } = req.body;
+    const { customerName, customerPhone, items, advancePayment, notes } = req.body;
 
-    if (!customerName || !itemName || !quantity) {
-      return res.status(400).json({ message: "Please provide customer name, item name, and quantity" });
+    if (!customerName || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Please provide customer name and at least one item" });
+    }
+
+    // Validate request items
+    for (const item of items) {
+      if (!item.itemName || !item.quantity) {
+        return res.status(400).json({ message: "All items must have a name and quantity" });
+      }
     }
 
     // Auto-generate Request Number: Find the last request and increment
@@ -45,9 +70,12 @@ const createRequest = async (req, res) => {
       requestNumber,
       customerName,
       customerPhone: customerPhone || "",
-      itemName,
-      quantity: Number(quantity),
-      expectedPrice: expectedPrice ? Number(expectedPrice) : 0,
+      items: items.map((it) => ({
+        itemName: it.itemName.trim(),
+        quantity: Number(it.quantity),
+        expectedPrice: it.expectedPrice ? Number(it.expectedPrice) : 0,
+      })),
+      advancePayment: advancePayment ? Number(advancePayment) : 0,
       notes: notes || "",
       status: "Pending",
     });
@@ -65,7 +93,7 @@ const createRequest = async (req, res) => {
 const updateRequest = async (req, res) => {
   try {
     const tenantId = req.user._id;
-    const { customerName, customerPhone, itemName, quantity, expectedPrice, notes, status } = req.body;
+    const { customerName, customerPhone, items, advancePayment, notes, status } = req.body;
 
     const request = await CustomerRequest.findOne({ _id: req.params.id, tenantId });
 
@@ -75,9 +103,7 @@ const updateRequest = async (req, res) => {
 
     if (customerName !== undefined) request.customerName = customerName;
     if (customerPhone !== undefined) request.customerPhone = customerPhone;
-    if (itemName !== undefined) request.itemName = itemName;
-    if (quantity !== undefined) request.quantity = Number(quantity);
-    if (expectedPrice !== undefined) request.expectedPrice = Number(expectedPrice);
+    if (advancePayment !== undefined) request.advancePayment = Number(advancePayment);
     if (notes !== undefined) request.notes = notes;
     if (status !== undefined) {
       const validStatuses = ["Pending", "Ordered from Supplier", "Stock Received", "Customer Collected", "Cancelled"];
@@ -85,6 +111,22 @@ const updateRequest = async (req, res) => {
         return res.status(400).json({ message: "Invalid status value" });
       }
       request.status = status;
+    }
+
+    if (items !== undefined) {
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Customer request must contain at least one item" });
+      }
+      for (const item of items) {
+        if (!item.itemName || !item.quantity) {
+          return res.status(400).json({ message: "All items must have a name and quantity" });
+        }
+      }
+      request.items = items.map((it) => ({
+        itemName: it.itemName.trim(),
+        quantity: Number(it.quantity),
+        expectedPrice: it.expectedPrice ? Number(it.expectedPrice) : 0,
+      }));
     }
 
     const updatedRequest = await request.save();

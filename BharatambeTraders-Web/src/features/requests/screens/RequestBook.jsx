@@ -15,8 +15,8 @@ import {
   FaTruck,
   FaBoxOpen,
   FaUserClock,
-  FaShoppingCart,
   FaTimesCircle,
+  FaCopy,
 } from "react-icons/fa";
 import {
   fetchRequests,
@@ -40,25 +40,20 @@ function RequestBook() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentRequest, setCurrentRequest] = useState(null);
 
-  // Form states
-  const [formData, setFormData] = useState({
-    customerName: "",
-    customerPhone: "",
-    itemName: "",
-    quantity: 1,
-    expectedPrice: "",
-    notes: "",
-  });
+  // Add Form states
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [advancePayment, setAdvancePayment] = useState("");
+  const [formItems, setFormItems] = useState([{ itemName: "", quantity: 1, expectedPrice: "" }]);
 
-  const [editFormData, setEditFormData] = useState({
-    customerName: "",
-    customerPhone: "",
-    itemName: "",
-    quantity: 1,
-    expectedPrice: "",
-    notes: "",
-    status: "Pending",
-  });
+  // Edit Form states
+  const [editCustomerName, setEditCustomerName] = useState("");
+  const [editCustomerPhone, setEditCustomerPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editAdvancePayment, setEditAdvancePayment] = useState("");
+  const [editStatus, setEditStatus] = useState("Pending");
+  const [editFormItems, setEditFormItems] = useState([{ itemName: "", quantity: 1, expectedPrice: "" }]);
 
   useEffect(() => {
     dispatch(fetchRequests());
@@ -76,37 +71,41 @@ function RequestBook() {
     const matchesStatus = statusFilter === "All" || req.status === statusFilter;
     const customer = req.customerName || "";
     const phone = req.customerPhone || "";
-    const item = req.itemName || "";
+    
+    // Check if search matches customer name, phone, or any item name
     const matchesSearch =
       customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       phone.includes(searchTerm) ||
-      item.toLowerCase().includes(searchTerm.toLowerCase());
+      (req.items && req.items.some((it) => it.itemName.toLowerCase().includes(searchTerm.toLowerCase())));
 
     return matchesStatus && matchesSearch;
   });
 
-  // Supplier Checklist logic: Group "Pending" & "Ordered from Supplier" requests by item name (case-insensitive)
+  // Supplier Checklist logic: Group pending requests by item name (case-insensitive)
   const getSupplierChecklist = () => {
     const itemsMap = {};
     requests
       .filter((req) => req.status === "Pending" || req.status === "Ordered from Supplier")
       .forEach((req) => {
-        const key = req.itemName.trim().toLowerCase();
-        if (!itemsMap[key]) {
-          itemsMap[key] = {
-            originalName: req.itemName.trim(),
-            totalQty: 0,
-            customers: [],
-          };
-        }
-        itemsMap[key].totalQty += req.quantity;
-        itemsMap[key].customers.push({
-          id: req._id || req.id,
-          name: req.customerName,
-          phone: req.customerPhone,
-          qty: req.quantity,
-          status: req.status,
-          date: req.requestDate,
+        if (!req.items) return;
+        req.items.forEach((item) => {
+          const key = item.itemName.trim().toLowerCase();
+          if (!itemsMap[key]) {
+            itemsMap[key] = {
+              originalName: item.itemName.trim(),
+              totalQty: 0,
+              customers: [],
+            };
+          }
+          itemsMap[key].totalQty += item.quantity;
+          itemsMap[key].customers.push({
+            id: req._id || req.id,
+            name: req.customerName,
+            phone: req.customerPhone,
+            qty: item.quantity,
+            status: req.status,
+            date: req.requestDate,
+          });
         });
       });
 
@@ -115,27 +114,116 @@ function RequestBook() {
 
   const supplierChecklist = getSupplierChecklist();
 
-  // Reset form helper
-  const resetForm = () => {
-    setFormData({
-      customerName: "",
-      customerPhone: "",
-      itemName: "",
-      quantity: 1,
-      expectedPrice: "",
-      notes: "",
+  // Copy compiled order list to clipboard
+  const handleCopyOrderList = () => {
+    if (supplierChecklist.length === 0) {
+      alert("No pending requests to compile.");
+      return;
+    }
+
+    const dateStr = new Date().toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
+
+    let copyText = `*BHARATAMBE TRADERS - SUPPLIER ORDER CHECKLIST*\nDate: ${dateStr}\n-------------------------------------------\n\n`;
+    
+    supplierChecklist.forEach((item, index) => {
+      const customerBreakdown = item.customers
+        .map((c) => `${c.name} (${c.qty})`)
+        .join(", ");
+      copyText += `${index + 1}. *${item.originalName}* - Total Qty: *${item.totalQty}*\n   [Requested by: ${customerBreakdown}]\n\n`;
+    });
+
+    copyText += `-------------------------------------------\nPlease arrange the above items. Thank you!`;
+
+    navigator.clipboard.writeText(copyText)
+      .then(() => {
+        alert("Company order checklist copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy", err);
+        alert("Failed to copy order list. Please copy manually.");
+      });
+  };
+
+  // Dynamic Form items handlers (Add Modal)
+  const handleAddItemRow = () => {
+    setFormItems([...formItems, { itemName: "", quantity: 1, expectedPrice: "" }]);
+  };
+
+  const handleRemoveItemRow = (index) => {
+    if (formItems.length === 1) return;
+    setFormItems(formItems.filter((_, idx) => idx !== index));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const updated = formItems.map((item, idx) => {
+      if (idx === index) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
+    setFormItems(updated);
+  };
+
+  // Dynamic Form items handlers (Edit Modal)
+  const handleAddEditItemRow = () => {
+    setEditFormItems([...editFormItems, { itemName: "", quantity: 1, expectedPrice: "" }]);
+  };
+
+  const handleRemoveEditItemRow = (index) => {
+    if (editFormItems.length === 1) return;
+    setEditFormItems(editFormItems.filter((_, idx) => idx !== index));
+  };
+
+  const handleEditItemChange = (index, field, value) => {
+    const updated = editFormItems.map((item, idx) => {
+      if (idx === index) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
+    setEditFormItems(updated);
+  };
+
+  // Reset Add Form helper
+  const resetForm = () => {
+    setCustomerName("");
+    setCustomerPhone("");
+    setNotes("");
+    setAdvancePayment("");
+    setFormItems([{ itemName: "", quantity: 1, expectedPrice: "" }]);
   };
 
   // Submit Add Request Form
   const handleAddSubmit = (e) => {
     e.preventDefault();
-    if (!formData.customerName || !formData.itemName || !formData.quantity) {
-      alert("Please fill all required fields (Customer Name, Item Name, Quantity).");
+    if (!customerName) {
+      alert("Please fill customer name.");
       return;
     }
 
-    dispatch(addRequest(formData))
+    const invalidItems = formItems.some((it) => !it.itemName || it.quantity < 1);
+    if (invalidItems) {
+      alert("Please check that all items have a name and quantity of at least 1.");
+      return;
+    }
+
+    const payload = {
+      customerName,
+      customerPhone,
+      notes,
+      advancePayment: advancePayment ? parseFloat(advancePayment) : 0,
+      items: formItems.map((it) => ({
+        itemName: it.itemName,
+        quantity: parseInt(it.quantity),
+        expectedPrice: it.expectedPrice ? parseFloat(it.expectedPrice) : 0,
+      })),
+    };
+
+    dispatch(addRequest(payload))
       .unwrap()
       .then(() => {
         setShowAddModal(false);
@@ -149,32 +237,54 @@ function RequestBook() {
   // Open Edit Modal
   const openEditModal = (req) => {
     setCurrentRequest(req);
-    setEditFormData({
-      customerName: req.customerName || "",
-      customerPhone: req.customerPhone || "",
-      itemName: req.itemName || "",
-      quantity: req.quantity || 1,
-      expectedPrice: req.expectedPrice || "",
-      notes: req.notes || "",
-      status: req.status || "Pending",
-    });
+    setEditCustomerName(req.customerName || "");
+    setEditCustomerPhone(req.customerPhone || "");
+    setEditNotes(req.notes || "");
+    setEditAdvancePayment(req.advancePayment || "");
+    setEditStatus(req.status || "Pending");
+    
+    if (req.items && req.items.length > 0) {
+      setEditFormItems(req.items.map((it) => ({
+        itemName: it.itemName || "",
+        quantity: it.quantity || 1,
+        expectedPrice: it.expectedPrice || "",
+      })));
+    } else {
+      setEditFormItems([{ itemName: "", quantity: 1, expectedPrice: "" }]);
+    }
+    
     setShowEditModal(true);
   };
 
   // Submit Edit Request Form
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    if (!editFormData.customerName || !editFormData.itemName || !editFormData.quantity) {
-      alert("Please fill all required fields.");
+    if (!editCustomerName) {
+      alert("Please fill customer name.");
       return;
     }
 
-    dispatch(
-      updateRequest({
-        _id: currentRequest._id || currentRequest.id,
-        ...editFormData,
-      })
-    )
+    const invalidItems = editFormItems.some((it) => !it.itemName || it.quantity < 1);
+    if (invalidItems) {
+      alert("Please verify all items have valid names and quantities.");
+      return;
+    }
+
+    const payload = {
+      _id: currentRequest._id || currentRequest.id,
+      customerName: editCustomerName,
+      customerPhone: editCustomerPhone,
+      notes: editNotes,
+      advancePayment: editAdvancePayment ? parseFloat(editAdvancePayment) : 0,
+      status: editStatus,
+      items: editFormItems.map((it) => ({
+        itemName: it.itemName,
+        quantity: parseInt(it.quantity),
+        expectedPrice: it.expectedPrice ? parseFloat(it.expectedPrice) : 0,
+      })),
+    };
+
+    dispatch(updateRequest(payload))
       .unwrap()
       .then(() => {
         setShowEditModal(false);
@@ -210,20 +320,34 @@ function RequestBook() {
     }
   };
 
+  // Calculate expected total for a request
+  const getExpectedTotal = (req) => {
+    if (!req.items) return 0;
+    return req.items.reduce((acc, curr) => acc + (curr.expectedPrice || 0) * (curr.quantity || 1), 0);
+  };
+
+  // Calculate total items count in a request
+  const getItemsCount = (req) => {
+    if (!req.items) return 0;
+    return req.items.reduce((acc, curr) => acc + (curr.quantity || 1), 0);
+  };
+
   // Helper to generate WhatsApp message link based on status
   const getWhatsAppLink = (req) => {
     let msg = "";
     const cleanPhone = req.customerPhone.replace(/[^0-9]/g, "");
-    
-    // Default country code handling (India +91) if it's 10 digits
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
+    const itemsSummary = req.items
+      ? req.items.map((it) => `*${it.itemName}* (Qty: ${it.quantity})`).join(", ")
+      : "your requested items";
+
     if (req.status === "Stock Received") {
-      msg = `Hello ${req.customerName}, good news! Your requested item "${req.itemName}" (Qty: ${req.quantity}) has arrived and is ready for collection at Bharatambe Traders. Please visit our shop to pick it up. Thank you!`;
+      msg = `Hello ${req.customerName}, good news! Your requested items (${itemsSummary}) have arrived and are ready for collection at Bharatambe Traders. Please visit our shop to pick them up. Thank you!`;
     } else if (req.status === "Ordered from Supplier") {
-      msg = `Hello ${req.customerName}, we have ordered your requested item "${req.itemName}" (Qty: ${req.quantity}) from our supplier. We will notify you as soon as the stock arrives. - Bharatambe Traders`;
+      msg = `Hello ${req.customerName}, we have ordered your requested items (${itemsSummary}) from our supplier. We will notify you as soon as the stock arrives. - Bharatambe Traders`;
     } else {
-      msg = `Hello ${req.customerName}, we have noted down your request for "${req.itemName}" (Qty: ${req.quantity}) in our Request Book. We are checking availability and will update you soon. - Bharatambe Traders`;
+      msg = `Hello ${req.customerName}, we have noted down your request for (${itemsSummary}) in our Request Book. We are checking availability and will update you soon. - Bharatambe Traders`;
     }
 
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;
@@ -249,7 +373,7 @@ function RequestBook() {
 
   return (
     <div className="space-y-6">
-      {loading && <LoadingOverlay message="Loading Customer Request Book..." />}
+      {loading && <LoadingOverlay message="Updating Request Book..." />}
 
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -259,7 +383,7 @@ function RequestBook() {
             Customer Request Book
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Replace your paper notebook. Note down out-of-stock items requested by customers and manage checklists.
+            Replace your paper notebook. Note down out-of-stock items requested by customers, track advance payments, and compile supplier orders.
           </p>
         </div>
         <button
@@ -300,7 +424,7 @@ function RequestBook() {
           <p className="text-xl font-black text-slate-100 mt-2">{orderedRequestsCount}</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm animate-pulse-slow">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-green-400 tracking-wider uppercase">Ready for Collection</span>
             <FaBoxOpen className="text-green-500 text-base" />
@@ -397,14 +521,14 @@ function RequestBook() {
                 <thead>
                   <tr className="bg-slate-950 border-b border-slate-800 text-[10px] uppercase font-bold tracking-wider text-slate-400">
                     <th className="py-4 px-4 w-24">Req No.</th>
-                    <th className="py-4 px-4">Customer Name</th>
-                    <th className="py-4 px-4">Phone Number</th>
-                    <th className="py-4 px-4">Item Name</th>
-                    <th className="py-4 px-4 w-20 text-center">Qty</th>
-                    <th className="py-4 px-4">Expected Price</th>
-                    <th className="py-4 px-4">Request Date</th>
-                    <th className="py-4 px-4 w-44">Status</th>
-                    <th className="py-4 px-4 text-right w-48">Actions</th>
+                    <th className="py-4 px-4 font-black">Customer Name</th>
+                    <th className="py-4 px-4 w-32">Phone Number</th>
+                    <th className="py-4 px-4">Requested Items</th>
+                    <th className="py-4 px-4 w-20 text-center">Total Qty</th>
+                    <th className="py-4 px-4 w-32">Expected Price</th>
+                    <th className="py-4 px-4 w-28">Advance Paid</th>
+                    <th className="py-4 px-4 w-36">Status</th>
+                    <th className="py-4 px-4 text-right w-44">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40 text-slate-300">
@@ -419,17 +543,32 @@ function RequestBook() {
                       <td className="py-3.5 px-4 text-slate-400 font-mono">
                         {req.customerPhone || "—"}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-100 font-semibold">
-                        {req.itemName}
+                      <td className="py-3.5 px-4 text-slate-100">
+                        <div className="space-y-1">
+                          {req.items && req.items.map((it, idx) => (
+                            <div key={idx} className="flex gap-1.5 items-center">
+                              <span className="font-semibold">{it.itemName}</span>
+                              <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.2 rounded font-mono">
+                                x{it.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-bold text-orange-400">
-                        {req.quantity}
+                      <td className="py-3.5 px-4 text-center font-bold text-slate-200">
+                        {getItemsCount(req)}
                       </td>
                       <td className="py-3.5 px-4 font-bold text-slate-300">
-                        {req.expectedPrice > 0 ? `₹${req.expectedPrice.toFixed(2)}` : "—"}
+                        {getExpectedTotal(req) > 0 ? `₹${getExpectedTotal(req).toFixed(2)}` : "—"}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-500 text-[11px]">
-                        {new Date(req.requestDate).toLocaleDateString()}
+                      <td className="py-3.5 px-4">
+                        {req.advancePayment > 0 ? (
+                          <span className="font-black text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                            ₹{req.advancePayment.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold ${getStatusBadgeClass(req.status)}`}>
@@ -451,13 +590,13 @@ function RequestBook() {
                             <button
                               disabled
                               className="p-1.5 rounded-lg bg-slate-850 text-slate-600 cursor-not-allowed"
-                              title="No phone number provided"
+                              title="No phone number"
                             >
                               <FaPhoneAlt size={10} />
                             </button>
                           )}
 
-                          {/* Whatsapp Client */}
+                          {/* WhatsApp Customer */}
                           {req.customerPhone ? (
                             <a
                               href={getWhatsAppLink(req)}
@@ -472,7 +611,7 @@ function RequestBook() {
                             <button
                               disabled
                               className="p-1.5 rounded-lg bg-slate-850 text-slate-600 cursor-not-allowed"
-                              title="No phone number provided"
+                              title="No phone number"
                             >
                               <FaWhatsapp size={11} />
                             </button>
@@ -504,7 +643,7 @@ function RequestBook() {
                           {req.status === "Stock Received" && (
                             <button
                               onClick={() => handleStatusChange(req, "Customer Collected")}
-                              className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition"
+                              className="p-1.5 rounded-lg bg-slate-750 hover:bg-slate-700 text-slate-200 transition"
                               title="Mark as Collected"
                             >
                               <FaCheckCircle size={11} />
@@ -542,16 +681,26 @@ function RequestBook() {
       {/* TAB 2: SUPPLIER CHECKLIST */}
       {activeTab === "supplier" && (
         <div className="space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow flex justify-between items-center">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow flex flex-col sm:flex-row justify-between sm:items-center gap-3">
             <div>
               <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Purchase Checklist Helper</h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 Displays aggregate order quantities required for out-of-stock items, grouped across all customers.
               </p>
             </div>
-            <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl border border-slate-700 font-bold">
-              {supplierChecklist.length} Unique Items to Order
-            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopyOrderList}
+                className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 text-slate-200 font-bold px-3 py-2 rounded-xl text-xs shadow transition active:scale-95"
+                title="Copy formatted list for WhatsApp or Supplier Email"
+              >
+                <FaCopy size={11} />
+                Copy Order List
+              </button>
+              <span className="text-xs bg-slate-950 text-slate-350 px-3 py-2 rounded-xl border border-slate-800/80 font-bold flex items-center">
+                {supplierChecklist.length} Items to Order
+              </span>
+            </div>
           </div>
 
           {supplierChecklist.length === 0 ? (
@@ -572,7 +721,7 @@ function RequestBook() {
                         {item.originalName}
                       </h4>
                       <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 font-black text-xs px-3 py-1 rounded-xl flex items-center gap-1.5 shadow">
-                        Qty: {item.totalQty}
+                        Total: {item.totalQty}
                       </span>
                     </div>
 
@@ -585,12 +734,12 @@ function RequestBook() {
                           <div key={idx} className="py-2 flex justify-between items-center text-xs">
                             <div>
                               <div className="font-bold text-slate-300">{c.name}</div>
-                              <div className="text-[10px] text-slate-500">
+                              <div className="text-[10px] text-slate-555 text-slate-500">
                                 Date: {new Date(c.date).toLocaleDateString()}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-orange-400 font-mono">
+                              <span className="text-[10px] font-bold text-orange-450 font-mono">
                                 x{c.qty}
                               </span>
                               <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${
@@ -612,7 +761,7 @@ function RequestBook() {
                         // Mark all pending/ordered requests for this item name to Stock Received
                         if (
                           window.confirm(
-                            `Mark all ${item.customers.length} requests for "${item.originalName}" as "Stock Received"?`
+                            `Mark requests containing "${item.originalName}" as "Stock Received" for all listed customers?`
                           )
                         ) {
                           item.customers.forEach((c) => {
@@ -623,7 +772,7 @@ function RequestBook() {
                       className="text-[10px] font-bold text-green-400 hover:text-green-300 bg-green-500/10 border border-green-500/25 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1"
                     >
                       <FaBoxOpen size={10} />
-                      Receive All Stock
+                      Receive Stock
                     </button>
                   </div>
                 </div>
@@ -635,10 +784,10 @@ function RequestBook() {
 
       {/* ADD MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 my-8">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800/80 flex justify-between items-center">
+            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
                 <FaClipboardList className="text-orange-500" />
                 Record Customer Request
@@ -652,99 +801,151 @@ function RequestBook() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Customer Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ramesh"
-                  value={formData.customerName}
-                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition placeholder-slate-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Mobile Number
-                </label>
-                <input
-                  type="tel"
-                  placeholder="e.g. 9876543210"
-                  value={formData.customerPhone}
-                  onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition placeholder-slate-600"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
+            <form onSubmit={handleAddSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                    Item Name <span className="text-rose-500">*</span>
+                    Customer Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Milton Bottle"
-                    value={formData.itemName}
-                    onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition placeholder-slate-600"
+                    placeholder="e.g. Ramesh"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
                   />
                 </div>
+
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                    Quantity <span className="text-rose-500">*</span>
+                    Mobile Number
                   </label>
                   <input
-                    type="number"
-                    required
-                    min="1"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs text-center focus:outline-none transition font-bold"
+                    type="tel"
+                    placeholder="e.g. 9876543210"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Expected Price (Optional)
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-slate-500 text-xs font-bold">
-                    ₹
+              {/* Dynamic Items Array */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    Requested Items
                   </span>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.expectedPrice}
-                    onChange={(e) => setFormData({ ...formData, expectedPrice: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 pl-8 pr-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
-                  />
+                  <button
+                    type="button"
+                    onClick={handleAddItemRow}
+                    className="text-[10px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1"
+                  >
+                    <FaPlus size={8} /> Add Item Row
+                  </button>
                 </div>
+
+                {formItems.map((item, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-12 gap-2 bg-slate-950/40 p-3.5 rounded-xl border border-slate-850 relative group"
+                  >
+                    <div className="col-span-12 sm:col-span-6">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        ITEM NAME <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Milton Bottle"
+                        value={item.itemName}
+                        onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="col-span-6 sm:col-span-3">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        QTY <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none text-center font-bold"
+                      />
+                    </div>
+
+                    <div className="col-span-6 sm:col-span-3">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        PRICE (EACH)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={item.expectedPrice}
+                        onChange={(e) => handleItemChange(index, "expectedPrice", e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none font-bold"
+                      />
+                    </div>
+
+                    {formItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItemRow(index)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-950 border border-rose-800 text-rose-400 rounded-full flex items-center justify-center hover:bg-rose-900 transition text-[9px] shadow"
+                        title="Remove row"
+                      >
+                        <FaTimes size={8} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Notes
-                </label>
-                <textarea
-                  placeholder="Additional order specifics, color, size, etc."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition placeholder-slate-600 h-20 resize-none"
-                />
+              {/* Advance Payment Field */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
+                    Advance Payment (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-slate-500 text-xs font-bold">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={advancePayment}
+                      onChange={(e) => setAdvancePayment(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 pl-8 pr-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition font-bold text-green-400 placeholder-slate-750"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
+                    Notes
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Size, color, custom orders notes..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition h-10.5"
+                  />
+                </div>
               </div>
 
               {/* Submit Actions */}
-              <div className="pt-2 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-800/80 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4.5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-xs transition"
+                  className="px-4.5 py-2.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 font-bold rounded-xl text-xs transition"
                 >
                   Cancel
                 </button>
@@ -762,10 +963,10 @@ function RequestBook() {
 
       {/* EDIT MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 my-8">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800/80 flex justify-between items-center">
+            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
                 <FaEdit className="text-orange-500" />
                 Update Request Details
@@ -779,92 +980,142 @@ function RequestBook() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Customer Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editFormData.customerName}
-                  onChange={(e) => setEditFormData({ ...editFormData, customerName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Mobile Number
-                </label>
-                <input
-                  type="tel"
-                  value={editFormData.customerPhone}
-                  onChange={(e) => setEditFormData({ ...editFormData, customerPhone: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                    Item Name <span className="text-rose-500">*</span>
+                    Customer Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={editFormData.itemName}
-                    onChange={(e) => setEditFormData({ ...editFormData, itemName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
+                    value={editCustomerName}
+                    onChange={(e) => setEditCustomerName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
                   />
                 </div>
+
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                    Quantity <span className="text-rose-500">*</span>
+                    Mobile Number
                   </label>
                   <input
-                    type="number"
-                    required
-                    min="1"
-                    value={editFormData.quantity}
-                    onChange={(e) => setEditFormData({ ...editFormData, quantity: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs text-center focus:outline-none transition font-bold"
+                    type="tel"
+                    value={editCustomerPhone}
+                    onChange={(e) => setEditCustomerPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Expected Price
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-slate-500 text-xs font-bold">
-                    ₹
+              {/* Dynamic items editing list */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    Requested Items
                   </span>
-                  <input
-                    type="number"
-                    value={editFormData.expectedPrice}
-                    onChange={(e) => setEditFormData({ ...editFormData, expectedPrice: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 pl-8 pr-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
-                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEditItemRow}
+                    className="text-[10px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1"
+                  >
+                    <FaPlus size={8} /> Add Item Row
+                  </button>
                 </div>
+
+                {editFormItems.map((item, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-12 gap-2 bg-slate-950/40 p-3.5 rounded-xl border border-slate-850 relative group"
+                  >
+                    <div className="col-span-12 sm:col-span-6">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        ITEM NAME <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={item.itemName}
+                        onChange={(e) => handleEditItemChange(index, "itemName", e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="col-span-6 sm:col-span-3">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        QTY <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleEditItemChange(index, "quantity", parseInt(e.target.value) || 1)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none text-center font-bold"
+                      />
+                    </div>
+
+                    <div className="col-span-6 sm:col-span-3">
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1">
+                        PRICE (EACH)
+                      </label>
+                      <input
+                        type="number"
+                        value={item.expectedPrice}
+                        onChange={(e) => handleEditItemChange(index, "expectedPrice", e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none font-bold"
+                      />
+                    </div>
+
+                    {editFormItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditItemRow(index)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-950 border border-rose-800 text-rose-400 rounded-full flex items-center justify-center hover:bg-rose-900 transition text-[9px] shadow"
+                        title="Remove row"
+                      >
+                        <FaTimes size={8} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Status Flow
-                </label>
-                <select
-                  value={editFormData.status}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition font-bold"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Ordered from Supplier">Ordered from Supplier</option>
-                  <option value="Stock Received">Stock Received (Ready for Collection)</option>
-                  <option value="Customer Collected">Customer Collected</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
+              {/* Status and Payment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
+                    Status Flow
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition font-bold"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Ordered from Supplier">Ordered from Supplier</option>
+                    <option value="Stock Received">Stock Received (Ready for Collection)</option>
+                    <option value="Customer Collected">Customer Collected</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">
+                    Advance Payment (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-slate-500 text-xs font-bold">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      value={editAdvancePayment}
+                      onChange={(e) => setEditAdvancePayment(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 pl-8 pr-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition font-bold text-green-400"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -872,18 +1123,18 @@ function RequestBook() {
                   Notes
                 </label>
                 <textarea
-                  value={editFormData.notes}
-                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition h-20 resize-none"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition h-20 resize-none"
                 />
               </div>
 
               {/* Submit Actions */}
-              <div className="pt-2 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-800/80 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4.5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-xs transition"
+                  className="px-4.5 py-2.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 font-bold rounded-xl text-xs transition"
                 >
                   Cancel
                 </button>

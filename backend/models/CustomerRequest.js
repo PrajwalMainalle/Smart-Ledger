@@ -22,18 +22,26 @@ const CustomerRequestSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    itemName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      default: 1,
-      min: 1,
-    },
-    expectedPrice: {
+    items: [
+      {
+        itemName: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          default: 1,
+          min: 1,
+        },
+        expectedPrice: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
+    advancePayment: {
       type: Number,
       default: 0,
     },
@@ -60,6 +68,5 @@ const CustomerRequestSchema = new mongoose.Schema(
 CustomerRequestSchema.index({ tenantId: 1, requestNumber: 1 }, { unique: true });
 CustomerRequestSchema.index({ tenantId: 1, status: 1 });
 CustomerRequestSchema.index({ tenantId: 1, customerName: 1 });
-CustomerRequestSchema.index({ tenantId: 1, itemName: 1 });
 
 module.exports = mongoose.model("CustomerRequest", CustomerRequestSchema);
