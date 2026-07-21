@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import axiosInstance from "../../../app/api/axiosInstance";
 import { IoSearch } from "react-icons/io5";
 import {
@@ -15,6 +16,9 @@ import {
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
 function PurchaseList() {
+  const { user } = useSelector((state) => state.auth);
+  const tenantGst = user?.profile?.gstNumber || "";
+
   const [purchases, setPurchases] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +47,7 @@ function PurchaseList() {
     discountAmount: "",
     cashDiscountPercent: "",
     cashDiscountAmount: "",
+    gstType: "CGST+SGST",
     items: [
       { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" }
     ]
@@ -153,7 +158,18 @@ function PurchaseList() {
       const itemSubtotal = price * qty;
       const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
       const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-      const itemGst = (itemTaxable * rate) / 100;
+      
+      let itemGst = 0;
+      if (isGst && rate > 0) {
+        if (formData.gstType === "IGST") {
+          itemGst = Math.round(itemTaxable * rate) / 100;
+        } else {
+          // Default to CGST+SGST
+          const cgstVal = Math.round(itemTaxable * (rate / 2)) / 100;
+          const sgstVal = Math.round(itemTaxable * (rate / 2)) / 100;
+          itemGst = cgstVal + sgstVal;
+        }
+      }
 
       gstAmount += itemGst;
       finalTaxableAmount += itemTaxable;
@@ -189,6 +205,7 @@ function PurchaseList() {
       discountAmount: "",
       cashDiscountPercent: "",
       cashDiscountAmount: "",
+      gstType: "CGST+SGST",
       items: [{ productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" }]
     });
     setCurrentPurchaseId(null);
@@ -244,6 +261,17 @@ function PurchaseList() {
   // Trigger Edit
   const openEditModal = (purchase) => {
     setCurrentPurchaseId(purchase._id);
+    
+    // Auto-detect default if purchase doesn't have gstType saved yet
+    let defaultGstType = "CGST+SGST";
+    if (purchase.supplierGst && purchase.supplierGst.trim().length >= 2 && tenantGst.length >= 2) {
+      const supplierStateCode = purchase.supplierGst.trim().substring(0, 2);
+      const tenantStateCode = tenantGst.substring(0, 2);
+      if (supplierStateCode !== tenantStateCode) {
+        defaultGstType = "IGST";
+      }
+    }
+
     setFormData({
       supplierName: purchase.supplierName,
       supplierGst: purchase.supplierGst || "",
@@ -256,6 +284,7 @@ function PurchaseList() {
       discountAmount: purchase.discountAmount !== undefined ? purchase.discountAmount.toString() : "",
       cashDiscountPercent: purchase.cashDiscountPercent !== undefined ? purchase.cashDiscountPercent.toString() : "",
       cashDiscountAmount: purchase.cashDiscountAmount !== undefined ? purchase.cashDiscountAmount.toString() : "",
+      gstType: purchase.gstType || defaultGstType,
       items: purchase.items.map(item => ({
         productId: item.productId || "",
         sku: item.sku || "",
@@ -574,27 +603,47 @@ function PurchaseList() {
                                 })}
                               </div>
 
-                              {/* Overall discounts summary footer */}
-                              {((p.discountAmount || 0) > 0 || (p.cashDiscountAmount || 0) > 0) && (
-                                <div className="bg-slate-900/20 border border-slate-850 p-3.5 rounded-xl flex flex-wrap gap-6 text-xs font-mono text-slate-400">
-                                  {(p.discountAmount || 0) > 0 && (
-                                    <div>
-                                      <span className="text-slate-500">Item-wise Discount: </span>
-                                      <span className="text-rose-450 font-bold">₹{(p.discountAmount || 0).toFixed(2)}</span>
-                                    </div>
-                                  )}
-                                  {(p.cashDiscountAmount || 0) > 0 && (
-                                    <div>
-                                      <span className="text-slate-500">Cash Discount {p.cashDiscountPercent > 0 ? `(${p.cashDiscountPercent}%)` : ""}: </span>
-                                      <span className="text-rose-450 font-bold">₹{(p.cashDiscountAmount || 0).toFixed(2)}</span>
-                                    </div>
-                                  )}
+                              {/* Overall discounts & tax summary footer */}
+                              <div className="bg-slate-900/20 border border-slate-850 p-3.5 rounded-xl flex flex-wrap gap-6 text-xs font-mono text-slate-400">
+                                {(p.discountAmount || 0) > 0 && (
                                   <div>
-                                    <span className="text-slate-500">Net Taxable Value: </span>
-                                    <span className="text-slate-200 font-bold">₹{(p.taxableAmount || p.subtotal).toFixed(2)}</span>
+                                    <span className="text-slate-500">Item-wise Discount: </span>
+                                    <span className="text-rose-450 font-bold">₹{(p.discountAmount || 0).toFixed(2)}</span>
                                   </div>
+                                )}
+                                {(p.cashDiscountAmount || 0) > 0 && (
+                                  <div>
+                                    <span className="text-slate-500">Cash Discount {p.cashDiscountPercent > 0 ? `(${p.cashDiscountPercent}%)` : ""}: </span>
+                                    <span className="text-rose-450 font-bold">₹{(p.cashDiscountAmount || 0).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="text-slate-500">Net Taxable Value: </span>
+                                  <span className="text-slate-200 font-bold">₹{(p.taxableAmount || p.subtotal).toFixed(2)}</span>
                                 </div>
-                              )}
+                                {p.isGst && (
+                                  <>
+                                    {(p.cgst > 0 || p.sgst > 0) && (
+                                      <>
+                                        <div>
+                                          <span className="text-slate-500">CGST Paid (9%): </span>
+                                          <span className="text-emerald-450 font-bold">₹{p.cgst.toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-slate-500">SGST Paid (9%): </span>
+                                          <span className="text-emerald-450 font-bold">₹{p.sgst.toFixed(2)}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                    {p.igst > 0 && (
+                                      <div>
+                                        <span className="text-slate-500">IGST Paid (18%): </span>
+                                        <span className="text-emerald-450 font-bold">₹{p.igst.toFixed(2)}</span>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -635,7 +684,7 @@ function PurchaseList() {
             <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit} className="p-6 space-y-4 text-xs">
               
               {/* Supplier & Bill Metadata */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <label className="text-slate-400 font-semibold">Supplier Name *</label>
                   <input 
@@ -654,9 +703,29 @@ function PurchaseList() {
                     placeholder="e.g. 29AAAAA0000A1Z0"
                     maxLength={15}
                     value={formData.supplierGst}
-                    onChange={(e) => setFormData({ ...formData, supplierGst: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      let detectedGstType = formData.gstType;
+                      if (val.trim().length >= 2 && tenantGst.trim().length >= 2) {
+                        const supplierStateCode = val.trim().substring(0, 2);
+                        const tenantStateCode = tenantGst.trim().substring(0, 2);
+                        detectedGstType = supplierStateCode === tenantStateCode ? "CGST+SGST" : "IGST";
+                      }
+                      setFormData({ ...formData, supplierGst: val, gstType: detectedGstType });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
                   />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">GST Calculation</label>
+                  <select
+                    value={formData.gstType}
+                    onChange={(e) => setFormData({ ...formData, gstType: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="CGST+SGST">CGST + SGST (9%+9% Split)</option>
+                    <option value="IGST">IGST (18% Combined)</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-slate-400 font-semibold">Transport Charges (Optional)</label>
@@ -914,6 +983,16 @@ function PurchaseList() {
                 <div className="space-y-1">
                   <div className="text-slate-500 text-[9px] font-semibold uppercase">GST Input Amount</div>
                   <div className="text-emerald-450 font-bold">₹{formTotals.gstAmount.toFixed(2)}</div>
+                  {formData.gstType === "CGST+SGST" && formTotals.gstAmount > 0 && (
+                    <div className="text-[9px] text-slate-400">
+                      CGST 9%: ₹{(formTotals.gstAmount / 2).toFixed(2)} + SGST 9%: ₹{(formTotals.gstAmount / 2).toFixed(2)}
+                    </div>
+                  )}
+                  {formData.gstType === "IGST" && formTotals.gstAmount > 0 && (
+                    <div className="text-[9px] text-slate-400">
+                      IGST 18%: ₹{formTotals.gstAmount.toFixed(2)}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1 text-right col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l border-slate-800 pt-2 md:pt-0 md:pl-2">
                   <div className="text-orange-500 text-[10px] font-semibold uppercase">Grand Total</div>

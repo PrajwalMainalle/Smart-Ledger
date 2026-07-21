@@ -19,7 +19,7 @@ const getPurchaseBills = async (req, res) => {
 // @route   POST /api/purchases
 // @access  Private
 const createPurchaseBill = async (req, res) => {
-  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport } = req.body;
+  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport, gstType } = req.body;
 
   if (!billNumber || !supplierName) {
     return res.status(400).json({ message: "Bill number and supplier name are required" });
@@ -91,7 +91,18 @@ const createPurchaseBill = async (req, res) => {
       const itemSubtotal = price * qty;
       const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
       const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-      const itemGst = isGst ? ((itemTaxable * gstRate) / 100) : 0;
+      
+      let itemGst = 0;
+      if (isGst && gstRate > 0) {
+        if (gstType === "IGST") {
+          itemGst = Math.round(itemTaxable * gstRate) / 100;
+        } else {
+          // Default to CGST+SGST
+          const cgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
+          const sgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
+          itemGst = cgstVal + sgstVal;
+        }
+      }
 
       gstAmount += itemGst;
       finalTaxableAmount += itemTaxable;
@@ -113,21 +124,42 @@ const createPurchaseBill = async (req, res) => {
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
+    let isInterstate = false;
+
+    if (supplierGst && supplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+      const supplierStateCode = supplierGst.trim().substring(0, 2);
+      const tenantStateCode = tenantGst.trim().substring(0, 2);
+      if (supplierStateCode !== tenantStateCode) {
+        isInterstate = true;
+      }
+    }
+
+    const selectedGstType = gstType || (isInterstate ? "IGST" : "CGST+SGST");
 
     if (isGst && gstAmount > 0) {
-      let isInterstate = false;
-      if (supplierGst && supplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
-        const supplierStateCode = supplierGst.trim().substring(0, 2);
-        const tenantStateCode = tenantGst.trim().substring(0, 2);
-        if (supplierStateCode !== tenantStateCode) {
-          isInterstate = true;
-        }
-      }
-      if (isInterstate) {
+      if (selectedGstType === "IGST") {
         igst = gstAmount;
       } else {
-        cgst = gstAmount / 2;
-        sgst = gstAmount / 2;
+        let totalCgst = 0;
+        let totalSgst = 0;
+        items.forEach((item) => {
+          const price = parseFloat(item.price) || 0;
+          const qty = parseInt(item.qty) || 0;
+          const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
+          const schDiscount = parseFloat(item.schDiscount) || 0;
+          const splDiscount = parseFloat(item.splDiscount) || 0;
+
+          const itemSubtotal = price * qty;
+          const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+          const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
+
+          if (gstRate > 0) {
+            totalCgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
+            totalSgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
+          }
+        });
+        cgst = totalCgst;
+        sgst = totalSgst;
       }
     }
 
@@ -142,6 +174,7 @@ const createPurchaseBill = async (req, res) => {
       supplierGst: (supplierGst || "").trim(),
       isGst,
       purchaseSource,
+      gstType: selectedGstType,
       transport: transportCost,
       date: date || new Date(),
       items: purchaseItems,
@@ -196,7 +229,7 @@ const createPurchaseBill = async (req, res) => {
 // @access  Private
 const updatePurchaseBill = async (req, res) => {
   const { id } = req.params;
-  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport } = req.body;
+  const { billNumber, supplierName, supplierGst, date, items, paymentMethod, status, remarks, transport, gstType } = req.body;
 
   try {
     const purchase = await Purchase.findOne({ _id: id, tenantId: req.user._id });
@@ -297,7 +330,18 @@ const updatePurchaseBill = async (req, res) => {
       const itemSubtotal = price * qty;
       const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
       const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-      const itemGst = isGst ? ((itemTaxable * gstRate) / 100) : 0;
+      
+      let itemGst = 0;
+      if (isGst && gstRate > 0) {
+        if (gstType === "IGST") {
+          itemGst = Math.round(itemTaxable * gstRate) / 100;
+        } else {
+          // Default to CGST+SGST
+          const cgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
+          const sgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
+          itemGst = cgstVal + sgstVal;
+        }
+      }
 
       gstAmount += itemGst;
       finalTaxableAmount += itemTaxable;
@@ -319,22 +363,43 @@ const updatePurchaseBill = async (req, res) => {
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
+    let isInterstate = false;
+
+    const finalSupplierGst = supplierGst !== undefined ? supplierGst : purchase.supplierGst;
+    if (finalSupplierGst && finalSupplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
+      const supplierStateCode = finalSupplierGst.trim().substring(0, 2);
+      const tenantStateCode = tenantGst.trim().substring(0, 2);
+      if (supplierStateCode !== tenantStateCode) {
+        isInterstate = true;
+      }
+    }
+
+    const selectedGstType = gstType || purchase.gstType || (isInterstate ? "IGST" : "CGST+SGST");
 
     if (isGst && gstAmount > 0) {
-      let isInterstate = false;
-      const finalSupplierGst = supplierGst !== undefined ? supplierGst : purchase.supplierGst;
-      if (finalSupplierGst && finalSupplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
-        const supplierStateCode = finalSupplierGst.trim().substring(0, 2);
-        const tenantStateCode = tenantGst.trim().substring(0, 2);
-        if (supplierStateCode !== tenantStateCode) {
-          isInterstate = true;
-        }
-      }
-      if (isInterstate) {
+      if (selectedGstType === "IGST") {
         igst = gstAmount;
       } else {
-        cgst = gstAmount / 2;
-        sgst = gstAmount / 2;
+        let totalCgst = 0;
+        let totalSgst = 0;
+        activeItems.forEach((item) => {
+          const price = parseFloat(item.price) || 0;
+          const qty = parseInt(item.qty) || 0;
+          const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
+          const schDiscount = parseFloat(item.schDiscount) || 0;
+          const splDiscount = parseFloat(item.splDiscount) || 0;
+
+          const itemSubtotal = price * qty;
+          const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+          const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
+
+          if (gstRate > 0) {
+            totalCgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
+            totalSgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
+          }
+        });
+        cgst = totalCgst;
+        sgst = totalSgst;
       }
     }
 
@@ -351,6 +416,7 @@ const updatePurchaseBill = async (req, res) => {
 
     purchase.isGst = isGst;
     purchase.purchaseSource = purchaseSource;
+    purchase.gstType = selectedGstType;
     purchase.items = purchaseItems;
     purchase.taxableAmount = finalTaxableAmount;
     purchase.cgst = cgst;

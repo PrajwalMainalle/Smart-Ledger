@@ -80,6 +80,11 @@ const PurchaseSchema = new mongoose.Schema(
       enum: ["GST", "Non-GST"],
       default: "GST",
     },
+    gstType: {
+      type: String,
+      enum: ["CGST+SGST", "IGST"],
+      default: "CGST+SGST",
+    },
     transport: {
       type: Number,
       default: 0.0,
