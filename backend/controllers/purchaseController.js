@@ -48,29 +48,47 @@ const createPurchaseBill = async (req, res) => {
     const purchaseSource = req.body.purchaseSource || (supplierGst && supplierGst.trim() !== "" ? "GST" : "Non-GST");
     const isGst = purchaseSource === "GST";
 
+    // Helper to round to 2 decimal places
+    const round2 = (num) => Math.round(num * 100) / 100;
+
     // Compute subtotal, gstAmount, total
     let subtotal = 0;
     let totalItemDiscounts = 0;
     let baseTaxable = 0;
 
-    items.forEach((item) => {
+    const itemDetails = items.map((item) => {
       const price = parseFloat(item.price) || 0;
       const qty = parseInt(item.qty) || 0;
       const schDiscount = parseFloat(item.schDiscount) || 0;
       const splDiscount = parseFloat(item.splDiscount) || 0;
 
-      const itemSubtotal = price * qty;
-      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemSubtotal = round2(price * qty);
+      const tradeDiscount = round2(itemSubtotal * (splDiscount / 100));
+      const netAfterTrade = round2(itemSubtotal - tradeDiscount);
+      const schemeDiscount = round2(netAfterTrade * (schDiscount / 100));
+      const itemDiscount = round2(tradeDiscount + schemeDiscount);
+      const itemTaxableBeforeCash = round2(itemSubtotal - itemDiscount);
 
       subtotal += itemSubtotal;
-      totalItemDiscounts += (itemSubtotal - itemTaxable);
-      baseTaxable += itemTaxable;
+      totalItemDiscounts += itemDiscount;
+      baseTaxable += itemTaxableBeforeCash;
+
+      return {
+        item,
+        price,
+        qty,
+        schDiscount,
+        splDiscount,
+        itemSubtotal,
+        itemTaxableBeforeCash,
+        gstRate: isGst ? (parseFloat(item.gstRate) || 0) : 0
+      };
     });
 
     const cashDiscountPercent = parseFloat(req.body.cashDiscountPercent) || 0;
     let cashDiscountAmount = parseFloat(req.body.cashDiscountAmount) || 0;
     if (cashDiscountPercent > 0 && cashDiscountAmount === 0) {
-      cashDiscountAmount = baseTaxable * (cashDiscountPercent / 100);
+      cashDiscountAmount = round2(baseTaxable * (cashDiscountPercent / 100));
     }
     const effectiveCashDiscPercent = cashDiscountPercent > 0 
       ? cashDiscountPercent 
@@ -78,54 +96,13 @@ const createPurchaseBill = async (req, res) => {
 
     let gstAmount = 0;
     let finalTaxableAmount = 0;
-    const purchaseItems = [];
-
-    items.forEach((item) => {
-      const price = parseFloat(item.price) || 0;
-      const qty = parseInt(item.qty) || 0;
-      const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
-      const hsnCode = item.hsnCode || "";
-      const schDiscount = parseFloat(item.schDiscount) || 0;
-      const splDiscount = parseFloat(item.splDiscount) || 0;
-
-      const itemSubtotal = price * qty;
-      const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
-      const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-      
-      let itemGst = 0;
-      if (isGst && gstRate > 0) {
-        if (gstType === "IGST") {
-          itemGst = Math.round(itemTaxable * gstRate) / 100;
-        } else {
-          // Default to CGST+SGST
-          const cgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
-          const sgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
-          itemGst = cgstVal + sgstVal;
-        }
-      }
-
-      gstAmount += itemGst;
-      finalTaxableAmount += itemTaxable;
-
-      purchaseItems.push({
-        productId: item.productId || null,
-        sku: item.sku || "",
-        name: item.name,
-        price,
-        qty,
-        gstRate,
-        hsnCode,
-        schDiscount,
-        splDiscount,
-        taxableAmount: itemTaxable
-      });
-    });
-
+    let totalCalculatedCashDiscount = 0;
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
-    let isInterstate = false;
+    const purchaseItems = [];
 
+    let isInterstate = false;
     if (supplierGst && supplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
       const supplierStateCode = supplierGst.trim().substring(0, 2);
       const tenantStateCode = tenantGst.trim().substring(0, 2);
@@ -133,39 +110,50 @@ const createPurchaseBill = async (req, res) => {
         isInterstate = true;
       }
     }
-
     const selectedGstType = gstType || (isInterstate ? "IGST" : "CGST+SGST");
 
-    if (isGst && gstAmount > 0) {
-      if (selectedGstType === "IGST") {
-        igst = gstAmount;
-      } else {
-        let totalCgst = 0;
-        let totalSgst = 0;
-        items.forEach((item) => {
-          const price = parseFloat(item.price) || 0;
-          const qty = parseInt(item.qty) || 0;
-          const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
-          const schDiscount = parseFloat(item.schDiscount) || 0;
-          const splDiscount = parseFloat(item.splDiscount) || 0;
+    itemDetails.forEach((detail) => {
+      const itemCashDiscount = round2(detail.itemTaxableBeforeCash * (effectiveCashDiscPercent / 100));
+      const itemTaxable = round2(detail.itemTaxableBeforeCash - itemCashDiscount);
+      
+      totalCalculatedCashDiscount += itemCashDiscount;
+      finalTaxableAmount += itemTaxable;
 
-          const itemSubtotal = price * qty;
-          const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
-          const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-
-          if (gstRate > 0) {
-            totalCgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
-            totalSgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
-          }
-        });
-        cgst = totalCgst;
-        sgst = totalSgst;
+      let itemGst = 0;
+      if (isGst && detail.gstRate > 0) {
+        if (selectedGstType === "IGST") {
+          const itemIgst = round2(itemTaxable * (detail.gstRate / 100));
+          igst += itemIgst;
+          itemGst = itemIgst;
+        } else {
+          // CGST+SGST
+          const itemCgst = round2(itemTaxable * (detail.gstRate / 2 / 100));
+          const itemSgst = round2(itemTaxable * (detail.gstRate / 2 / 100));
+          cgst += itemCgst;
+          sgst += itemSgst;
+          itemGst = round2(itemCgst + itemSgst);
+        }
       }
-    }
+
+      gstAmount += itemGst;
+
+      purchaseItems.push({
+        productId: detail.item.productId || null,
+        sku: detail.item.sku || "",
+        name: detail.item.name,
+        price: detail.price,
+        qty: detail.qty,
+        gstRate: detail.gstRate,
+        hsnCode: detail.item.hsnCode || "",
+        schDiscount: detail.schDiscount,
+        splDiscount: detail.splDiscount,
+        taxableAmount: itemTaxable
+      });
+    });
 
     const transportCost = parseFloat(transport) || 0;
-    const discountAmount = parseFloat(req.body.discountAmount) || totalItemDiscounts;
-    const total = finalTaxableAmount + gstAmount + transportCost;
+    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) : round2(totalItemDiscounts);
+    const total = round2(finalTaxableAmount + gstAmount + transportCost);
 
     const purchase = new Purchase({
       tenantId: req.user._id,
@@ -184,7 +172,7 @@ const createPurchaseBill = async (req, res) => {
       igst,
       discountAmount,
       cashDiscountPercent,
-      cashDiscountAmount,
+      cashDiscountAmount: totalCalculatedCashDiscount,
       subtotal,
       gstAmount,
       total,
@@ -280,24 +268,42 @@ const updatePurchaseBill = async (req, res) => {
     const purchaseSource = req.body.purchaseSource || purchase.purchaseSource;
     const isGst = purchaseSource === "GST";
 
+    // Helper to round to 2 decimal places
+    const round2 = (num) => Math.round(num * 100) / 100;
+
     let subtotal = 0;
     let totalItemDiscounts = 0;
     let baseTaxable = 0;
 
     const activeItems = items && items.length > 0 ? items : purchase.items;
 
-    activeItems.forEach((item) => {
+    const itemDetails = activeItems.map((item) => {
       const price = parseFloat(item.price) || 0;
       const qty = parseInt(item.qty) || 0;
       const schDiscount = parseFloat(item.schDiscount) || 0;
       const splDiscount = parseFloat(item.splDiscount) || 0;
 
-      const itemSubtotal = price * qty;
-      const itemTaxable = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
+      const itemSubtotal = round2(price * qty);
+      const tradeDiscount = round2(itemSubtotal * (splDiscount / 100));
+      const netAfterTrade = round2(itemSubtotal - tradeDiscount);
+      const schemeDiscount = round2(netAfterTrade * (schDiscount / 100));
+      const itemDiscount = round2(tradeDiscount + schemeDiscount);
+      const itemTaxableBeforeCash = round2(itemSubtotal - itemDiscount);
 
       subtotal += itemSubtotal;
-      totalItemDiscounts += (itemSubtotal - itemTaxable);
-      baseTaxable += itemTaxable;
+      totalItemDiscounts += itemDiscount;
+      baseTaxable += itemTaxableBeforeCash;
+
+      return {
+        item,
+        price,
+        qty,
+        schDiscount,
+        splDiscount,
+        itemSubtotal,
+        itemTaxableBeforeCash,
+        gstRate: isGst ? (parseFloat(item.gstRate) || 0) : 0
+      };
     });
 
     const cashDiscountPercent = req.body.cashDiscountPercent !== undefined 
@@ -309,7 +315,7 @@ const updatePurchaseBill = async (req, res) => {
       : (purchase.cashDiscountAmount || 0);
 
     if (cashDiscountPercent > 0 && req.body.cashDiscountAmount === undefined) {
-      cashDiscountAmount = baseTaxable * (cashDiscountPercent / 100);
+      cashDiscountAmount = round2(baseTaxable * (cashDiscountPercent / 100));
     }
     const effectiveCashDiscPercent = cashDiscountPercent > 0 
       ? cashDiscountPercent 
@@ -317,55 +323,14 @@ const updatePurchaseBill = async (req, res) => {
 
     let gstAmount = 0;
     let finalTaxableAmount = 0;
-    const purchaseItems = [];
-
-    activeItems.forEach((item) => {
-      const price = parseFloat(item.price) || 0;
-      const qty = parseInt(item.qty) || 0;
-      const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
-      const hsnCode = item.hsnCode || "";
-      const schDiscount = parseFloat(item.schDiscount) || 0;
-      const splDiscount = parseFloat(item.splDiscount) || 0;
-
-      const itemSubtotal = price * qty;
-      const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
-      const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-      
-      let itemGst = 0;
-      if (isGst && gstRate > 0) {
-        if (gstType === "IGST") {
-          itemGst = Math.round(itemTaxable * gstRate) / 100;
-        } else {
-          // Default to CGST+SGST
-          const cgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
-          const sgstVal = Math.round(itemTaxable * (gstRate / 2)) / 100;
-          itemGst = cgstVal + sgstVal;
-        }
-      }
-
-      gstAmount += itemGst;
-      finalTaxableAmount += itemTaxable;
-
-      purchaseItems.push({
-        productId: item.productId || null,
-        sku: item.sku || "",
-        name: item.name,
-        price,
-        qty,
-        gstRate,
-        hsnCode,
-        schDiscount,
-        splDiscount,
-        taxableAmount: itemTaxable
-      });
-    });
-
+    let totalCalculatedCashDiscount = 0;
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
-    let isInterstate = false;
+    const purchaseItems = [];
 
     const finalSupplierGst = supplierGst !== undefined ? supplierGst : purchase.supplierGst;
+    let isInterstate = false;
     if (finalSupplierGst && finalSupplierGst.trim().length >= 2 && tenantGst.trim().length >= 2) {
       const supplierStateCode = finalSupplierGst.trim().substring(0, 2);
       const tenantStateCode = tenantGst.trim().substring(0, 2);
@@ -373,35 +338,46 @@ const updatePurchaseBill = async (req, res) => {
         isInterstate = true;
       }
     }
-
     const selectedGstType = gstType || purchase.gstType || (isInterstate ? "IGST" : "CGST+SGST");
 
-    if (isGst && gstAmount > 0) {
-      if (selectedGstType === "IGST") {
-        igst = gstAmount;
-      } else {
-        let totalCgst = 0;
-        let totalSgst = 0;
-        activeItems.forEach((item) => {
-          const price = parseFloat(item.price) || 0;
-          const qty = parseInt(item.qty) || 0;
-          const gstRate = isGst ? (parseFloat(item.gstRate) || 0) : 0;
-          const schDiscount = parseFloat(item.schDiscount) || 0;
-          const splDiscount = parseFloat(item.splDiscount) || 0;
+    itemDetails.forEach((detail) => {
+      const itemCashDiscount = round2(detail.itemTaxableBeforeCash * (effectiveCashDiscPercent / 100));
+      const itemTaxable = round2(detail.itemTaxableBeforeCash - itemCashDiscount);
+      
+      totalCalculatedCashDiscount += itemCashDiscount;
+      finalTaxableAmount += itemTaxable;
 
-          const itemSubtotal = price * qty;
-          const itemTaxableBeforeCash = itemSubtotal * (1 - schDiscount / 100) * (1 - splDiscount / 100);
-          const itemTaxable = itemTaxableBeforeCash * (1 - effectiveCashDiscPercent / 100);
-
-          if (gstRate > 0) {
-            totalCgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
-            totalSgst += Math.round(itemTaxable * (gstRate / 2)) / 100;
-          }
-        });
-        cgst = totalCgst;
-        sgst = totalSgst;
+      let itemGst = 0;
+      if (isGst && detail.gstRate > 0) {
+        if (selectedGstType === "IGST") {
+          const itemIgst = round2(itemTaxable * (detail.gstRate / 100));
+          igst += itemIgst;
+          itemGst = itemIgst;
+        } else {
+          // CGST+SGST
+          const itemCgst = round2(itemTaxable * (detail.gstRate / 2 / 100));
+          const itemSgst = round2(itemTaxable * (detail.gstRate / 2 / 100));
+          cgst += itemCgst;
+          sgst += itemSgst;
+          itemGst = round2(itemCgst + itemSgst);
+        }
       }
-    }
+
+      gstAmount += itemGst;
+
+      purchaseItems.push({
+        productId: detail.item.productId || null,
+        sku: detail.item.sku || "",
+        name: detail.item.name,
+        price: detail.price,
+        qty: detail.qty,
+        gstRate: detail.gstRate,
+        hsnCode: detail.item.hsnCode || "",
+        schDiscount: detail.schDiscount,
+        splDiscount: detail.splDiscount,
+        taxableAmount: itemTaxable
+      });
+    });
 
     if (billNumber) purchase.billNumber = billNumber.trim();
     if (supplierName) purchase.supplierName = supplierName.trim();
@@ -412,7 +388,7 @@ const updatePurchaseBill = async (req, res) => {
     if (remarks !== undefined) purchase.remarks = remarks;
     if (transport !== undefined) purchase.transport = parseFloat(transport) || 0;
 
-    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) || 0 : (purchase.discountAmount !== undefined ? purchase.discountAmount : totalItemDiscounts);
+    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) || 0 : round2(totalItemDiscounts);
 
     purchase.isGst = isGst;
     purchase.purchaseSource = purchaseSource;
@@ -424,10 +400,10 @@ const updatePurchaseBill = async (req, res) => {
     purchase.igst = igst;
     purchase.discountAmount = discountAmount;
     purchase.cashDiscountPercent = cashDiscountPercent;
-    purchase.cashDiscountAmount = cashDiscountAmount;
-    purchase.subtotal = subtotal;
-    purchase.gstAmount = gstAmount;
-    purchase.total = finalTaxableAmount + gstAmount + purchase.transport;
+    purchase.cashDiscountAmount = totalCalculatedCashDiscount;
+    purchase.subtotal = round2(subtotal);
+    purchase.gstAmount = round2(gstAmount);
+    purchase.total = round2(finalTaxableAmount + gstAmount + purchase.transport);
 
     const updatedPurchase = await purchase.save();
 
