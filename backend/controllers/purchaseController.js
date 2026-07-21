@@ -152,7 +152,9 @@ const createPurchaseBill = async (req, res) => {
     });
 
     const transportCost = parseFloat(transport) || 0;
-    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) : round2(totalItemDiscounts);
+    const discountAmount = (req.body.discountAmount !== undefined && req.body.discountAmount !== "" && !isNaN(parseFloat(req.body.discountAmount))) 
+      ? parseFloat(req.body.discountAmount) 
+      : round2(totalItemDiscounts);
     const total = round2(finalTaxableAmount + gstAmount + transportCost);
 
     const purchase = new Purchase({
@@ -388,7 +390,9 @@ const updatePurchaseBill = async (req, res) => {
     if (remarks !== undefined) purchase.remarks = remarks;
     if (transport !== undefined) purchase.transport = parseFloat(transport) || 0;
 
-    const discountAmount = req.body.discountAmount !== undefined ? parseFloat(req.body.discountAmount) || 0 : round2(totalItemDiscounts);
+    const discountAmount = (req.body.discountAmount !== undefined && req.body.discountAmount !== "" && !isNaN(parseFloat(req.body.discountAmount))) 
+      ? parseFloat(req.body.discountAmount) 
+      : round2(totalItemDiscounts);
 
     purchase.isGst = isGst;
     purchase.purchaseSource = purchaseSource;
