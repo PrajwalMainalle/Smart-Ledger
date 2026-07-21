@@ -18,8 +18,10 @@ const getDashboardSummary = async (req, res) => {
     // Fetch all products
     const products = await Product.find({ tenantId }).lean();
 
+    const getInvRevenue = (inv) => inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total;
+
     // 1. Core KPIs
-    const totalSales = paidInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const totalSales = paidInvoices.reduce((sum, inv) => sum + getInvRevenue(inv), 0);
     const totalInvoices = invoices.length;
     const inventoryCount = products.length;
     const lowStockProducts = products.filter(p => p.stock <= 5);
@@ -29,7 +31,7 @@ const getDashboardSummary = async (req, res) => {
     startOfToday.setHours(0, 0, 0, 0);
     const todaySales = paidInvoices
       .filter(inv => new Date(inv.date) >= startOfToday)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + getInvRevenue(inv), 0);
 
     // Monthly Sales (current calendar month)
     const startOfMonth = new Date();
@@ -37,7 +39,7 @@ const getDashboardSummary = async (req, res) => {
     startOfMonth.setHours(0, 0, 0, 0);
     const monthlySales = paidInvoices
       .filter(inv => new Date(inv.date) >= startOfMonth)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + getInvRevenue(inv), 0);
 
     // 2. Recent Invoices
     const recentInvoices = invoices.slice(0, 5);
@@ -45,10 +47,11 @@ const getDashboardSummary = async (req, res) => {
     // 3. Payment Method breakdown
     const paymentBreakdown = paidInvoices.reduce(
       (acc, inv) => {
+        const invRev = getInvRevenue(inv);
         if (acc[inv.paymentMethod] !== undefined) {
-          acc[inv.paymentMethod] += inv.total;
+          acc[inv.paymentMethod] += invRev;
         } else {
-          acc[inv.paymentMethod] = inv.total;
+          acc[inv.paymentMethod] = invRev;
         }
         return acc;
       },
@@ -59,6 +62,7 @@ const getDashboardSummary = async (req, res) => {
     const productSalesMap = {};
     paidInvoices.forEach((invoice) => {
       invoice.items.forEach((item) => {
+        if (item.excludeFromRevenue) return; // Skip non-revenue dummy items
         if (!productSalesMap[item.name]) {
           productSalesMap[item.name] = {
             name: item.name,
@@ -85,7 +89,7 @@ const getDashboardSummary = async (req, res) => {
       if (!dailyMap[dateStr]) {
         dailyMap[dateStr] = { date: dateStr, sales: 0, count: 0 };
       }
-      dailyMap[dateStr].sales += inv.total;
+      dailyMap[dateStr].sales += getInvRevenue(inv);
       dailyMap[dateStr].count += 1;
     });
     const dailySales = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
@@ -98,7 +102,7 @@ const getDashboardSummary = async (req, res) => {
       if (!monthlyMap[monthStr]) {
         monthlyMap[monthStr] = { month: monthStr, sales: 0, count: 0 };
       }
-      monthlyMap[monthStr].sales += inv.total;
+      monthlyMap[monthStr].sales += getInvRevenue(inv);
       monthlyMap[monthStr].count += 1;
     });
     const monthlySalesReport = Object.values(monthlyMap).sort((a, b) => b.month.localeCompare(a.month));
@@ -115,7 +119,7 @@ const getDashboardSummary = async (req, res) => {
           ordersCount: 0,
         };
       }
-      customerMap[custKey].totalSpent += inv.total;
+      customerMap[custKey].totalSpent += getInvRevenue(inv);
       customerMap[custKey].ordersCount += 1;
     });
     const customerReport = Object.values(customerMap).sort((a, b) => b.totalSpent - a.totalSpent);
@@ -131,6 +135,7 @@ const getDashboardSummary = async (req, res) => {
       const discountRatio = inv.subtotal > 0 ? (inv.subtotal - inv.discountAmount) / inv.subtotal : 1;
       
       inv.items.forEach((item) => {
+        if (item.excludeFromRevenue) return; // Skip dummy items
         const itemSubtotal = item.price * item.qty;
         const discountedSubtotal = itemSubtotal * discountRatio;
         const gstRate = item.gstRate || 0;
@@ -163,6 +168,7 @@ const getDashboardSummary = async (req, res) => {
     paidInvoices.forEach((inv) => {
       const discountRatio = inv.subtotal > 0 ? (inv.subtotal - inv.discountAmount) / inv.subtotal : 1;
       inv.items.forEach((item) => {
+        if (item.excludeFromRevenue) return; // Skip dummy items
         const itemSubtotal = item.price * item.qty;
         const discountedSubtotal = itemSubtotal * discountRatio;
         const purchaseCost = (item.purchasePrice || 0) * item.qty;

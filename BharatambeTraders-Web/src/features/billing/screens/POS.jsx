@@ -52,7 +52,7 @@ function POS() {
 
   // Manual Item modal state
   const [showAddManualModal, setShowAddManualModal] = useState(false);
-  const [manualItemForm, setManualItemForm] = useState({ name: "", price: "", qty: 1, gstRate: 0 });
+  const [manualItemForm, setManualItemForm] = useState({ name: "", price: "", qty: 1, gstRate: 0, addToRevenue: true });
 
   // Manual Discount states
   const [discountType, setDiscountType] = useState("percent"); // "percent" | "fixed"
@@ -660,9 +660,12 @@ function POS() {
       alert("Name and Price are required.");
       return;
     }
-    dispatch(addManualItem(manualItemForm));
+    dispatch(addManualItem({
+      ...manualItemForm,
+      excludeFromRevenue: !manualItemForm.addToRevenue
+    }));
     setShowAddManualModal(false);
-    setManualItemForm({ name: "", price: "", qty: 1, gstRate: 0 });
+    setManualItemForm({ name: "", price: "", qty: 1, gstRate: 0, addToRevenue: true });
   };
 
   const profile = user?.profile || {};
@@ -955,6 +958,11 @@ function POS() {
                         {item.isManualItem && (
                           <span className="px-1.5 py-0.2 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded text-[8px] font-black uppercase tracking-wider">
                             Manual
+                          </span>
+                        )}
+                        {item.excludeFromRevenue && (
+                          <span className="px-1.5 py-0.2 bg-rose-500/10 text-rose-450 border border-rose-500/20 rounded text-[8px] font-black uppercase tracking-wider">
+                            Non-Revenue
                           </span>
                         )}
                       </p>
@@ -1806,6 +1814,19 @@ function POS() {
                   <option value="12">12% GST</option>
                   <option value="18">18% GST</option>
                 </select>
+              </div>
+
+              <div className="flex items-center gap-2 py-1 select-none">
+                <input 
+                  type="checkbox"
+                  id="addToRevenue"
+                  checked={manualItemForm.addToRevenue}
+                  onChange={(e) => setManualItemForm({ ...manualItemForm, addToRevenue: e.target.checked })}
+                  className="w-4 h-4 text-orange-500 bg-slate-950 border-slate-850 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                />
+                <label htmlFor="addToRevenue" className="text-slate-350 font-semibold cursor-pointer">
+                  Add to Real Revenue
+                </label>
               </div>
 
               <div className="pt-3 flex gap-2.5 border-t border-slate-900">

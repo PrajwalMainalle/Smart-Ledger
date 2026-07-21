@@ -10,6 +10,7 @@ import ReportsPage from "../features/reports/screens/Reports";
 import SettingsPage from "../features/profile/screens/Settings";
 import CustomerListPage from "../features/customers/screens/CustomerList";
 import PurchaseListPage from "../features/purchases/screens/PurchaseList";
+import RequestBookPage from "../features/requests/screens/RequestBook";
 import ProtectedRoute from "./ProtectedRoute";
 import GstDashboard from "../features/gst/screens/GstDashboard";
 import GstSales from "../features/gst/screens/GstSales";
@@ -35,6 +36,7 @@ const AppRoutes = () => {
             <Route path="/pos" element={<POSPage />} />
             <Route path="/invoices" element={<InvoiceListPage />} />
             <Route path="/inventory" element={<ProductListPage />} />
+            <Route path="/request-book" element={<RequestBookPage />} />
             <Route path="/customers" element={<CustomerListPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

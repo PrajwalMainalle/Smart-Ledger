@@ -110,6 +110,7 @@ const createInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: "MANUAL",
           isManualItem: true,
+          excludeFromRevenue: !!item.excludeFromRevenue,
           hsnCode: item.hsnCode || "",
         });
       } else {
@@ -127,6 +128,7 @@ const createInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: item.sku,
           isManualItem: false,
+          excludeFromRevenue: false,
           hsnCode: hsnCode || "",
         });
       }
@@ -149,6 +151,10 @@ const createInvoice = async (req, res) => {
     let gstAmount = 0;
     const isInclusiveGst = isGst && (customerType === "School" || customerType === "Retail");
 
+    // Track revenue-adjusted totals
+    let revenueSubtotal = 0;
+    let revenueGstAmount = 0;
+
     invoiceItems.forEach((item) => {
       if (isGst) {
         const itemSubtotal = item.price * item.qty;
@@ -156,22 +162,35 @@ const createInvoice = async (req, res) => {
         if (isInclusiveGst) {
           const itemGst = discountedItemSubtotal - (discountedItemSubtotal / (1 + (item.gstRate || 0) / 100));
           gstAmount += itemGst;
+          if (!item.excludeFromRevenue) {
+            revenueGstAmount += itemGst;
+          }
         } else {
           const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
           gstAmount += itemGst;
+          if (!item.excludeFromRevenue) {
+            revenueGstAmount += itemGst;
+          }
         }
+      }
+      if (!item.excludeFromRevenue) {
+        revenueSubtotal += item.price * item.qty;
       }
     });
 
     const newItemsTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmount);
 
+    const revenueDiscountAmount = (revenueSubtotal * discPercent) / 100;
+    const revenueDiscountedSubtotal = revenueSubtotal - revenueDiscountAmount;
+    const revenueNewItemsTotal = isInclusiveGst ? revenueDiscountedSubtotal : (revenueDiscountedSubtotal + revenueGstAmount);
+
     // Determine CGST, SGST, IGST tax split based on interstate rules
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
+    let isInterstate = false;
 
     if (isGst && gstAmount > 0) {
-      let isInterstate = false;
       if (customerPhone && customerPhone !== "N/A") {
         const customer = await Customer.findOne({ tenantId, phone: customerPhone });
         if (customer) {
@@ -192,9 +211,22 @@ const createInvoice = async (req, res) => {
       }
     }
 
+    let revenueCgst = 0;
+    let revenueSgst = 0;
+    let revenueIgst = 0;
+    if (isGst && revenueGstAmount > 0) {
+      if (isInterstate) {
+        revenueIgst = revenueGstAmount;
+      } else {
+        revenueCgst = revenueGstAmount / 2;
+        revenueSgst = revenueGstAmount / 2;
+      }
+    }
+
     // 3. Process Returns/Exchanges if present (and not a quotation)
     let processedReturnedItems = [];
     let returnedTotal = 0;
+    let revenueReturnedTotal = 0;
 
     // Generate Unique Invoice ID for Tenant
     const year = new Date().getFullYear();
@@ -271,6 +303,9 @@ const createInvoice = async (req, res) => {
 
         const retVal = (retItem.price * retItem.qty) * (1 + (retItem.gstRate || 0) / 100);
         returnedTotal += retVal;
+        if (!origItem.excludeFromRevenue) {
+          revenueReturnedTotal += retVal;
+        }
 
         processedReturnedItems.push({
           productId: retItem.productId || null,
@@ -285,6 +320,7 @@ const createInvoice = async (req, res) => {
 
     // Final Net Total
     const netTotal = newItemsTotal - returnedTotal;
+    const revenueTotal = Math.max(0, revenueNewItemsTotal - revenueReturnedTotal);
 
     // Determine Paid Amount and Outstanding
     let paidAmount = 0;
@@ -294,16 +330,18 @@ const createInvoice = async (req, res) => {
 
     if (paymentMethod === "Credit") {
       paidAmount = parseFloat(amountPaid) || 0.0;
-      outstandingAmount = netTotal - paidAmount;
+      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
     } else if (paymentMethod === "Split") {
       savedCashAmount = parseFloat(cashAmount) || 0.0;
       savedUpiAmount = parseFloat(upiAmount) || 0.0;
       paidAmount = savedCashAmount + savedUpiAmount;
-      outstandingAmount = Math.max(0, netTotal - paidAmount);
+      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
     } else {
       paidAmount = netTotal;
       outstandingAmount = 0.0;
     }
+
+    const revenuePaidAmount = Math.min(paidAmount, revenueTotal);
 
     // 4. Deduct Stock Levels for new purchases (only if not a quotation)
     if (!isQuotation) {
@@ -364,6 +402,12 @@ const createInvoice = async (req, res) => {
       discountAmount,
       gstAmount,
       total: netTotal,
+      revenueTotal,
+      revenueTaxableAmount: isGst ? (isInclusiveGst ? (revenueDiscountedSubtotal - revenueGstAmount) : revenueDiscountedSubtotal) : 0.0,
+      revenueGstAmount,
+      revenueCgst,
+      revenueSgst,
+      revenueIgst,
       paymentMethod: paymentMethod || "Cash",
       cashAmount: savedCashAmount,
       upiAmount: savedUpiAmount,
@@ -407,16 +451,16 @@ const createInvoice = async (req, res) => {
         };
 
         // Purchase entry
-        if (newItemsTotal > 0) {
-          await postLedgerEntry("Purchase", newItemsTotal, 0, `Purchase Invoice ${invoiceId}`);
+        if (revenueNewItemsTotal > 0) {
+          await postLedgerEntry("Purchase", revenueNewItemsTotal, 0, `Purchase Invoice ${invoiceId}`);
         }
         // Return entry
-        if (returnedTotal > 0) {
-          await postLedgerEntry("Return", 0, returnedTotal, `Return Adjustment on Invoice ${invoiceId}`);
+        if (revenueReturnedTotal > 0) {
+          await postLedgerEntry("Return", 0, revenueReturnedTotal, `Return Adjustment on Invoice ${invoiceId}`);
         }
         // Payment entry
-        if (paidAmount > 0) {
-          await postLedgerEntry("Payment", 0, paidAmount, `Payment received today on Invoice ${invoiceId}`);
+        if (revenuePaidAmount > 0) {
+          await postLedgerEntry("Payment", 0, revenuePaidAmount, `Payment received today on Invoice ${invoiceId}`);
         }
       }
     }
@@ -1233,6 +1277,7 @@ const updateInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: "MANUAL",
           isManualItem: true,
+          excludeFromRevenue: !!item.excludeFromRevenue,
           hsnCode: item.hsnCode || "",
         });
       } else {
@@ -1250,6 +1295,7 @@ const updateInvoice = async (req, res) => {
           gstRate: item.gstRate || 0,
           sku: item.sku,
           isManualItem: false,
+          excludeFromRevenue: false,
           hsnCode: hsnCode || "",
         });
       }
@@ -1273,6 +1319,10 @@ const updateInvoice = async (req, res) => {
     const finalCustomerType = customerType !== undefined ? customerType : invoice.customerType;
     const isInclusiveGst = isGst && (finalCustomerType === "School" || finalCustomerType === "Retail");
 
+    // Track revenue-adjusted totals
+    let revenueSubtotal = 0;
+    let revenueGstAmount = 0;
+
     invoiceItems.forEach((item) => {
       if (isGst) {
         const itemSubtotal = item.price * item.qty;
@@ -1280,15 +1330,29 @@ const updateInvoice = async (req, res) => {
         if (isInclusiveGst) {
           const itemGst = discountedItemSubtotal - (discountedItemSubtotal / (1 + (item.gstRate || 0) / 100));
           gstAmount += itemGst;
+          if (!item.excludeFromRevenue) {
+            revenueGstAmount += itemGst;
+          }
         } else {
           const itemGst = (discountedItemSubtotal * item.gstRate) / 100;
           gstAmount += itemGst;
+          if (!item.excludeFromRevenue) {
+            revenueGstAmount += itemGst;
+          }
         }
+      }
+      if (!item.excludeFromRevenue) {
+        revenueSubtotal += item.price * item.qty;
       }
     });
 
     const newItemsTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmount);
     const netTotal = newItemsTotal;
+
+    const revenueDiscountAmount = (revenueSubtotal * discPercent) / 100;
+    const revenueDiscountedSubtotal = revenueSubtotal - revenueDiscountAmount;
+    const revenueNewItemsTotal = isInclusiveGst ? revenueDiscountedSubtotal : (revenueDiscountedSubtotal + revenueGstAmount);
+    const revenueTotal = Math.max(0, revenueNewItemsTotal);
 
     // Determine CGST, SGST, IGST tax split based on interstate rules
     let cgst = 0;
@@ -1361,12 +1425,12 @@ const updateInvoice = async (req, res) => {
 
     if (paymentMethod === "Credit") {
       paidAmount = parseFloat(amountPaid) || 0.0;
-      outstandingAmount = netTotal - paidAmount;
+      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
     } else if (paymentMethod === "Split") {
       savedCashAmount = parseFloat(cashAmount) || 0.0;
       savedUpiAmount = parseFloat(upiAmount) || 0.0;
       paidAmount = savedCashAmount + savedUpiAmount;
-      outstandingAmount = Math.max(0, netTotal - paidAmount);
+      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
     } else if (paymentMethod === "Exchange") {
       paidAmount = 0.0;
       outstandingAmount = 0.0;
@@ -1374,6 +1438,8 @@ const updateInvoice = async (req, res) => {
       paidAmount = netTotal;
       outstandingAmount = 0.0;
     }
+
+    const revenuePaidAmount = Math.min(paidAmount, revenueTotal);
 
     // 5. Revert and Update Customer Outstanding Balance and Ledger
     if (!isQuotation) {
@@ -1412,12 +1478,12 @@ const updateInvoice = async (req, res) => {
           };
 
           // Purchase entry
-          if (netTotal > 0) {
-            await postLedgerEntry("Purchase", netTotal, 0, `Purchase Invoice ${invoice.invoiceId} (Updated)`);
+          if (revenueNewItemsTotal > 0) {
+            await postLedgerEntry("Purchase", revenueNewItemsTotal, 0, `Purchase Invoice ${invoice.invoiceId} (Updated)`);
           }
           // Payment entry
-          if (paidAmount > 0) {
-            await postLedgerEntry("Payment", 0, paidAmount, `Payment received on Invoice ${invoice.invoiceId} (Updated)`);
+          if (revenuePaidAmount > 0) {
+            await postLedgerEntry("Payment", 0, revenuePaidAmount, `Payment received on Invoice ${invoice.invoiceId} (Updated)`);
           }
         }
       }
@@ -1439,6 +1505,12 @@ const updateInvoice = async (req, res) => {
     invoice.discountAmount = discountAmount;
     invoice.gstAmount = gstAmount;
     invoice.total = netTotal;
+    invoice.revenueTotal = revenueTotal;
+    invoice.revenueTaxableAmount = isGst ? (isInclusiveGst ? (revenueDiscountedSubtotal - revenueGstAmount) : revenueDiscountedSubtotal) : 0.0;
+    invoice.revenueGstAmount = revenueGstAmount;
+    invoice.revenueCgst = revenueCgst;
+    invoice.revenueSgst = revenueSgst;
+    invoice.revenueIgst = revenueIgst;
     invoice.paymentMethod = paymentMethod || "Cash";
     invoice.cashAmount = savedCashAmount;
     invoice.upiAmount = savedUpiAmount;

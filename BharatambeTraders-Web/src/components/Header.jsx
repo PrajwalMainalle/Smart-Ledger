@@ -14,6 +14,7 @@ const Headers = ({ onMenuClick }) => {
   const { themeMode, theme, selectThemeMode } = useTheme();
 
   const [reminders, setReminders] = useState([]);
+  const [requestStats, setRequestStats] = useState({ pendingRequests: 0, readyRequests: 0, outOfStockProducts: 0 });
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -26,11 +27,47 @@ const Headers = ({ onMenuClick }) => {
     }
   };
 
+  const triggerDailyReminder = (stats) => {
+    const reminderEnabledSetting = localStorage.getItem("enable_11am_reminder") !== "false";
+    if (!reminderEnabledSetting) return;
+
+    const now = new Date();
+    if (now.getHours() < 11) return;
+
+    const todayStr = now.toDateString();
+    const lastShown = localStorage.getItem("last_shown_daily_reminder");
+    if (lastShown === todayStr) return;
+
+    if (stats.pendingRequests === 0 && stats.readyRequests === 0 && stats.outOfStockProducts === 0) return;
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Bharatambe Traders: Daily Reminder", {
+        body: `Pending Requests: ${stats.pendingRequests} | Ready for Collection: ${stats.readyRequests} | Out of Stock Items: ${stats.outOfStockProducts}`,
+        icon: defaultLogo,
+      });
+      localStorage.setItem("last_shown_daily_reminder", todayStr);
+    }
+  };
+
+  const fetchRequestStats = async () => {
+    try {
+      const response = await axiosInstance.get("/requests/reminders");
+      setRequestStats(response.data);
+      triggerDailyReminder(response.data);
+    } catch (error) {
+      console.error("Failed to fetch request statistics", error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchReminders();
+      fetchRequestStats();
       // Poll every 5 minutes
-      const interval = setInterval(fetchReminders, 5 * 60 * 1000);
+      const interval = setInterval(() => {
+        fetchReminders();
+        fetchRequestStats();
+      }, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -106,17 +143,21 @@ const Headers = ({ onMenuClick }) => {
           )}
         </button>
 
-        {/* Notifications (Overdue Credits) Dropdown */}
+        {/* Notifications Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/50 hover:border-slate-600 transition flex items-center justify-center shadow-sm relative"
-            title="Notifications"
+            title="Notifications &amp; Alerts"
           >
-            <FaBell className={`text-sm ${reminders.length > 0 ? "text-orange-400" : "text-slate-400"}`} />
-            {reminders.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 text-white rounded-full flex items-center justify-center text-[9px] font-black animate-bounce shadow">
-                {reminders.length}
+            <FaBell className={`text-sm ${
+              (reminders.length > 0 || requestStats.pendingRequests > 0 || requestStats.readyRequests > 0 || requestStats.outOfStockProducts > 0)
+                ? "text-orange-400" 
+                : "text-slate-400"
+            }`} />
+            {(reminders.length + requestStats.pendingRequests + requestStats.readyRequests + requestStats.outOfStockProducts) > 0 && (
+              <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-505 bg-orange-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-black animate-bounce shadow">
+                {reminders.length + requestStats.pendingRequests + requestStats.readyRequests + requestStats.outOfStockProducts}
               </span>
             )}
           </button>
@@ -124,48 +165,126 @@ const Headers = ({ onMenuClick }) => {
           {showDropdown && (
             <div className="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-200">Credit Reminders</span>
-                <span className="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full font-bold">
-                  {reminders.length} Overdue
+                <span className="text-xs font-bold text-slate-200">Alerts &amp; Reminders</span>
+                <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full font-bold">
+                  {reminders.length + requestStats.pendingRequests + requestStats.readyRequests + requestStats.outOfStockProducts} Active
                 </span>
               </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/40">
-                {reminders.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
-                    <FaBell className="text-lg text-slate-700" />
-                    <span>No overdue credit reminders (20+ days).</span>
+              
+              <div className="max-h-80 overflow-y-auto divide-y divide-slate-800/40">
+                {/* Request Book & Inventory Alerts */}
+                {(requestStats.pendingRequests > 0 || requestStats.readyRequests > 0 || requestStats.outOfStockProducts > 0) && (
+                  <div className="p-2 bg-slate-950/20 space-y-1">
+                    {requestStats.pendingRequests > 0 && (
+                      <div
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate("/request-book");
+                        }}
+                        className="p-2.5 hover:bg-slate-800/50 rounded-xl transition cursor-pointer flex items-center justify-between border border-slate-800/60"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          <div className="text-left">
+                            <div className="text-[11px] font-bold text-slate-200">Pending Request Book items</div>
+                            <div className="text-[9px] text-slate-550 text-slate-400">Items requested by customers.</div>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-bold bg-amber-550/10 bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded">
+                          {requestStats.pendingRequests}
+                        </span>
+                      </div>
+                    )}
+
+                    {requestStats.readyRequests > 0 && (
+                      <div
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate("/request-book");
+                        }}
+                        className="p-2.5 hover:bg-slate-800/50 rounded-xl transition cursor-pointer flex items-center justify-between border border-slate-800/60"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <div className="text-left">
+                            <div className="text-[11px] font-bold text-slate-200">Ready for Collection</div>
+                            <div className="text-[9px] text-slate-400 font-medium">Stock received for requests.</div>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-bold bg-green-500/10 text-green-400 px-2 py-0.5 rounded">
+                          {requestStats.readyRequests}
+                        </span>
+                      </div>
+                    )}
+
+                    {requestStats.outOfStockProducts > 0 && (
+                      <div
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate("/inventory");
+                        }}
+                        className="p-2.5 hover:bg-slate-800/50 rounded-xl transition cursor-pointer flex items-center justify-between border border-slate-800/60"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                          <div className="text-left">
+                            <div className="text-[11px] font-bold text-slate-200">Out of Stock Inventory</div>
+                            <div className="text-[9px] text-slate-400">Products currently at zero stock.</div>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-bold bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded">
+                          {requestStats.outOfStockProducts}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  reminders.map((rem) => (
-                    <div
-                      key={rem._id}
-                      className="p-3 hover:bg-slate-850/50 transition cursor-pointer"
-                      onClick={() => {
-                        setShowDropdown(false);
-                        navigate("/invoices", { state: { searchInvoiceId: rem.invoiceId } });
-                      }}
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-bold text-slate-100 hover:text-orange-400 transition">{rem.customerName}</span>
-                        <span className="text-xs font-black text-rose-450">
-                          ₹{rem.outstandingAmount.toFixed(2)}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Phone: {rem.customerPhone}
-                      </p>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-[9px] bg-slate-800 text-slate-350 px-1.5 py-0.5 rounded font-mono border border-slate-700/50">
-                          {rem.invoiceId}
-                        </span>
-                        <span className="text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded font-bold">
-                          {rem.daysElapsed} days overdue
-                        </span>
-                      </div>
+                )}
+
+                {/* Overdue Credit Invoices */}
+                {reminders.length > 0 && (
+                  <div className="divide-y divide-slate-800/40">
+                    <div className="px-4 py-1.5 bg-slate-900/60 text-[9px] font-black text-slate-400 tracking-wider uppercase text-left">
+                      Credit Reminders ({reminders.length})
                     </div>
-                  ))
+                    {reminders.map((rem) => (
+                      <div
+                        key={rem._id}
+                        className="p-3 hover:bg-slate-850/50 transition cursor-pointer"
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate("/invoices", { state: { searchInvoiceId: rem.invoiceId } });
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-bold text-slate-100 hover:text-orange-400 transition">{rem.customerName}</span>
+                          <span className="text-xs font-black text-rose-450">
+                            ₹{rem.outstandingAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Phone: {rem.customerPhone}
+                        </p>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-[9px] bg-slate-800 text-slate-350 px-1.5 py-0.5 rounded font-mono border border-slate-700/50">
+                            {rem.invoiceId}
+                          </span>
+                          <span className="text-[9px] bg-rose-500/10 text-rose-450 px-1.5 py-0.5 rounded font-bold">
+                            {rem.daysElapsed} days overdue
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {reminders.length === 0 && requestStats.pendingRequests === 0 && requestStats.readyRequests === 0 && requestStats.outOfStockProducts === 0 && (
+                  <div className="p-6 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                    <FaBell className="text-lg text-slate-700 animate-pulse" />
+                    <span>No reminders or notifications.</span>
+                  </div>
                 )}
               </div>
+
               <div
                 className="px-4 py-2.5 bg-slate-850 border-t border-slate-800 text-center text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
                 onClick={() => {

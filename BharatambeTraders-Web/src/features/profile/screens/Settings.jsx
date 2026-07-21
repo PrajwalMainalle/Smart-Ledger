@@ -11,6 +11,43 @@ function Settings() {
   const navigate = useNavigate();
   const { user, loading, error } = useSelector((state) => state.auth);
   
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState("default");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("enable_11am_reminder");
+    if (saved !== null) {
+      setReminderEnabled(saved === "true");
+    } else {
+      localStorage.setItem("enable_11am_reminder", "true");
+    }
+
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleToggleReminder = () => {
+    const newVal = !reminderEnabled;
+    setReminderEnabled(newVal);
+    localStorage.setItem("enable_11am_reminder", newVal ? "true" : "false");
+  };
+
+  const handleRequestPermission = () => {
+    if (!("Notification" in window)) {
+      alert("This browser does not support desktop notifications.");
+      return;
+    }
+    Notification.requestPermission().then((permission) => {
+      setNotificationPermission(permission);
+      if (permission === "granted") {
+        new Notification("Bharatambe Traders", {
+          body: "Daily reminders at 11:00 AM are now configured!",
+        });
+      }
+    });
+  };
+
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [resetStatus, setResetStatus] = useState("idle"); // "idle" | "loading" | "success" | "error"
@@ -330,6 +367,64 @@ function Settings() {
             </div>
           </div>
         </form>
+
+        {/* Request Book & Notification Settings Section */}
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 border-b border-slate-800 pb-2 flex items-center gap-2">
+            <FaEnvelope className="text-orange-500" /> Request Book &amp; Reminder Settings
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-slate-100 font-bold text-sm">Enable Daily 11:00 AM Reminders</h4>
+                <p className="text-slate-400 text-xs">
+                  Receive browser notifications and header alerts for pending requests and out-of-stock items.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleReminder}
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-250 ${
+                  reminderEnabled ? "bg-orange-500" : "bg-slate-800"
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-250 ${
+                    reminderEnabled ? "translate-x-6" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-800">
+              <div>
+                <h4 className="text-slate-100 font-bold text-sm">Browser Notifications Permission</h4>
+                <p className="text-slate-400 text-xs">
+                  Required to show desktop reminder notifications when the app is open.
+                </p>
+              </div>
+              {notificationPermission === "granted" && (
+                <span className="px-3 py-1 bg-emerald-505/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-bold self-start sm:self-center">
+                  Permission Granted &bull; Active
+                </span>
+              )}
+              {notificationPermission === "denied" && (
+                <span className="px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-[10px] font-bold self-start sm:self-center">
+                  Permission Blocked (Reset in Browser Settings)
+                </span>
+              )}
+              {notificationPermission === "default" && (
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-[10px] font-bold rounded-xl shadow-lg transition active:scale-95 self-start sm:self-center"
+                >
+                  Enable Browser Notifications
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Danger Zone Section */}
         <div className="bg-rose-950/10 border border-rose-900/30 p-6 rounded-2xl space-y-4">

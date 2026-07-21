@@ -185,8 +185,8 @@ const billingSlice = createSlice({
       }
     },
     addManualItem: (state, action) => {
-      // payload: { name, price, qty, gstRate }
-      const { name, price, qty, gstRate } = action.payload;
+      // payload: { name, price, qty, gstRate, excludeFromRevenue }
+      const { name, price, qty, gstRate, excludeFromRevenue } = action.payload;
       const tempId = `manual_${Date.now()}`;
       state.cart.push({
         id: tempId,
@@ -201,6 +201,7 @@ const billingSlice = createSlice({
         qty: parseInt(qty, 10) || 1,
         maxStock: 999999,
         isManualItem: true,
+        excludeFromRevenue: !!excludeFromRevenue,
       });
     },
     removeFromCart: (state, action) => {

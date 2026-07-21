@@ -40,6 +40,10 @@ const InvoiceItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  excludeFromRevenue: {
+    type: Boolean,
+    default: false,
+  },
   returnedQty: {
     type: Number,
     default: 0,
@@ -125,6 +129,30 @@ const InvoiceSchema = new mongoose.Schema(
     total: {
       type: Number,
       required: true,
+      default: 0.0,
+    },
+    revenueTotal: {
+      type: Number,
+      default: 0.0,
+    },
+    revenueTaxableAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    revenueGstAmount: {
+      type: Number,
+      default: 0.0,
+    },
+    revenueCgst: {
+      type: Number,
+      default: 0.0,
+    },
+    revenueSgst: {
+      type: Number,
+      default: 0.0,
+    },
+    revenueIgst: {
+      type: Number,
       default: 0.0,
     },
     paymentMethod: {

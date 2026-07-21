@@ -65,19 +65,19 @@ const getGstDashboard = async (req, res) => {
 
     const todayGstSales = sales
       .filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && inv.isGst)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
 
     const todayNonGstSales = sales
       .filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && !inv.isGst)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
 
     const monthlyGstSales = sales
       .filter(inv => inv.date >= startOfMonth && inv.isGst)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
 
     const monthlyNonGstSales = sales
       .filter(inv => inv.date >= startOfMonth && !inv.isGst)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
 
     // 2. Purchases metrics
     const purchases = await Purchase.find({ tenantId }).lean();
@@ -91,11 +91,19 @@ const getGstDashboard = async (req, res) => {
       .reduce((sum, p) => sum + p.total, 0);
 
     // Net Sales (Total Sales - Returns)
-    const totalSales = sales.reduce((sum, inv) => sum + inv.total, 0);
+    const totalSales = sales.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
     const totalReturns = sales
       .filter(inv => inv.isReturnExchange)
       .reduce((sum, inv) => {
         const retSum = inv.returnedItems?.reduce((s, item) => {
+          // Check if original item was excluded from revenue
+          const correspondingItem = inv.items?.find(oi => 
+            (item.productId && oi.productId && oi.productId.toString() === item.productId.toString()) ||
+            (!item.productId && oi.name === item.name)
+          );
+          if (correspondingItem && correspondingItem.excludeFromRevenue) {
+            return s; // skip
+          }
           const itemTaxFactor = 1 + (item.gstRate || 0) / 100;
           return s + (item.price * item.qty) * itemTaxFactor;
         }, 0) || 0;
@@ -109,7 +117,7 @@ const getGstDashboard = async (req, res) => {
     // GST Payable for current month = (Month's Sales GST Collected) - (Month's Purchase GST Paid)
     const monthlySalesGst = sales
       .filter(inv => inv.date >= startOfMonth && inv.isGst)
-      .reduce((sum, inv) => sum + inv.gstAmount, 0);
+      .reduce((sum, inv) => sum + (inv.revenueGstAmount !== undefined ? inv.revenueGstAmount : inv.gstAmount), 0);
 
     const monthlyPurchasesGst = purchases
       .filter(p => p.date >= startOfMonth && p.isGst)
@@ -119,12 +127,13 @@ const getGstDashboard = async (req, res) => {
 
     // Profit Calculations
     // Gross Profit = Taxable Sales - Cost of Goods Sold (COGS)
-    const taxableSalesSum = sales.reduce((sum, inv) => sum + (inv.taxableAmount || (inv.subtotal - inv.discountAmount)), 0);
+    const taxableSalesSum = sales.reduce((sum, inv) => sum + (inv.revenueTaxableAmount !== undefined ? inv.revenueTaxableAmount : (inv.taxableAmount || (inv.subtotal - inv.discountAmount))), 0);
     
     // COGS = sum of purchasePrice * qty for all sold items
     let cogsSum = 0;
     sales.forEach(inv => {
       inv.items.forEach(item => {
+        if (item.excludeFromRevenue) return; // Skip non-revenue items
         cogsSum += (item.purchasePrice || 0) * item.qty;
       });
     });
@@ -186,6 +195,7 @@ const getGstSalesSummary = async (req, res) => {
     const ratesBreakdown = await Invoice.aggregate([
       { $match: gstMatchStage },
       { $unwind: "$items" },
+      { $match: { "items.excludeFromRevenue": { $ne: true } } },
       {
         $project: {
           gstRate: { $ifNull: ["$items.gstRate", 0] },
@@ -291,6 +301,7 @@ const getGstSalesSummary = async (req, res) => {
     const nonGstRatesBreakdown = await Invoice.aggregate([
       { $match: nonGstMatchStage },
       { $unwind: "$items" },
+      { $match: { "items.excludeFromRevenue": { $ne: true } } },
       {
         $project: {
           gstRate: { $ifNull: ["$items.gstRate", 0] },
@@ -328,20 +339,20 @@ const getGstSalesSummary = async (req, res) => {
           _id: null,
           gstSales: {
             $sum: {
-              $cond: { if: { $eq: ["$isGstBilling", true] }, then: "$total", else: 0 }
+              $cond: { if: { $eq: ["$isGstBilling", true] }, then: { $ifNull: ["$revenueTotal", "$total"] }, else: 0 }
             }
           },
           nonGstSales: {
             $sum: {
-              $cond: { if: { $eq: ["$isGstBilling", false] }, then: "$total", else: 0 }
+              $cond: { if: { $eq: ["$isGstBilling", false] }, then: { $ifNull: ["$revenueTotal", "$total"] }, else: 0 }
             }
           },
-          totalSales: { $sum: "$total" },
-          taxableValue: { $sum: "$taxableAmount" },
-          cgst: { $sum: "$cgst" },
-          sgst: { $sum: "$sgst" },
-          igst: { $sum: "$igst" },
-          totalTax: { $sum: "$gstAmount" }
+          totalSales: { $sum: { $ifNull: ["$revenueTotal", "$total"] } },
+          taxableValue: { $sum: { $ifNull: ["$revenueTaxableAmount", "$taxableAmount"] } },
+          cgst: { $sum: { $ifNull: ["$revenueCgst", "$cgst"] } },
+          sgst: { $sum: { $ifNull: ["$revenueSgst", "$sgst"] } },
+          igst: { $sum: { $ifNull: ["$revenueIgst", "$igst"] } },
+          totalTax: { $sum: { $ifNull: ["$revenueGstAmount", "$gstAmount"] } }
         }
       }
     ]);
@@ -594,12 +605,12 @@ const getGstCaSummary = async (req, res) => {
       {
         $group: {
           _id: salesGroupStage,
-          taxableAmount: { $sum: "$taxableAmount" },
-          cgst: { $sum: "$cgst" },
-          sgst: { $sum: "$sgst" },
-          igst: { $sum: "$igst" },
-          totalTax: { $sum: "$gstAmount" },
-          totalSales: { $sum: "$total" }
+          taxableAmount: { $sum: { $ifNull: ["$revenueTaxableAmount", "$taxableAmount"] } },
+          cgst: { $sum: { $ifNull: ["$revenueCgst", "$cgst"] } },
+          sgst: { $sum: { $ifNull: ["$revenueSgst", "$sgst"] } },
+          igst: { $sum: { $ifNull: ["$revenueIgst", "$igst"] } },
+          totalTax: { $sum: { $ifNull: ["$revenueGstAmount", "$gstAmount"] } },
+          totalSales: { $sum: { $ifNull: ["$revenueTotal", "$total"] } }
         }
       }
     ]);
@@ -750,15 +761,20 @@ const getProfitReport = async (req, res) => {
     let cogs = 0;
 
     invoices.forEach(inv => {
-      totalSales += inv.total;
+      const invTotal = inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total;
+      const invTaxableAmount = inv.revenueTaxableAmount !== undefined ? inv.revenueTaxableAmount : inv.taxableAmount;
+      const invGstAmount = inv.revenueGstAmount !== undefined ? inv.revenueGstAmount : inv.gstAmount;
+
+      totalSales += invTotal;
       if (inv.isGst) {
-        gstSalesTaxable += inv.taxableAmount;
-        gstSalesTax += inv.gstAmount;
+        gstSalesTaxable += invTaxableAmount;
+        gstSalesTax += invGstAmount;
       } else {
-        nonGstSalesTaxable += inv.total; // total represents taxable since there is no tax
+        nonGstSalesTaxable += invTotal;
       }
 
       inv.items.forEach(item => {
+        if (item.excludeFromRevenue) return; // Skip dummy items
         cogs += (item.purchasePrice || 0) * item.qty;
       });
     });
