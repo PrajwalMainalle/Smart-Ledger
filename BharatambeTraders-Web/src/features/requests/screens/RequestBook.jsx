@@ -127,16 +127,16 @@ function RequestBook() {
       year: "numeric",
     });
 
-    let copyText = `*BHARATAMBE TRADERS - SUPPLIER ORDER CHECKLIST*\nDate: ${dateStr}\n-------------------------------------------\n\n`;
+    let copyText = `📋 *BHARATAMBE TRADERS - SUPPLIER ORDER CHECKLIST*\n📅 Date: ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     
     supplierChecklist.forEach((item, index) => {
       const customerBreakdown = item.customers
         .map((c) => `${c.name} (${c.qty})`)
         .join(", ");
-      copyText += `${index + 1}. *${item.originalName}* - Total Qty: *${item.totalQty}*\n   [Requested by: ${customerBreakdown}]\n\n`;
+      copyText += `${index + 1}. *${item.originalName}*\n   📦 Total Qty: *${item.totalQty}*\n   👤 Customers: _${customerBreakdown}_\n\n`;
     });
 
-    copyText += `-------------------------------------------\nPlease arrange the above items. Thank you!`;
+    copyText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🙏 Please arrange the above items at the earliest. Thank you!`;
 
     navigator.clipboard.writeText(copyText)
       .then(() => {
@@ -335,19 +335,85 @@ function RequestBook() {
   // Helper to generate WhatsApp message link based on status
   const getWhatsAppLink = (req) => {
     let msg = "";
-    const cleanPhone = req.customerPhone.replace(/[^0-9]/g, "");
+    const cleanPhone = (req.customerPhone || "").replace(/[^0-9]/g, "");
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    const itemsSummary = req.items
-      ? req.items.map((it) => `*${it.itemName}* (Qty: ${it.quantity})`).join(", ")
-      : "your requested items";
+    const itemsFormatted = req.items && req.items.length > 0
+      ? req.items.map((it) => `• *${it.itemName.trim()}* × ${it.quantity}`).join("\n")
+      : "• Requested items";
+
+    const totalQty = req.items ? req.items.reduce((acc, curr) => acc + (curr.quantity || 1), 0) : 0;
+    const reqNum = req.requestNumber ? `🔖 *Req No:* ${req.requestNumber}\n` : "";
+    const advanceInfo = req.advancePayment > 0 ? `💰 *Advance Paid:* ₹${req.advancePayment.toFixed(2)}\n` : "";
+    const qtyInfo = totalQty > 0 ? `🔢 *Total Items:* ${totalQty}\n` : "";
 
     if (req.status === "Stock Received") {
-      msg = `Hello ${req.customerName}, good news! Your requested items (${itemsSummary}) have arrived and are ready for collection at Bharatambe Traders. Please visit our shop to pick them up. Thank you!`;
+      msg = `🎉 *GOOD NEWS - ITEMS READY FOR COLLECTION!*
+
+Hello *${req.customerName}*,
+
+Great news! Your requested items have arrived and are now ready to be picked up at *Bharatambe Traders*. 🛍️✨
+
+📋 *Items Ready:*
+${itemsFormatted}
+
+${qtyInfo}${reqNum}${advanceInfo}
+📍 *Pickup Location:* Bharatambe Traders
+Please visit our shop at your earliest convenience to collect your items.
+
+Thank you for your business! 🙏`;
     } else if (req.status === "Ordered from Supplier") {
-      msg = `Hello ${req.customerName}, we have ordered your requested items (${itemsSummary}) from our supplier. We will notify you as soon as the stock arrives. - Bharatambe Traders`;
+      msg = `🚚 *ORDER UPDATE - BHARATAMBE TRADERS*
+
+Hello *${req.customerName}*,
+
+We have placed an order with our supplier for your requested items! 📦
+
+📋 *Items Ordered:*
+${itemsFormatted}
+
+${qtyInfo}${reqNum}${advanceInfo}
+⏳ We will notify you as soon as the stock arrives at our shop.
+
+Thank you for choosing *Bharatambe Traders*! 🙏`;
+    } else if (req.status === "Customer Collected") {
+      msg = `✅ *ORDER COMPLETED - BHARATAMBE TRADERS*
+
+Hello *${req.customerName}*,
+
+Thank you for picking up your requested items from *Bharatambe Traders*! 🛍️
+
+📋 *Collected Items:*
+${itemsFormatted}
+
+${reqNum}
+We appreciate your business and look forward to serving you again! 🙏✨`;
+    } else if (req.status === "Cancelled") {
+      msg = `ℹ️ *REQUEST UPDATE - BHARATAMBE TRADERS*
+
+Hello *${req.customerName}*,
+
+Regarding your request ${req.requestNumber ? `(*${req.requestNumber}*)` : ""}:
+${itemsFormatted}
+
+This request status has been updated to *Cancelled*. If you have any questions, please reach out to us.
+
+Thank you! - *Bharatambe Traders* 🙏`;
     } else {
-      msg = `Hello ${req.customerName}, we have noted down your request for (${itemsSummary}) in our Request Book. We are checking availability and will update you soon. - Bharatambe Traders`;
+      // Pending or default
+      msg = `📋 *REQUEST RECEIVED - BHARATAMBE TRADERS*
+
+Hello *${req.customerName}*,
+
+We have noted down your request in our Request Book. ✍️
+
+📦 *Requested Items:*
+${itemsFormatted}
+
+${qtyInfo}${reqNum}${advanceInfo}
+🔎 We are checking availability with our suppliers and will update you shortly!
+
+Thank you for choosing *Bharatambe Traders*! 🙏`;
     }
 
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;
