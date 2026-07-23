@@ -13,12 +13,42 @@ const fs = require("fs");
 // @access  Private
 const getInvoices = async (req, res) => {
   try {
-    const invoices = await Invoice.find({ tenantId: req.user._id }).sort({ date: -1 }).lean();
+    const invoices = await Invoice.find({ tenantId: req.user._id }).sort({ createdAt: -1 }).lean();
     res.json(invoices);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error fetching invoices log" });
   }
+};
+
+// Helper function to generate unique, non-colliding Invoice ID per tenant
+const generateNextInvoiceId = async (tenantId) => {
+  const currentYear = new Date().getFullYear();
+  const prefix = `INV-${currentYear}-`;
+
+  const allTenantInvoices = await Invoice.find({ tenantId }).select("invoiceId").lean();
+
+  let maxNum = 0;
+  allTenantInvoices.forEach((inv) => {
+    if (inv.invoiceId && inv.invoiceId.startsWith(prefix)) {
+      const numPart = parseInt(inv.invoiceId.replace(prefix, ""), 10);
+      if (!isNaN(numPart) && numPart > maxNum) {
+        maxNum = numPart;
+      }
+    }
+  });
+
+  let nextNum = maxNum + 1;
+  let candidateId = `${prefix}${String(nextNum).padStart(4, "0")}`;
+
+  let exists = await Invoice.findOne({ tenantId, invoiceId: candidateId }).select("_id").lean();
+  while (exists) {
+    nextNum++;
+    candidateId = `${prefix}${String(nextNum).padStart(4, "0")}`;
+    exists = await Invoice.findOne({ tenantId, invoiceId: candidateId }).select("_id").lean();
+  }
+
+  return candidateId;
 };
 
 // @desc    Create a new invoice (Checkout)
@@ -229,11 +259,8 @@ const createInvoice = async (req, res) => {
     let returnedTotal = 0;
     let revenueReturnedTotal = 0;
 
-    // Generate Unique Invoice ID for Tenant
-    const year = new Date().getFullYear();
-    const invoiceCount = await Invoice.countDocuments({ tenantId });
-    const invoiceNumberStr = String(invoiceCount + 1).padStart(4, "0");
-    const invoiceId = `INV-${year}-${invoiceNumberStr}`;
+    // Generate Unique Invoice ID for Tenant (collision safe)
+    const invoiceId = await generateNextInvoiceId(tenantId);
 
     if (!isQuotation && returnedItems && returnedItems.length > 0) {
       for (const retItem of returnedItems) {
