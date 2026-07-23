@@ -267,7 +267,23 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const fontRegular = doc.customFontRegular || "Helvetica";
       const fontBold = doc.customFontBold || "Helvetica-Bold";
 
-      const stream = typeof target === "string" ? fs.createWriteStream(target) : target;
+      let stream;
+      if (typeof target === "string") {
+        const dir = path.dirname(target);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        stream = fs.createWriteStream(target);
+      } else {
+        stream = target;
+      }
+
+      if (stream && typeof stream.on === "function") {
+        stream.on("error", (err) => {
+          reject(err);
+        });
+      }
+
       doc.pipe(stream);
 
       let currentPage = 1;

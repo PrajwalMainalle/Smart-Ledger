@@ -424,8 +424,12 @@ const createInvoice = async (req, res) => {
     // Save invoice to DB
     const savedInvoice = await invoice.save();
 
-    // 5. Generate & Save PDF file on Server disk
-    await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+    // 5. Generate & Save PDF file on Server disk (optional cached copy)
+    try {
+      await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Non-fatal error generating invoice PDF file during checkout:", pdfErr.message);
+    }
 
     // 6. Record Customer Ledger and update Outstanding Balance if not a quotation
     if (!isQuotation && customerPhone && customerPhone !== "N/A") {
@@ -433,7 +437,7 @@ const createInvoice = async (req, res) => {
       if (customer) {
         // We define helper inline to perform ledger entries and update balance sequentially
         const postLedgerEntry = async (type, debit, credit, description) => {
-          customer.outstandingBalance += (debit - credit);
+          customer.outstandingBalance = (customer.outstandingBalance || 0) + (debit - credit);
           await customer.save();
 
           const entry = new CustomerLedger({
@@ -530,11 +534,15 @@ const refundInvoice = async (req, res) => {
       }
     }
 
-    // Re-generate the PDF file to reflect REFUNDED status overlay
-    const tenantUser = await User.findById(req.user._id);
-    const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
-    const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
-    await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    // Re-generate the PDF file to reflect REFUNDED status overlay (optional cached copy)
+    try {
+      const tenantUser = await User.findById(req.user._id);
+      const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
+      const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+      await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Non-fatal error regenerating refund PDF file:", pdfErr.message);
+    }
 
     const updatedInvoice = await invoice.save();
     res.json(updatedInvoice);
@@ -588,11 +596,15 @@ const convertQuotationToSale = async (req, res) => {
     invoice.isQuotation = false;
     invoice.status = "Paid";
 
-    // 4. Regenerate & Save final PDF
-    const tenantUser = await User.findById(req.user._id);
-    const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
-    const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
-    await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    // 4. Regenerate & Save final PDF (optional cached copy)
+    try {
+      const tenantUser = await User.findById(req.user._id);
+      const pdfFilename = `${req.user._id}_${invoice.invoiceId}.pdf`;
+      const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+      await generateInvoicePDF(invoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Non-fatal error regenerating quotation conversion PDF file:", pdfErr.message);
+    }
 
     const savedInvoice = await invoice.save();
     res.json(savedInvoice);
@@ -1521,10 +1533,14 @@ const updateInvoice = async (req, res) => {
     // Save invoice changes to database
     const savedInvoice = await invoice.save();
 
-    // 6. Re-generate Invoice PDF file
-    const pdfFilename = `${tenantId}_${invoice.invoiceId}.pdf`;
-    const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
-    await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+    // 6. Re-generate Invoice PDF file (optional cached copy)
+    try {
+      const pdfFilename = `${tenantId}_${invoice.invoiceId}.pdf`;
+      const absolutePdfPath = path.join(__dirname, "..", "uploads", "invoices", pdfFilename);
+      await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
+    } catch (pdfErr) {
+      console.error("Non-fatal error regenerating invoice PDF file on update:", pdfErr.message);
+    }
 
     res.json(savedInvoice);
 
