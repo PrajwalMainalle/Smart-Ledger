@@ -564,9 +564,9 @@ function InvoiceList() {
                       <div className="doc-title-wrapper">
                         <div className="doc-title-line"></div>
                         <div className="doc-title-text">
-                          {selectedInvoice.isGstBilling !== false
-                            ? "Tax Invoice"
-                            : ((selectedInvoice.status === "Quotation" || selectedInvoice.isQuotation) ? "Estimate / Quotation" : `${(selectedInvoice.paymentMethod || "CASH").toUpperCase()} BILL`)}
+                          {(selectedInvoice.status === "Quotation" || selectedInvoice.isQuotation)
+                            ? "Estimate / Quotation"
+                            : (selectedInvoice.isGstBilling !== false ? "Tax Invoice" : `${(selectedInvoice.paymentMethod || "CASH").toUpperCase()} BILL`)}
                         </div>
                         <div className="doc-title-line"></div>
                       </div>

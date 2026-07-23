@@ -119,9 +119,9 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
     // 4. Document Title with Side Accent Lines
     const titleY = lineY + 26;
     const isGst = invoice.isGstBilling !== false;
-    const titleText = isGst
-      ? "Tax Invoice"
-      : (invoice.isQuotation ? "Estimate / Quotation" : `${(invoice.paymentMethod || "CASH").toUpperCase()} BILL`);
+    const titleText = invoice.isQuotation
+      ? "Estimate / Quotation"
+      : (isGst ? "Tax Invoice" : `${(invoice.paymentMethod || "CASH").toUpperCase()} BILL`);
     
     doc.fillColor(primaryColor).font(fontBold).fontSize(14).text(titleText, margin, titleY, { align: "center", width: printWidth });
     const textWidth = doc.widthOfString(titleText);
@@ -180,9 +180,9 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
     doc.text(shopName.toUpperCase(), margin + 5, margin + 5);
     
     const isGst = invoice.isGstBilling !== false;
-    const titleText = isGst
-      ? `Tax Invoice (Page ${pageNum})`
-      : (invoice.isQuotation ? `Estimate / Quotation (Page ${pageNum})` : `${(invoice.paymentMethod || "CASH").toUpperCase()} BILL (Page ${pageNum})`);
+    const titleText = invoice.isQuotation
+      ? `Estimate / Quotation (Page ${pageNum})`
+      : (isGst ? `Tax Invoice (Page ${pageNum})` : `${(invoice.paymentMethod || "CASH").toUpperCase()} BILL (Page ${pageNum})`);
     doc.text(titleText, margin + printWidth - 200, margin + 5, { align: "right", width: 195 });
     
     doc.fontSize(8.5).font(fontRegular).fillColor(textDark);

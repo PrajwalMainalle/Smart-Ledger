@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { MdDeleteOutline, MdClear } from "react-icons/md";
-import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload } from "react-icons/fa";
+import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload, FaCalendarAlt } from "react-icons/fa";
 import { 
   addToCart, 
   removeFromCart, 
@@ -65,6 +65,7 @@ function POS() {
   const [isGstBilling, setIsGstBilling] = useState(false);
   const [quotationReceiptData, setQuotationReceiptData] = useState(null);
   const [activeTabReceipt, setActiveTabReceipt] = useState("tax"); // "tax" | "quotation"
+  const [customInvoiceDate, setCustomInvoiceDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   // Credit Outstanding & Return Exchange states
   const [amountPaidToday, setAmountPaidToday] = useState(0);
@@ -197,6 +198,9 @@ function POS() {
       setDiscountType("percent");
       setIsGstBilling(invoice.isGstBilling !== false);
       setIsQuotation(invoice.isQuotation || false);
+      if (invoice.date) {
+        setCustomInvoiceDate(new Date(invoice.date).toISOString().split("T")[0]);
+      }
       setEditingInvoiceId(invoice._id);
       setEditingInvoiceNumber(invoice.invoiceId);
       setCustomerSearch(invoice.customerName === "Walk-in Customer" ? "" : invoice.customerName);
@@ -353,6 +357,7 @@ function POS() {
         returnedItems: returnedItems,
         cashAmount: paymentMethod === "Split" ? cashAmount : 0,
         upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+        date: customInvoiceDate,
       };
 
       dispatch(checkout(taxInvoiceData)).then((resTax) => {
@@ -372,6 +377,7 @@ function POS() {
             returnedItems: [],
             cashAmount: 0,
             upiAmount: 0,
+            date: customInvoiceDate,
           };
 
           dispatch(checkout(quotationData)).then((resQuote) => {
@@ -385,6 +391,7 @@ function POS() {
             dispatch(fetchProducts());
             setDiscountValue(0);
             setIsQuotation(false);
+            setCustomInvoiceDate(new Date().toISOString().split("T")[0]);
             setAmountPaidToday(0);
             setReturnedItems([]);
             setEditingInvoiceId(null);
@@ -416,6 +423,7 @@ function POS() {
             returnedItems: returnedItems,
             cashAmount: paymentMethod === "Split" ? cashAmount : 0,
             upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+            date: customInvoiceDate,
           }
         })
       : checkout({
@@ -431,6 +439,7 @@ function POS() {
           returnedItems: returnedItems,
           cashAmount: paymentMethod === "Split" ? cashAmount : 0,
           upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+          date: customInvoiceDate,
         });
 
     dispatch(checkoutAction).then((res) => {
@@ -442,6 +451,7 @@ function POS() {
         dispatch(fetchProducts());
         setDiscountValue(0);
         setIsQuotation(false);
+        setCustomInvoiceDate(new Date().toISOString().split("T")[0]);
         setAmountPaidToday(0);
         setReturnedItems([]);
         setEditingInvoiceId(null);
@@ -539,6 +549,9 @@ function POS() {
       setDiscountType("percent");
       setIsGstBilling(receiptData.isGstBilling !== false);
       setIsQuotation(receiptData.isQuotation || false);
+      if (receiptData.date) {
+        setCustomInvoiceDate(new Date(receiptData.date).toISOString().split("T")[0]);
+      }
       if (receiptData.paymentMethod === "Credit") {
         setAmountPaidToday(receiptData.amountPaid || 0);
       } else if (receiptData.paymentMethod === "Split") {
@@ -1340,6 +1353,31 @@ function POS() {
           </div>
         )}
 
+        {/* Invoice Date Adjustment */}
+        <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-900 text-xs space-y-1.5 text-left">
+          <div className="flex justify-between items-center">
+            <label htmlFor="invoiceDate" className="text-slate-350 font-bold flex items-center gap-1.5 cursor-pointer">
+              <FaCalendarAlt className="text-orange-500" /> Invoice Date (DD/MM/YYYY):
+            </label>
+            {customInvoiceDate !== new Date().toISOString().split("T")[0] && (
+              <button
+                type="button"
+                onClick={() => setCustomInvoiceDate(new Date().toISOString().split("T")[0])}
+                className="text-[10px] text-orange-400 hover:underline font-semibold"
+              >
+                Reset Today
+              </button>
+            )}
+          </div>
+          <input
+            type="date"
+            id="invoiceDate"
+            value={customInvoiceDate}
+            onChange={(e) => setCustomInvoiceDate(e.target.value)}
+            className="w-full bg-slate-955 border border-slate-800 rounded px-2.5 py-1.5 text-slate-100 font-mono text-xs focus:outline-none focus:border-orange-500 bg-slate-950 cursor-pointer"
+          />
+        </div>
+
         {/* GST Billing Toggle */}
         <div className="flex items-center gap-2.5 py-1 select-none">
           <input
@@ -1534,9 +1572,9 @@ function POS() {
                           <div className="doc-title-wrapper">
                             <div className="doc-title-line"></div>
                             <div className="doc-title-text">
-                              {currentActiveReceipt.isGstBilling !== false
-                                ? "Tax Invoice"
-                                : (currentActiveReceipt.isQuotation ? "Estimate / Quotation" : `${(currentActiveReceipt.paymentMethod || "CASH").toUpperCase()} BILL`)}
+                              {currentActiveReceipt.isQuotation
+                                ? "Estimate / Quotation"
+                                : (currentActiveReceipt.isGstBilling !== false ? "Tax Invoice" : `${(currentActiveReceipt.paymentMethod || "CASH").toUpperCase()} BILL`)}
                             </div>
                             <div className="doc-title-line"></div>
                           </div>
@@ -1688,6 +1726,7 @@ function POS() {
                         setShowCheckoutModal(false);
                         setReceiptData(null);
                         setQuotationReceiptData(null);
+                        setCustomInvoiceDate(new Date().toISOString().split("T")[0]);
                       }}
                       className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition"
                     >

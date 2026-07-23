@@ -39,7 +39,8 @@ const createInvoice = async (req, res) => {
     amountPaid,
     returnedItems,
     cashAmount,
-    upiAmount
+    upiAmount,
+    date
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -387,6 +388,7 @@ const createInvoice = async (req, res) => {
     const invoice = new Invoice({
       tenantId,
       invoiceId,
+      date: date ? new Date(date) : new Date(),
       customerName: customerName || "Walk-in Customer",
       customerPhone: customerPhone || "N/A",
       customerType: customerType || "Retail",
@@ -1164,7 +1166,8 @@ const updateInvoice = async (req, res) => {
     amountPaid,
     returnedItems,
     cashAmount,
-    upiAmount
+    upiAmount,
+    date
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -1529,6 +1532,9 @@ const updateInvoice = async (req, res) => {
     invoice.amountPaid = paidAmount;
     invoice.outstandingAmount = outstandingAmount;
     invoice.isGstBilling = isGstBilling !== undefined ? isGstBilling : true;
+    if (date) {
+      invoice.date = new Date(date);
+    }
 
     // Save invoice changes to database
     const savedInvoice = await invoice.save();
