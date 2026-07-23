@@ -90,21 +90,34 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
     }
     doc.font(fontBold).fontSize(8.5).fillColor(textDark).text(`Mobile ${phone}`, pageWidth - margin - 200, topRightY, { align: "right", width: 200 });
 
-    // 3. Centered Header Branding & Subtitle
-    const brandStartY = margin + 10;
-    doc.fillColor(primaryColor).font(fontBold).fontSize(22).text(shopName.toUpperCase(), margin + 135, brandStartY, { align: "center", width: printWidth - 235 });
-    doc.fillColor(accentColor).font(fontBold).fontSize(9.5).text("W H O L E S A L E R ' S", margin + 135, brandStartY + 26, { align: "center", width: printWidth - 235 });
+    // 3. Centered Header Branding, Subtitle & Store Address
+    const brandStartY = margin + 4;
+    const logoRightX = margin + 140;
+    const centerAreaWidth = printWidth - 240;
+
+    doc.fillColor(primaryColor).font(fontBold).fontSize(19).text(shopName.toUpperCase(), logoRightX, brandStartY, { align: "center", width: centerAreaWidth });
+    doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text("W H O L E S A L E R ' S", logoRightX, brandStartY + 23, { align: "center", width: centerAreaWidth });
+
+    // Store Address
+    let addressParts = [];
+    if (profile.businessAddress) addressParts.push(profile.businessAddress.trim());
+    else addressParts.push("M B PATIL COLONY, NEAR BUSTAND, GORTA MUCHLAMB ROAD, BASAVAKALYAN");
+    if (profile.pincode) addressParts.push(profile.pincode.trim());
+    if (profile.state) addressParts.push(profile.state.trim());
+    const storeAddressStr = addressParts.join(", ");
+
+    doc.fillColor("#334155").font(fontBold).fontSize(7.5).text(storeAddressStr, logoRightX, brandStartY + 35, { align: "center", width: centerAreaWidth });
 
     // Gold accent horizontal divider line
-    const lineY = margin + badgeH + 12;
+    const lineY = margin + badgeH + 18;
     doc.moveTo(margin + 20, lineY).lineTo(pageWidth - margin - 20, lineY).lineWidth(1).stroke(accentColor);
 
     // Tagline / Description
     const tagText = profile.businessDescription || "Office Stationery • School Items • Note Books • Xerox Papers • Sports Items • Computer Materials & More";
-    doc.fillColor("#475569").font(fontBold).fontSize(7.5).text(tagText, margin + 10, lineY + 6, { align: "center", width: printWidth - 20 });
+    doc.fillColor("#475569").font(fontBold).fontSize(7).text(tagText, margin + 10, lineY + 6, { align: "center", width: printWidth - 20 });
 
     // 4. Document Title with Side Accent Lines
-    const titleY = lineY + 28;
+    const titleY = lineY + 26;
     const isGst = invoice.isGstBilling !== false;
     const titleText = isGst
       ? "Tax Invoice"
@@ -189,8 +202,10 @@ const drawTableHeaders = (doc, startY) => {
   
   const col1X = margin;
   const col2X = margin + 35;
-  const col3X = margin + Math.round(printWidth * 0.60);
-  const col4X = margin + Math.round(printWidth * 0.76);
+  const col3X = margin + Math.round(printWidth * 0.54);
+  const col4X = margin + Math.round(printWidth * 0.65);
+  const col5X = margin + Math.round(printWidth * 0.81);
+  const col6X = pageWidth - margin;
 
   const fontBold = doc.customFontBold || "Helvetica-Bold";
 
@@ -204,8 +219,8 @@ const drawTableHeaders = (doc, startY) => {
   doc.text("S.NO", col1X + 5, startY + 6, { width: col2X - col1X - 8, align: "center" });
   doc.text("PARTICULARS", col2X + 8, startY + 6);
   doc.text("QTY", col3X + 2, startY + 6, { width: col4X - col3X - 4, align: "center" });
-  doc.text("RATE", col4X + 2, startY + 6, { width: (col4X + (printWidth * 0.12)) - col4X - 4, align: "right" });
-  doc.text("AMOUNT", margin + Math.round(printWidth * 0.84), startY + 6, { width: (pageWidth - margin) - (margin + Math.round(printWidth * 0.84)) - 6, align: "right" });
+  doc.text("RATE", col4X + 2, startY + 6, { width: col5X - col4X - 6, align: "right" });
+  doc.text("AMOUNT", col5X + 2, startY + 6, { width: col6X - col5X - 6, align: "right" });
 };
 
 const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
@@ -234,11 +249,13 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       // Register system font supporting Unicode Rupee symbol (₹)
       const fontCandidatesRegular = [
+        path.join(__dirname, "..", "assets", "fonts", "segoeui.ttf"),
         path.join(__dirname, "..", "assets", "fonts", "Nirmala.ttf"),
         "C:\\Windows\\Fonts\\segoeui.ttf",
         "C:\\Windows\\Fonts\\arial.ttf"
       ];
       const fontCandidatesBold = [
+        path.join(__dirname, "..", "assets", "fonts", "segoeuib.ttf"),
         path.join(__dirname, "..", "assets", "fonts", "NirmalaBD.ttf"),
         "C:\\Windows\\Fonts\\segoeuib.ttf",
         "C:\\Windows\\Fonts\\arialbd.ttf"
@@ -300,9 +317,9 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       const col1X = margin;
       const col2X = margin + 35;
-      const col3X = margin + Math.round(printWidth * 0.60);
-      const col4X = margin + Math.round(printWidth * 0.76);
-      const col5X = margin + Math.round(printWidth * 0.84);
+      const col3X = margin + Math.round(printWidth * 0.54);
+      const col4X = margin + Math.round(printWidth * 0.65);
+      const col5X = margin + Math.round(printWidth * 0.81);
       const col6X = pageWidth - margin;
 
       const discountAmount = invoice.discount || 0;
@@ -334,8 +351,8 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         doc.text(String(index + 1), col1X + 5, y + 4, { width: col2X - col1X - 8, align: "center" });
         doc.text(item.name, col2X + 8, y + 4, { width: col3X - col2X - 12 });
         doc.text(String(item.qty), col3X + 2, y + 4, { width: col4X - col3X - 4, align: "center" });
-        doc.text(`${currencySymbol}${item.price.toFixed(2)}`, col4X + 2, y + 4, { width: col5X - col4X - 4, align: "right" });
-        doc.font(fontBold).text(`${currencySymbol}${lineTotal.toFixed(2)}`, col5X + 2, y + 4, { width: col6X - col5X - 6, align: "right" });
+        doc.text(`${currencySymbol} ${item.price.toFixed(2)}`, col4X + 2, y + 4, { width: col5X - col4X - 6, align: "right" });
+        doc.font(fontBold).text(`${currencySymbol} ${lineTotal.toFixed(2)}`, col5X + 2, y + 4, { width: col6X - col5X - 6, align: "right" });
 
         // Row underline
         doc.moveTo(margin, y + 20).lineTo(pageWidth - margin, y + 20).lineWidth(0.75).stroke("#94a3b8");
@@ -348,7 +365,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       doc.text("Total", col2X + 8, y + 6);
       const totalQty = invoice.items.reduce((sum, item) => sum + item.qty, 0);
       doc.text(String(totalQty), col3X, y + 6, { width: col4X - col3X, align: "center" });
-      doc.text(`${currencySymbol}${invoice.subtotal.toFixed(2)}`, col5X, y + 6, { width: col6X - col5X - 6, align: "right" });
+      doc.text(`${currencySymbol} ${invoice.subtotal.toFixed(2)}`, col5X + 2, y + 6, { width: col6X - col5X - 6, align: "right" });
       doc.moveTo(margin, y + 22).lineTo(pageWidth - margin, y + 22).lineWidth(0.5).stroke(borderColor);
 
       y += 28;
@@ -362,7 +379,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       doc.save();
       doc.roundedRect(pillX, y, pillWidth, pillHeight, 6).fill(primaryColor);
       doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text(grandTotalLabel, pillX + 12, y + 9);
-      doc.fillColor("#ffffff").font(fontBold).fontSize(13).text(`${currencySymbol}${invoice.total.toFixed(2)}`, pillX + 110, y + 7, { align: "right", width: pillWidth - 122 });
+      doc.fillColor("#ffffff").font(fontBold).fontSize(13).text(`${currencySymbol} ${invoice.total.toFixed(2)}`, pillX + 110, y + 7, { align: "right", width: pillWidth - 122 });
       doc.restore();
 
       y += 42;
@@ -406,7 +423,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
       doc.fillColor("#0f172a").font(fontRegular).fontSize(7.5);
       doc.text(`UPI ID: ${upiIdStr}`, rightCardX + 72, y + 28, { width: cardWidth - 80 });
-      doc.fillColor(primaryColor).font(fontBold).fontSize(12).text(`${currencySymbol}${qrAmount.toFixed(2)}`, rightCardX + 72, y + 44, { width: cardWidth - 80 });
+      doc.fillColor(primaryColor).font(fontBold).fontSize(12).text(`${currencySymbol} ${qrAmount.toFixed(2)}`, rightCardX + 72, y + 44, { width: cardWidth - 80 });
 
       y += footerCardHeight + 25;
 
