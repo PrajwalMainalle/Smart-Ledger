@@ -531,197 +531,142 @@ function InvoiceList() {
                 <div className="bg-white p-4 rounded-lg overflow-y-auto flex-1 max-h-full" style={{ color: "#1e293b" }}>
                   <div id="reprint-area">
                     <div className="print-receipt">
-                      {/* GSTIN / MOBILE Light olive green banner */}
-                      <div className="shop-header-banner">
-                        {selectedInvoice.isGstBilling !== false && (
-                          <span>REG.GSTIN: {gstNumber}</span>
-                        )}
-                        <span>MOBILE: {contactPhone}</span>
+                      {/* Top Header Row with Logo Badge, Shop Title & Right GSTIN/Mobile */}
+                      <div className="top-header-row">
+                        <div className="brand-badge-container">
+                          {logoSrc ? (
+                            <img src={logoSrc} alt="Logo" className="brand-logo-img" />
+                          ) : (
+                            <div className="brand-badge-title">SmartLedger<br/><span className="brand-badge-sub">Your Business Partner</span></div>
+                          )}
+                        </div>
+
+                        <div className="header-center-info">
+                          <h1 className="header-shop-title">{shopName.toUpperCase()}</h1>
+                          <div className="header-shop-sub">W H O L E S A L E R ' S</div>
+                        </div>
+
+                        <div className="top-right-contact">
+                          {selectedInvoice.isGstBilling !== false && (
+                            <div><strong>GSTIN:</strong> {gstNumber}</div>
+                          )}
+                          <div><strong>Mobile:</strong> {contactPhone}</div>
+                        </div>
                       </div>
 
-                      {/* Logo container if logoSrc exists */}
-                      {logoSrc && (
-                        <div className="logo-container">
-                          <img src={logoSrc} alt="Logo" className="logo-img" />
-                        </div>
-                      )}
+                      <div className="gold-divider-line"></div>
 
-                      {/* Olive Green Shop Banner */}
-                      <div className="shop-title-banner">
-                        <h1 className="shop-title-text">{shopName.toUpperCase()}</h1>
-                        <p className="shop-subtitle-text">WHOLE SALER'S</p>
+                      <div className="shop-tagline-bar">
+                        {profile.businessDescription || "Office Stationery • School Items • Note Books • Xerox Papers • Sports Items • Computer Materials & More"}
                       </div>
 
-                      {/* Light Green Address & Tagline Banner */}
-                      <div className="shop-address-banner">
-                        <p className="bold">{address.toUpperCase()}</p>
-                        <p className="shop-tagline">
-                          {profile.businessDescription || "OFFICE STATIONARY, SCHOOL ITEMS, ALL NOTE BOOKS, ZEROX PAPERS, SPORTS ITMES, COMPUTERS MATERIALS AND OTHERS MATERIALS"}
-                        </p>
+                      {/* Document Title with side accent lines */}
+                      <div className="doc-title-wrapper">
+                        <div className="doc-title-line"></div>
+                        <div className="doc-title-text">
+                          {selectedInvoice.isGstBilling !== false
+                            ? "Tax Invoice"
+                            : ((selectedInvoice.status === "Quotation" || selectedInvoice.isQuotation) ? "Estimate / Quotation" : `${(selectedInvoice.paymentMethod || "CASH").toUpperCase()} BILL`)}
+                        </div>
+                        <div className="doc-title-line"></div>
                       </div>
 
-                      {/* Document Title */}
-                      <div className="document-title-container">
-                        <span className="document-title">
-                          {selectedInvoice.status === "Quotation" ? "ESTIMATE / QUOTATION" : "CREDIT BILL"}
-                        </span>
-                      </div>
-
-                      {/* Invoice Details Box */}
-                      <div className="details-box">
-                        <div className="details-row">
-                          <span className="details-label">Bill No:</span>
-                          <span className="details-val font-mono">{selectedInvoice.invoiceId || selectedInvoice.id}</span>
-                        </div>
-                        <div className="details-row">
-                          <span className="details-label">Date:</span>
-                          <span className="details-val">{new Date(selectedInvoice.date).toLocaleDateString("en-IN")}</span>
-                        </div>
-                        <div className="details-row">
-                          <span className="details-label">Customer Name:</span>
-                          <span className="details-val">{selectedInvoice.customerName.toUpperCase()}</span>
-                        </div>
-                        {selectedInvoice.customerPhone && selectedInvoice.customerPhone !== "N/A" && (
-                          <div className="details-row">
-                            <span className="details-label">Mobile No:</span>
-                            <span className="details-val">{selectedInvoice.customerPhone}</span>
+                      {/* Metadata 2-column Grid */}
+                      <div className="meta-grid-2col">
+                        <div className="meta-col">
+                          <div>
+                            <div className="meta-label">INVOICE NO.</div>
+                            <div className="meta-value font-mono">{selectedInvoice.invoiceId || selectedInvoice.id}</div>
                           </div>
-                        )}
+                          <div className="mt-2">
+                            <div className="meta-label">BILLED TO</div>
+                            <div className="meta-value">{selectedInvoice.customerName.toUpperCase()}</div>
+                          </div>
+                        </div>
+
+                        <div className="meta-col text-right">
+                          <div>
+                            <div className="meta-label">DATE</div>
+                            <div className="meta-value">{new Date(selectedInvoice.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                          </div>
+                          <div className="mt-2">
+                            <div className="meta-label">PHONE</div>
+                            <div className="meta-value">{selectedInvoice.customerPhone && selectedInvoice.customerPhone !== "N/A" ? selectedInvoice.customerPhone : "N/A"}</div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Bordered Table Grid */}
-                      <div className="receipt-table-container">
-                        <table className="receipt-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: "8%" }}>S.No</th>
-                              <th style={{ width: "52%" }}>PARTICULARS</th>
-                              <th style={{ width: "10%" }}>QTY</th>
-                              <th style={{ width: "12%" }}>RATE</th>
-                              <th style={{ width: "18%" }}>AMOUNT</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedInvoice.items.map((item, idx) => {
-                              const lineTotal = item.price * item.qty;
-                              return (
-                                <tr key={idx}>
-                                  <td className="text-center">{idx + 1}</td>
-                                  <td className="bold notranslate" translate="no">{item.name}</td>
-                                  <td className="text-center font-mono">{item.qty}</td>
-                                  <td className="text-right font-mono">₹{item.price.toFixed(2)}</td>
-                                  <td className="text-right font-mono bold">₹{lineTotal.toFixed(2)}</td>
-                                </tr>
-                              );
-                            })}
-                            
-                            {/* Bank details and Calculations merged row */}
-                            <tr>
-                              <td colSpan="3" style={{ verticalAlign: "top", padding: "8px", borderRight: "1px solid #94a3b8" }}>
-                                <div style={{ color: "#b91c1c", fontWeight: "bold", fontSize: "8.5px", marginBottom: "4px" }}>
-                                  BANK ACCOUNT DETAILS:
-                                </div>
-                                <div style={{ fontSize: "7.5px", color: "#0f172a", lineHeight: "1.3" }}>
-                                  <div>A/c Name: {shopName.toUpperCase()}</div>
-                                  <div>Bank: CANARA BANK, BASAVAKALYAN BRANCH</div>
-                                  <div>A/c No: 120033287950  |  IFSC: CNRB0010700</div>
-                                </div>
-                              </td>
-                              <td colSpan="2" style={{ padding: "0" }}>
-                                <table className="inner-calc-table">
-                                  <tbody>
-                                    <tr>
-                                      <td className="bold" style={{ width: "40%" }}>TOTAL QTY:</td>
-                                      <td className="text-right font-mono bold" style={{ width: "60%" }}>
-                                        {selectedInvoice.items.reduce((sum, item) => sum + item.qty, 0)}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td className="bold">SUBTOTAL:</td>
-                                      <td className="text-right font-mono">₹{selectedInvoice.subtotal.toFixed(2)}</td>
-                                    </tr>
-                                    {selectedInvoice.discountAmount > 0 && (
-                                      <tr>
-                                        <td className="bold text-rose-500">DISCOUNT:</td>
-                                        <td className="text-right font-mono text-rose-500 font-bold">
-                                          -₹{selectedInvoice.discountAmount.toFixed(2)}
-                                        </td>
-                                      </tr>
-                                    )}
-                                    {selectedInvoice.isGstBilling !== false && (
-                                      <>
-                                        <tr>
-                                          <td className="bold">CGST ({(selectedInvoice.items[0]?.gstRate || 0) / 2}%):</td>
-                                          <td className="text-right font-mono">₹{(selectedInvoice.gstAmount / 2).toFixed(2)}</td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold">SGST ({(selectedInvoice.items[0]?.gstRate || 0) / 2}%):</td>
-                                          <td className="text-right font-mono">₹{(selectedInvoice.gstAmount / 2).toFixed(2)}</td>
-                                        </tr>
-                                      </>
-                                    )}
-                                    <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                      <td className="bold font-extrabold text-orange-600" style={{ fontSize: "10px" }}>
-                                        {selectedInvoice.status === "Quotation" ? "ESTIMATED TOTAL" : "GRAND TOTAL"}
-                                      </td>
-                                      <td className="text-right font-mono font-black text-orange-600" style={{ fontSize: "11px" }}>
-                                        ₹{selectedInvoice.total.toFixed(2)}
-                                      </td>
-                                    </tr>
-                                    {selectedInvoice.paymentMethod === "Credit" && (
-                                      <>
-                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>PAID TODAY:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(selectedInvoice.amountPaid || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
-                                          <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
-                                            ₹{(selectedInvoice.outstandingAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                      </>
-                                    )}
-                                    {selectedInvoice.paymentMethod === "Split" && (
-                                      <>
-                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>CASH PAID:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(selectedInvoice.cashAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>UPI PAID:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(selectedInvoice.upiAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        {selectedInvoice.outstandingAmount > 0 && (
-                                          <tr>
-                                            <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
-                                            <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
-                                              ₹{(selectedInvoice.outstandingAmount || 0).toFixed(2)}
-                                            </td>
-                                          </tr>
-                                        )}
-                                      </>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      {/* Modern Table Grid */}
+                      <table className="modern-receipt-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: "8%", textAlign: "center" }}>S.NO</th>
+                            <th style={{ width: "52%" }}>PARTICULARS</th>
+                            <th style={{ width: "10%", textAlign: "center" }}>QTY</th>
+                            <th style={{ width: "14%", textAlign: "right" }}>RATE</th>
+                            <th style={{ width: "16%", textAlign: "right" }}>AMOUNT</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedInvoice.items.map((item, idx) => {
+                            const lineTotal = item.price * item.qty;
+                            return (
+                              <tr key={idx}>
+                                <td style={{ textAlign: "center" }}>{idx + 1}</td>
+                                <td className="font-semibold">{item.name}</td>
+                                <td style={{ textAlign: "center" }} className="font-mono">{item.qty}</td>
+                                <td style={{ textAlign: "right" }} className="font-mono">₹{item.price.toFixed(2)}</td>
+                                <td style={{ textAlign: "right" }} className="font-mono font-bold">₹{lineTotal.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="total-summary-row">
+                            <td colSpan="2" style={{ textAlign: "left", paddingLeft: "12px" }}>Total</td>
+                            <td style={{ textAlign: "center" }} className="font-mono">{selectedInvoice.items.reduce((sum, item) => sum + item.qty, 0)}</td>
+                            <td colSpan="2" style={{ textAlign: "right" }} className="font-mono">₹{selectedInvoice.subtotal.toFixed(2)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      {/* Grand Total Pill Badge */}
+                      <div className="grand-total-pill-container">
+                        <div className="grand-total-pill">
+                          <span className="grand-total-pill-label">
+                            {selectedInvoice.status === "Quotation" ? "GRAND TOTAL (EST.)" : "GRAND TOTAL (INCL. TAX)"}
+                          </span>
+                          <span className="grand-total-pill-val font-mono">
+                            ₹{selectedInvoice.total.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Footer & Signature block */}
-                      <div className="footer-sig-container">
-                        <div className="footer-thankyou">Thanku visit again</div>
-                        <div className="sig-block">
-                          <div className="sig-line"></div>
-                          <div className="sig-text">Authorized signature</div>
+                      {/* Footer Cards: Bank Details (Left) & Scan & Pay (Right) */}
+                      <div className="footer-cards-grid">
+                        <div className="footer-card">
+                          <div className="footer-card-title">BANK ACCOUNT DETAILS</div>
+                          <div className="footer-card-body">
+                            <div><strong>Account Name:</strong> {shopName.toUpperCase()}</div>
+                            <div><strong>Bank Name:</strong> CANARA BANK</div>
+                            <div><strong>A/C No:</strong> 120033287950</div>
+                            <div><strong>IFSC Code:</strong> CNRB0010700</div>
+                          </div>
+                        </div>
+
+                        <div className="footer-card text-center">
+                          <div className="footer-card-title">SCAN & PAY (UPI)</div>
+                          <div className="footer-card-body">
+                            <div className="text-[7.5px] mt-1">UPI ID: {selectedInvoice.isGstBilling !== false ? "9845757296@cnrb" : "6361037157@ybl"}</div>
+                            <div className="font-bold text-xs text-[#034b54] mt-1 font-mono">₹{selectedInvoice.total.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Signature & Tagline */}
+                      <div className="bottom-sign-row">
+                        <div className="bottom-thankyou">Thank you, visit again.</div>
+                        <div className="bottom-sig-box">
+                          <div className="bottom-sig-line"></div>
+                          <div className="bottom-sig-text">Authorized Signature</div>
                         </div>
                       </div>
 

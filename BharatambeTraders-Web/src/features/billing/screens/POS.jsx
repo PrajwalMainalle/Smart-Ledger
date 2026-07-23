@@ -63,6 +63,8 @@ function POS() {
   const [pageSize, setPageSize] = useState("auto");
   const [orientation, setOrientation] = useState("portrait");
   const [isGstBilling, setIsGstBilling] = useState(false);
+  const [quotationReceiptData, setQuotationReceiptData] = useState(null);
+  const [activeTabReceipt, setActiveTabReceipt] = useState("tax"); // "tax" | "quotation"
 
   // Credit Outstanding & Return Exchange states
   const [amountPaidToday, setAmountPaidToday] = useState(0);
@@ -312,10 +314,99 @@ function POS() {
       gstRate: isGstBilling ? (item.gstRate || 0) : 0
     }));
 
+    const formatReceiptObj = (inv) => ({
+      id: inv.invoiceId,
+      _id: inv._id,
+      date: inv.date,
+      customerName: inv.customerName,
+      customerPhone: inv.customerPhone,
+      customerType: inv.customerType,
+      items: [...inv.items],
+      subtotal: inv.subtotal,
+      discountPercent: inv.discountPercent,
+      discountAmount: inv.discountAmount,
+      gstAmount: inv.gstAmount,
+      total: inv.total,
+      paymentMethod: inv.paymentMethod,
+      cashAmount: inv.cashAmount,
+      upiAmount: inv.upiAmount,
+      pdfUrl: inv.pdfUrl,
+      isQuotation: inv.isQuotation,
+      isGstBilling: inv.isGstBilling,
+      amountPaid: inv.amountPaid,
+      outstandingAmount: inv.outstandingAmount,
+      returnedItems: inv.returnedItems || [],
+    });
+
+    // Dual Bill Mode: User selected BOTH GST Calculation AND Quotation / Estimate
+    if (isGstBilling && isQuotation && !editingInvoiceId) {
+      const taxInvoiceData = {
+        customerName,
+        customerPhone,
+        customerType,
+        discountType,
+        discountValue,
+        isQuotation: false, // 1. Tax Invoice
+        items: checkoutItems,
+        isGstBilling: true,
+        amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+        returnedItems: returnedItems,
+        cashAmount: paymentMethod === "Split" ? cashAmount : 0,
+        upiAmount: paymentMethod === "Split" ? upiAmount : 0,
+      };
+
+      dispatch(checkout(taxInvoiceData)).then((resTax) => {
+        if (!resTax.error) {
+          const savedTaxInvoice = resTax.payload;
+
+          const quotationData = {
+            customerName,
+            customerPhone,
+            customerType,
+            discountType,
+            discountValue,
+            isQuotation: true, // 2. Quotation / Estimate
+            items: checkoutItems,
+            isGstBilling: true,
+            amountPaid: 0,
+            returnedItems: [],
+            cashAmount: 0,
+            upiAmount: 0,
+          };
+
+          dispatch(checkout(quotationData)).then((resQuote) => {
+            setReceiptData(formatReceiptObj(savedTaxInvoice));
+            if (!resQuote.error) {
+              setQuotationReceiptData(formatReceiptObj(resQuote.payload));
+            } else {
+              setQuotationReceiptData(null);
+            }
+
+            dispatch(fetchProducts());
+            setDiscountValue(0);
+            setIsQuotation(false);
+            setAmountPaidToday(0);
+            setReturnedItems([]);
+            setEditingInvoiceId(null);
+            setEditingInvoiceNumber("");
+            setActiveTabReceipt("tax");
+            setShowCheckoutModal(true);
+          });
+        } else {
+          alert(resTax.payload || "Checkout failed for Tax Invoice");
+        }
+      });
+      return;
+    }
+
+    // Standard Single Bill Creation
     const checkoutAction = editingInvoiceId
       ? updateInvoice({
           invoiceId: editingInvoiceId,
           checkoutData: {
+            customerName,
+            customerPhone,
+            customerType,
             discountType,
             discountValue,
             isQuotation,
@@ -328,6 +419,9 @@ function POS() {
           }
         })
       : checkout({
+          customerName,
+          customerPhone,
+          customerType,
           discountType,
           discountValue,
           isQuotation,
@@ -342,44 +436,17 @@ function POS() {
     dispatch(checkoutAction).then((res) => {
       if (!res.error) {
         const savedInvoice = res.payload;
-        
-        // Save receipt detail local state for print layout
-        setReceiptData({
-          id: savedInvoice.invoiceId,
-          _id: savedInvoice._id,
-          date: savedInvoice.date,
-          customerName: savedInvoice.customerName,
-          customerPhone: savedInvoice.customerPhone,
-          customerType: savedInvoice.customerType,
-          items: [...savedInvoice.items],
-          subtotal: savedInvoice.subtotal,
-          discountPercent: savedInvoice.discountPercent,
-          discountAmount: savedInvoice.discountAmount,
-          gstAmount: savedInvoice.gstAmount,
-          total: savedInvoice.total,
-          paymentMethod: savedInvoice.paymentMethod,
-          cashAmount: savedInvoice.cashAmount,
-          upiAmount: savedInvoice.upiAmount,
-          pdfUrl: savedInvoice.pdfUrl,
-          isQuotation: savedInvoice.isQuotation,
-          isGstBilling: savedInvoice.isGstBilling,
-          amountPaid: savedInvoice.amountPaid,
-          outstandingAmount: savedInvoice.outstandingAmount,
-          returnedItems: savedInvoice.returnedItems || [],
-        });
+        setReceiptData(formatReceiptObj(savedInvoice));
+        setQuotationReceiptData(null);
 
-        // Trigger products refetch to synchronize stock counters instantly
         dispatch(fetchProducts());
-        
-        // Clear local discount input
         setDiscountValue(0);
-        setIsQuotation(false); // Reset quotation toggle
+        setIsQuotation(false);
         setAmountPaidToday(0);
         setReturnedItems([]);
         setEditingInvoiceId(null);
         setEditingInvoiceNumber("");
-
-        // Open printing popup modal
+        setActiveTabReceipt("tax");
         setShowCheckoutModal(true);
       } else {
         alert(res.payload || "Checkout failed");
@@ -1273,7 +1340,6 @@ function POS() {
           </div>
         )}
 
-        {/* Quotation / Estimate Toggle */}
         {/* GST Billing Toggle */}
         <div className="flex items-center gap-2.5 py-1 select-none">
           <input
@@ -1302,6 +1368,14 @@ function POS() {
           </label>
         </div>
 
+        {/* Dual Mode Indicator */}
+        {isGstBilling && isQuotation && (
+          <div className="text-[10.5px] font-medium text-amber-400 bg-amber-950/40 border border-amber-800/50 rounded-lg p-2 flex items-center gap-1.5 mt-0.5">
+            <span>✨</span>
+            <span><strong>Dual Creation:</strong> Creates <strong>Tax Invoice</strong> & <strong>Quotation</strong> simultaneously in 1 click!</span>
+          </div>
+        )}
+
         {/* Checkout Button */}
         <button
           onClick={handleCheckout}
@@ -1320,435 +1394,312 @@ function POS() {
 
       {/* PRINTABLE INVOICE / CHECKOUT MODAL OVERLAY */}
       {showCheckoutModal && receiptData && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
-            
-            <div className="bg-slate-950 px-6 py-4 flex items-center justify-between border-b border-slate-900">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <FaCheckCircle className="text-emerald-500" /> {receiptData.isQuotation ? "Quotation / Estimate Generated" : "Tax Invoice Generated"}
-              </h3>
-              <button 
-                onClick={() => {
-                  setShowCheckoutModal(false);
-                  setReceiptData(null);
-                }}
-                className="text-slate-400 hover:text-slate-200"
-              >
-                <FaTimes size={18} />
-              </button>
-            </div>
+        (() => {
+          const currentActiveReceipt = (activeTabReceipt === "quotation" && quotationReceiptData) 
+            ? quotationReceiptData 
+            : receiptData;
 
-            {/* Split Content */}
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden h-[68vh]">
-              {/* Left Column: PDF Iframe Preview */}
-              <div className="flex-1 bg-slate-950 border-r border-slate-850 flex flex-col h-full min-h-[300px] md:min-h-0">
-                <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-wrap justify-between items-center gap-2">
-                  <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
+          const activePdfUrl = `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000"}/api/billing/${currentActiveReceipt._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${authStoreToken || user?.token || ""}&t=${Date.now()}`;
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+                
+                {/* Modal Header Bar */}
+                <div className="bg-slate-950 px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-900">
                   <div className="flex items-center gap-3">
-                    <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => setPageSize(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
-                    >
-                      <option value="auto">Auto-Fit</option>
-                      <option value="A4">A4 Paper</option>
-                      <option value="A3">A3 Paper</option>
-                    </select>
+                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                      <FaCheckCircle className="text-emerald-500" /> 
+                      {quotationReceiptData 
+                        ? "Dual Bills Generated (Tax Invoice & Quotation)" 
+                        : (receiptData.isQuotation ? "Quotation / Estimate Generated" : "Tax Invoice Generated")
+                      }
+                    </h3>
 
-                    <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
-                    <select
-                      value={orientation}
-                      onChange={(e) => setOrientation(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
-                    >
-                      <option value="portrait">Portrait</option>
-                      <option value="landscape">Landscape</option>
-                    </select>
-                  </div>
-                </div>
-                <iframe
-                  src={getDynamicPdfUrl()}
-                  className="w-full h-full flex-1 border-none bg-slate-950"
-                  title="Live Invoice PDF"
-                />
-              </div>
-
-              {/* Right Column: HTML Print Preview */}
-              <div className="w-full md:w-[480px] overflow-y-auto p-4 bg-slate-950 flex flex-col h-full">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 text-center">
-                  POS Print Receipt Preview
-                </div>
-                <div className="bg-white p-4 rounded-lg overflow-y-auto flex-1 max-h-full" style={{ color: "#1e293b" }}>
-                  <div id="invoice-print-area">
-                    <div className="print-receipt">
-                      {/* GSTIN / MOBILE Light olive green banner */}
-                      <div className="shop-header-banner">
-                        {receiptData.isGstBilling !== false && (
-                          <span>REG.GSTIN: {gstNumber}</span>
-                        )}
-                        <span>MOBILE: {contactPhone}</span>
-                      </div>
-
-                      {/* Logo container if logoSrc exists */}
-                      {logoSrc && (
-                        <div className="logo-container">
-                          <img src={logoSrc} alt="Logo" className="logo-img" />
-                        </div>
-                      )}
-
-                      {/* Olive Green Shop Banner */}
-                      <div className="shop-title-banner">
-                        <h1 className="shop-title-text">{shopName.toUpperCase()}</h1>
-                        <p className="shop-subtitle-text">WHOLE SALER'S</p>
-                      </div>
-
-                      {/* Light Green Address & Tagline Banner */}
-                      <div className="shop-address-banner">
-                        <p className="bold">{address.toUpperCase()}</p>
-                        <p className="shop-tagline">
-                          {profile.businessDescription || "OFFICE STATIONARY, SCHOOL ITEMS, ALL NOTE BOOKS, ZEROX PAPERS, SPORTS ITMES, COMPUTERS MATERIALS AND OTHERS MATERIALS"}
-                        </p>
-                      </div>
-
-                      {/* Document Title */}
-                      <div className="document-title-container">
-                        <span className="document-title">
-                          {receiptData.isQuotation ? "ESTIMATE / QUOTATION" : "CREDIT BILL"}
-                        </span>
-                      </div>
-
-                      {/* Invoice Details Box */}
-                      <div className="details-box">
-                        <div className="details-row">
-                          <span className="details-label">Bill No:</span>
-                          <span className="details-val font-mono">{receiptData.id}</span>
-                        </div>
-                        <div className="details-row">
-                          <span className="details-label">Date:</span>
-                          <span className="details-val">{new Date(receiptData.date).toLocaleDateString("en-IN")}</span>
-                        </div>
-                        <div className="details-row">
-                          <span className="details-label">Customer Name:</span>
-                          <span className="details-val">{receiptData.customerName.toUpperCase()}</span>
-                        </div>
-                        {receiptData.customerPhone && receiptData.customerPhone !== "N/A" && (
-                          <div className="details-row">
-                            <span className="details-label">Mobile No:</span>
-                            <span className="details-val">{receiptData.customerPhone}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Bordered Table Grid */}
-                      <div className="receipt-table-container">
-                        <table className="receipt-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: "8%" }}>S.No</th>
-                              <th style={{ width: "52%" }}>PARTICULARS</th>
-                              <th style={{ width: "10%" }}>QTY</th>
-                              <th style={{ width: "12%" }}>RATE</th>
-                              <th style={{ width: "18%" }}>AMOUNT</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {receiptData.items.map((item, idx) => {
-                              const lineTotal = item.price * item.qty;
-                              return (
-                                <tr key={idx}>
-                                  <td className="text-center">{idx + 1}</td>
-                                  <td className="bold notranslate" translate="no">{item.name}</td>
-                                  <td className="text-center font-mono">{item.qty}</td>
-                                  <td className="text-right font-mono">₹{item.price.toFixed(2)}</td>
-                                  <td className="text-right font-mono bold">₹{lineTotal.toFixed(2)}</td>
-                                </tr>
-                              );
-                            })}
-                            
-                            {receiptData.returnedItems && receiptData.returnedItems.map((item, idx) => {
-                              const lineTotal = item.price * item.qty;
-                              return (
-                                <tr key={`ret_${idx}`} style={{ color: "#b91c1c", backgroundColor: "#fef2f2" }}>
-                                  <td className="text-center font-bold">R{idx + 1}</td>
-                                  <td className="bold notranslate font-semibold" translate="no">[RET] {item.name}</td>
-                                  <td className="text-center font-mono font-bold">-{item.qty}</td>
-                                  <td className="text-right font-mono">₹{item.price.toFixed(2)}</td>
-                                  <td className="text-right font-mono bold text-rose-600">-₹{lineTotal.toFixed(2)}</td>
-                                </tr>
-                              );
-                            })}
-                            
-                            {/* Bank details and Calculations merged row */}
-                            <tr>
-                              <td colSpan="3" style={{ verticalAlign: "top", padding: "8px", borderRight: "1px solid #94a3b8" }}>
-                                <div style={{ color: "#000000", fontWeight: "bold", fontSize: "8.5px", marginBottom: "4px" }}>
-                                  BANK ACCOUNT DETAILS:
-                                </div>
-                                <div style={{ fontSize: "7.5px", color: "#000000", lineHeight: "1.3" }}>
-                                  <div>A/c Name: {shopName.toUpperCase()}</div>
-                                  <div>Bank: CANARA BANK, BASAVAKALYAN BRANCH</div>
-                                  <div>A/c No: 120033287950  |  IFSC: CNRB0010700</div>
-                                </div>
-                              </td>
-                              <td colSpan="2" style={{ padding: "0" }}>
-                                <table className="inner-calc-table">
-                                  <tbody>
-                                    <tr>
-                                      <td className="bold" style={{ width: "40%" }}>TOTAL QTY:</td>
-                                      <td className="text-right font-mono bold" style={{ width: "60%" }}>
-                                        {receiptData.items.reduce((sum, item) => sum + item.qty, 0) - (receiptData.returnedItems ? receiptData.returnedItems.reduce((sum, item) => sum + item.qty, 0) : 0)}
-                                      </td>
-                                    </tr>
-                                    <tr>
-                                      <td className="bold">SUBTOTAL:</td>
-                                      <td className="text-right font-mono">₹{receiptData.subtotal.toFixed(2)}</td>
-                                    </tr>
-                                    {receiptData.discountAmount > 0 && (
-                                      <tr>
-                                        <td className="bold text-rose-500">DISCOUNT:</td>
-                                        <td className="text-right font-mono text-rose-500 font-bold">
-                                          -₹{receiptData.discountAmount.toFixed(2)}
-                                        </td>
-                                      </tr>
-                                    )}
-                                    {(() => {
-                                       const isReceiptInclusiveGst = receiptData.isGstBilling !== false && 
-                                         (receiptData.customerType === "School" || receiptData.customerType === "Retail");
-                                       
-                                       return (
-                                         <>
-                                           {receiptData.isGstBilling !== false && !isReceiptInclusiveGst && (
-                                             <>
-                                               <tr>
-                                                 <td className="bold">CGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
-                                                 <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
-                                               </tr>
-                                               <tr>
-                                                 <td className="bold">SGST ({(receiptData.items[0]?.gstRate || 0) / 2}%):</td>
-                                                 <td className="text-right font-mono">₹{(receiptData.gstAmount / 2).toFixed(2)}</td>
-                                               </tr>
-                                             </>
-                                           )}
-                                           
-                                           {isReceiptInclusiveGst && (
-                                             <tr>
-                                               <td className="bold text-emerald-600">GST (INCLUDED):</td>
-                                               <td className="text-right font-mono text-emerald-650">₹{receiptData.gstAmount.toFixed(2)}</td>
-                                             </tr>
-                                           )}
-
-                                           {receiptData.returnedItems && receiptData.returnedItems.length > 0 && (
-                                             <tr>
-                                               <td className="bold text-rose-600" style={{ fontSize: "8.5px" }}>RETURNS TOTAL:</td>
-                                               <td className="text-right font-mono text-rose-600 font-bold" style={{ fontSize: "8.5px" }}>
-                                                 -₹{receiptData.returnedItems.reduce((sum, item) => sum + (item.price * item.qty) * (1 + (item.gstRate || 0)/100), 0).toFixed(2)}
-                                               </td>
-                                             </tr>
-                                           )}
-                                           <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                             <td className="bold font-extrabold text-orange-600" style={{ fontSize: "9px" }}>
-                                               {receiptData.isQuotation 
-                                                 ? (isReceiptInclusiveGst ? "EST. TOTAL (INCL. TAX)" : "ESTIMATED TOTAL") 
-                                                 : (isReceiptInclusiveGst ? "GRAND TOTAL (INCL. TAX)" : "GRAND TOTAL")}
-                                             </td>
-                                             <td className="text-right font-mono font-black text-orange-600" style={{ fontSize: "11px" }}>
-                                               ₹{receiptData.total.toFixed(2)}
-                                             </td>
-                                           </tr>
-                                         </>
-                                       );
-                                     })()}
-                                    {receiptData.paymentMethod === "Credit" && (
-                                      <>
-                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>PAID TODAY:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(receiptData.amountPaid || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
-                                          <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
-                                            ₹{(receiptData.outstandingAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                      </>
-                                    )}
-                                    {receiptData.paymentMethod === "Split" && (
-                                      <>
-                                        <tr style={{ borderTop: "1px solid #94a3b8" }}>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>CASH PAID:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(receiptData.cashAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        <tr>
-                                          <td className="bold text-slate-800" style={{ fontSize: "9px" }}>UPI PAID:</td>
-                                          <td className="text-right font-mono text-slate-800 font-bold" style={{ fontSize: "9px" }}>
-                                            ₹{(receiptData.upiAmount || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                        {receiptData.outstandingAmount > 0 && (
-                                          <tr>
-                                            <td className="bold font-extrabold text-rose-600" style={{ fontSize: "9.5px" }}>OUTSTANDING:</td>
-                                            <td className="text-right font-mono font-black text-rose-650" style={{ fontSize: "9.5px" }}>
-                                              ₹{(receiptData.outstandingAmount || 0).toFixed(2)}
-                                            </td>
-                                          </tr>
-                                        )}
-                                      </>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Footer & Signature block */}
-                      <div className="footer-sig-container">
-                        <div className="footer-thankyou">Thanku visit again</div>
-                        <div className="sig-block">
-                          <div className="sig-line"></div>
-                          <div className="sig-text">Authorized signature</div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions footer */}
-            <div className="bg-slate-950 px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
-              <div className="flex gap-2">
-                <button
-                  onClick={triggerPrint}
-                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
-                >
-                  <FaPrint /> Print Receipt
-                </button>
-                <a
-                  href={getPdfDownloadLink()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
-                >
-                  <FaDownload /> Download PDF
-                </a>
-                <button
-                  type="button"
-                  onClick={handleEditCurrentBill}
-                  className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition"
-                >
-                  ✏️ Edit items / Add to Bill
-                </button>
-              </div>
-
-              {/* Payment Method Quick Change Option */}
-              {!receiptData.isQuotation && (
-                <div className="mt-2 p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2 text-xs text-left">
-                  <span className="font-bold text-slate-400 block">Change Payment Method:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Cash", "UPI", "Card", "Credit", "Split"].map((method) => {
-                      const active = editMethod === method;
-                      return (
+                    {/* Tab Switcher if Dual Bill Generated */}
+                    {quotationReceiptData && (
+                      <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
                         <button
-                          key={method}
                           type="button"
-                          onClick={() => {
-                            setEditMethod(method);
-                            if (method === "Split") {
-                              setEditCash(receiptData.cashAmount || receiptData.total);
-                              setEditUpi(receiptData.upiAmount || 0);
-                            } else if (method === "Credit") {
-                              setEditAmountPaid(receiptData.amountPaid || 0);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150
-                            ${active 
-                              ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
-                              : "bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200"
-                            }
-                          `}
+                          onClick={() => setActiveTabReceipt("tax")}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            activeTabReceipt === "tax"
+                              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                              : "text-slate-400 hover:text-slate-200"
+                          }`}
                         >
-                          {method}
+                          📄 Tax Invoice ({receiptData.id})
                         </button>
-                      );
-                    })}
+                        <button
+                          type="button"
+                          onClick={() => setActiveTabReceipt("quotation")}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            activeTabReceipt === "quotation"
+                              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                              : "text-slate-400 hover:text-slate-200"
+                          }`}
+                        >
+                          📋 Quotation ({quotationReceiptData.id})
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {editMethod === "Split" && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <div>
-                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Cash Amount (₹)</label>
-                        <input 
-                          type="number"
-                          value={editCash}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setEditCash(val);
-                            setEditUpi(Math.max(0, receiptData.total - val));
-                          }}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5">UPI Amount (₹)</label>
-                        <input 
-                          type="number"
-                          value={editUpi}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setEditUpi(val);
-                            setEditCash(Math.max(0, receiptData.total - val));
-                          }}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
-                        />
+                  <button 
+                    onClick={() => {
+                      setShowCheckoutModal(false);
+                      setReceiptData(null);
+                      setQuotationReceiptData(null);
+                    }}
+                    className="text-slate-400 hover:text-slate-200"
+                  >
+                    <FaTimes size={18} />
+                  </button>
+                </div>
+
+                {/* Split Content Body */}
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden h-[68vh]">
+                  {/* Left Column: Live PDF Preview */}
+                  <div className="flex-1 bg-slate-950 border-r border-slate-850 flex flex-col h-full min-h-[300px] md:min-h-0">
+                    <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-wrap justify-between items-center gap-2">
+                      <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
+                      <div className="flex items-center gap-3">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => setPageSize(e.target.value)}
+                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                        >
+                          <option value="auto">Auto-Fit</option>
+                          <option value="A4">A4 Paper</option>
+                          <option value="A3">A3 Paper</option>
+                        </select>
+
+                        <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
+                        <select
+                          value={orientation}
+                          onChange={(e) => setOrientation(e.target.value)}
+                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                        >
+                          <option value="portrait">Portrait</option>
+                          <option value="landscape">Landscape</option>
+                        </select>
                       </div>
                     </div>
-                  )}
+                    <iframe
+                      src={activePdfUrl}
+                      className="w-full h-full flex-1 border-none bg-slate-950"
+                      title="Live Invoice PDF"
+                    />
+                  </div>
 
-                  {editMethod === "Credit" && (
-                    <div className="mt-2">
-                      <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Amount Paid Today (₹)</label>
-                      <input 
-                        type="number"
-                        value={editAmountPaid}
-                        onChange={(e) => setEditAmountPaid(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono font-semibold text-slate-205 focus:outline-none focus:border-orange-500"
-                      />
+                  {/* Right Column: Modern HTML Print Receipt Preview */}
+                  <div className="w-full md:w-[480px] overflow-y-auto p-4 bg-slate-950 flex flex-col h-full">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 text-center">
+                      POS Print Receipt Preview ({currentActiveReceipt.isQuotation ? "Quotation" : "Tax Invoice"})
                     </div>
-                  )}
+                    <div className="bg-white p-4 rounded-lg overflow-y-auto flex-1 max-h-full" style={{ color: "#1e293b" }}>
+                      <div id="invoice-print-area">
+                        <div className="print-receipt">
+                          {/* Top Header Row with Logo Badge, Shop Title & Right GSTIN/Mobile */}
+                          <div className="top-header-row">
+                            <div className="brand-badge-container">
+                              {logoSrc ? (
+                                <img src={logoSrc} alt="Logo" className="brand-logo-img" />
+                              ) : (
+                                <div className="brand-badge-title">SmartLedger<br/><span className="brand-badge-sub">Your Business Partner</span></div>
+                              )}
+                            </div>
 
-                  {editMethod !== receiptData.paymentMethod && (
+                            <div className="header-center-info">
+                              <h1 className="header-shop-title">{shopName.toUpperCase()}</h1>
+                              <div className="header-shop-sub">W H O L E S A L E R ' S</div>
+                            </div>
+
+                            <div className="top-right-contact">
+                              {currentActiveReceipt.isGstBilling !== false && (
+                                <div><strong>GSTIN:</strong> {gstNumber}</div>
+                              )}
+                              <div><strong>Mobile:</strong> {contactPhone}</div>
+                            </div>
+                          </div>
+
+                          <div className="gold-divider-line"></div>
+
+                          <div className="shop-tagline-bar">
+                            {profile.businessDescription || "Office Stationery • School Items • Note Books • Xerox Papers • Sports Items • Computer Materials & More"}
+                          </div>
+
+                          {/* Document Title with side accent lines */}
+                          <div className="doc-title-wrapper">
+                            <div className="doc-title-line"></div>
+                            <div className="doc-title-text">
+                              {currentActiveReceipt.isGstBilling !== false
+                                ? "Tax Invoice"
+                                : (currentActiveReceipt.isQuotation ? "Estimate / Quotation" : `${(currentActiveReceipt.paymentMethod || "CASH").toUpperCase()} BILL`)}
+                            </div>
+                            <div className="doc-title-line"></div>
+                          </div>
+
+                          {/* Metadata 2-column Grid */}
+                          <div className="meta-grid-2col">
+                            <div className="meta-col">
+                              <div>
+                                <div className="meta-label">INVOICE NO.</div>
+                                <div className="meta-value font-mono">{currentActiveReceipt.id}</div>
+                              </div>
+                              <div className="mt-2">
+                                <div className="meta-label">BILLED TO</div>
+                                <div className="meta-value">{currentActiveReceipt.customerName.toUpperCase()}</div>
+                              </div>
+                            </div>
+
+                            <div className="meta-col text-right">
+                              <div>
+                                <div className="meta-label">DATE</div>
+                                <div className="meta-value">{new Date(currentActiveReceipt.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                              </div>
+                              <div className="mt-2">
+                                <div className="meta-label">PHONE</div>
+                                <div className="meta-value">{currentActiveReceipt.customerPhone && currentActiveReceipt.customerPhone !== "N/A" ? currentActiveReceipt.customerPhone : "N/A"}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Modern Table Grid */}
+                          <table className="modern-receipt-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: "8%", textAlign: "center" }}>S.NO</th>
+                                <th style={{ width: "52%" }}>PARTICULARS</th>
+                                <th style={{ width: "10%", textAlign: "center" }}>QTY</th>
+                                <th style={{ width: "14%", textAlign: "right" }}>RATE</th>
+                                <th style={{ width: "16%", textAlign: "right" }}>AMOUNT</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentActiveReceipt.items.map((item, idx) => {
+                                const lineTotal = item.price * item.qty;
+                                return (
+                                  <tr key={idx}>
+                                    <td style={{ textAlign: "center" }}>{idx + 1}</td>
+                                    <td className="font-semibold">{item.name}</td>
+                                    <td style={{ textAlign: "center" }} className="font-mono">{item.qty}</td>
+                                    <td style={{ textAlign: "right" }} className="font-mono">₹{item.price.toFixed(2)}</td>
+                                    <td style={{ textAlign: "right" }} className="font-mono font-bold">₹{lineTotal.toFixed(2)}</td>
+                                  </tr>
+                                );
+                              })}
+                              <tr className="total-summary-row">
+                                <td colSpan="2" style={{ textAlign: "left", paddingLeft: "12px" }}>Total</td>
+                                <td style={{ textAlign: "center" }} className="font-mono">{currentActiveReceipt.items.reduce((sum, item) => sum + item.qty, 0)}</td>
+                                <td colSpan="2" style={{ textAlign: "right" }} className="font-mono">₹{currentActiveReceipt.subtotal.toFixed(2)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+
+                          {/* Grand Total Pill Badge */}
+                          <div className="grand-total-pill-container">
+                            <div className="grand-total-pill">
+                              <span className="grand-total-pill-label">
+                                {currentActiveReceipt.isQuotation ? "GRAND TOTAL (EST.)" : "GRAND TOTAL (INCL. TAX)"}
+                              </span>
+                              <span className="grand-total-pill-val font-mono">
+                                ₹{currentActiveReceipt.total.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Footer Cards: Bank Details (Left) & Scan & Pay (Right) */}
+                          <div className="footer-cards-grid">
+                            <div className="footer-card">
+                              <div className="footer-card-title">BANK ACCOUNT DETAILS</div>
+                              <div className="footer-card-body">
+                                <div><strong>Account Name:</strong> {shopName.toUpperCase()}</div>
+                                <div><strong>Bank Name:</strong> CANARA BANK</div>
+                                <div><strong>A/C No:</strong> 120033287950</div>
+                                <div><strong>IFSC Code:</strong> CNRB0010700</div>
+                              </div>
+                            </div>
+
+                            <div className="footer-card text-center">
+                              <div className="footer-card-title">SCAN & PAY (UPI)</div>
+                              <div className="footer-card-body">
+                                <div className="text-[7.5px] mt-1">UPI ID: {currentActiveReceipt.isGstBilling !== false ? "9845757296@cnrb" : "6361037157@ybl"}</div>
+                                <div className="font-bold text-xs text-[#034b54] mt-1 font-mono">₹{currentActiveReceipt.total.toFixed(2)}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom Signature & Tagline */}
+                          <div className="bottom-sign-row">
+                            <div className="bottom-thankyou">Thank you, visit again.</div>
+                            <div className="bottom-sig-box">
+                              <div className="bottom-sig-line"></div>
+                              <div className="bottom-sig-text">Authorized Signature</div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="bg-slate-950 px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const pdfUrl = activePdfUrl;
+                        fetch(pdfUrl)
+                          .then(res => res.blob())
+                          .then(blob => {
+                            const blobUrl = URL.createObjectURL(blob);
+                            let iframe = document.getElementById("print-iframe");
+                            if (!iframe) {
+                              iframe = document.createElement("iframe");
+                              iframe.id = "print-iframe";
+                              iframe.style.position = "fixed";
+                              iframe.style.width = "0"; iframe.style.height = "0"; iframe.style.border = "0";
+                              document.body.appendChild(iframe);
+                            }
+                            iframe.src = blobUrl;
+                            iframe.onload = () => {
+                              setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 200);
+                            };
+                          });
+                      }}
+                      className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                    >
+                      <FaPrint /> Print {currentActiveReceipt.isQuotation ? "Quotation" : "Tax Invoice"}
+                    </button>
+                    <a
+                      href={`${activePdfUrl}&download=true`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                    >
+                      <FaDownload /> Download {currentActiveReceipt.isQuotation ? "Quotation PDF" : "Tax Invoice PDF"}
+                    </a>
                     <button
                       type="button"
-                      onClick={handleUpdatePaymentMethod}
-                      className="w-full mt-2 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold text-xs shadow-md"
+                      onClick={() => {
+                        setShowCheckoutModal(false);
+                        setReceiptData(null);
+                        setQuotationReceiptData(null);
+                      }}
+                      className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition"
                     >
-                      Confirm Change (Updates Bill & PDF)
+                      Next Customer
                     </button>
-                  )}
+                  </div>
                 </div>
-              )}
 
-              <button
-                onClick={() => {
-                  setShowCheckoutModal(false);
-                  setReceiptData(null);
-                }}
-                className="w-full py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold text-xs mt-1"
-              >
-                Next Customer
-              </button>
+              </div>
             </div>
-
-          </div>
-        </div>
+          );
+        })()
       )}
 
       {/* ADD MANUAL/CUSTOM ITEM MODAL */}
