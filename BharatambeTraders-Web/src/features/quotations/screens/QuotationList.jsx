@@ -203,7 +203,6 @@ function QuotationList() {
         ? (cashDiscAmount / baseTaxable) * 100
         : 0;
 
-    let gstAmount = 0;
     let finalTaxableAmount = 0;
     let totalCalculatedCashDiscount = 0;
 
@@ -213,16 +212,10 @@ function QuotationList() {
 
       totalCalculatedCashDiscount += itemCashDiscount;
       finalTaxableAmount += itemTaxable;
-
-      let itemGst = 0;
-      if (item.gstRate > 0) {
-        itemGst = round2(itemTaxable * (item.gstRate / 100));
-      }
-      gstAmount += itemGst;
     });
 
     const transportCost = parseFloat(data.transport) || 0;
-    const grandTotal = round2(finalTaxableAmount + gstAmount + transportCost);
+    const grandTotal = round2(finalTaxableAmount + transportCost);
 
     return {
       totalQty,
@@ -230,7 +223,7 @@ function QuotationList() {
       itemDiscounts: round2(totalItemDiscounts),
       taxableAmount: round2(baseTaxable),
       cashDiscountAmount: round2(totalCalculatedCashDiscount),
-      gstAmount: round2(gstAmount),
+      gstAmount: 0,
       transport: transportCost,
       grandTotal: round2(grandTotal),
     };
@@ -674,22 +667,16 @@ function QuotationList() {
               <span className="font-mono font-bold text-sm text-slate-200">{formCalculated.totalQty}</span>
             </div>
             <div>
-              <span className="block text-[10px] text-slate-400 uppercase">Subtotal</span>
-              <span className="font-mono font-bold text-sm text-slate-200">
+              <span className="block text-[10px] text-slate-400 uppercase">Total (Incl. Tax)</span>
+              <span className="font-mono font-bold text-sm text-emerald-400">
                 ₹{formCalculated.subtotal.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400 uppercase">GST Tax</span>
-              <span className="font-mono font-bold text-sm text-amber-400">
-                ₹{formCalculated.gstAmount.toFixed(2)}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <span className="block text-[10px] text-slate-400 uppercase">GRAND TOTAL (EST.)</span>
+              <span className="block text-[10px] text-slate-400 uppercase">GRAND TOTAL (INCL. TAX)</span>
               <span className="font-mono font-black text-2xl text-emerald-400">
                 ₹{formCalculated.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </span>
@@ -830,7 +817,7 @@ function QuotationList() {
                   {/* TOTAL ROW */}
                   <tr className="font-black bg-slate-100 uppercase border-t-2 border-black">
                     <td colSpan="2" className="border border-black py-1.5 px-3 text-right">
-                      SUBTOTAL
+                      Total
                     </td>
                     <td className="border border-black py-1.5 px-2 text-center font-mono">
                       {calculateTotals(selectedPrintQuote).totalQty}
@@ -840,18 +827,6 @@ function QuotationList() {
                       ₹{calculateTotals(selectedPrintQuote).subtotal.toFixed(2)}
                     </td>
                   </tr>
-
-                  {/* GST TAX ROW (if applicable) */}
-                  {calculateTotals(selectedPrintQuote).gstAmount > 0 && (
-                    <tr className="font-bold bg-slate-50 uppercase border-t border-black">
-                      <td colSpan="4" className="border border-black py-1 px-3 text-right text-[9px]">
-                        TOTAL GST TAX
-                      </td>
-                      <td className="border border-black py-1 px-2 text-right font-mono text-xs text-black">
-                        ₹{calculateTotals(selectedPrintQuote).gstAmount.toFixed(2)}
-                      </td>
-                    </tr>
-                  )}
 
                   {/* BOTTOM SUMMARY GRID (BANK, SCAN & PAY, GRAND TOTAL) */}
                   <tr>
