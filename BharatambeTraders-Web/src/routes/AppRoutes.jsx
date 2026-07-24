@@ -18,6 +18,7 @@ import GstPurchases from "../features/gst/screens/GstPurchases";
 import GstSummary from "../features/gst/screens/GstSummary";
 import GstInventory from "../features/gst/screens/GstInventory";
 import GstCAReports from "../features/gst/screens/GstCAReports";
+import QuotationListPage from "../features/quotations/screens/QuotationList";
 
 const AppRoutes = () => {
   return (
@@ -41,6 +42,7 @@ const AppRoutes = () => {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/purchases" element={<PurchaseListPage />} />
+            <Route path="/quotations" element={<QuotationListPage />} />
             <Route path="/gst/dashboard" element={<GstDashboard />} />
             <Route path="/gst/sales" element={<GstSales />} />
             <Route path="/gst/purchases" element={<GstPurchases />} />
