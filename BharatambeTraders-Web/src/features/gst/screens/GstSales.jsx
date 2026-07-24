@@ -163,21 +163,21 @@ function GstSales() {
 
       {/* Summary KPI Panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">GST Sales</span>
-          <p className="text-lg font-black text-white font-mono">₹{(summary?.gstSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">GST Sales</span>
+          <p className="text-lg font-black text-emerald-400 font-mono">₹{(summary?.gstSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Non-GST Sales</span>
-          <p className="text-lg font-black text-white font-mono">₹{(summary?.nonGstSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Non-GST Sales</span>
+          <p className="text-lg font-black text-cyan-400 font-mono">₹{(summary?.nonGstSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total Sales Sum</span>
-          <p className="text-lg font-black text-orange-450 font-mono">₹{(summary?.totalSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total Sales Sum</span>
+          <p className="text-lg font-black text-orange-400 font-mono">₹{(summary?.totalSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total GST Tax</span>
-          <p className="text-lg font-black text-rose-450 font-mono">₹{(summary?.totalTax || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total GST Tax</span>
+          <p className="text-lg font-black text-rose-400 font-mono">₹{(summary?.totalTax || 0).toFixed(2)}</p>
         </div>
       </div>
 
@@ -201,13 +201,13 @@ function GstSales() {
             <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono">
               {ratesBreakdown.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-100">{row.rate}</td>
+                  <td className="py-3 px-4 font-sans font-bold text-slate-200">{row.rate}</td>
                   <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-400">₹{row.cgst.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-400">₹{row.sgst.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-400">₹{row.igst.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-orange-400 font-bold">₹{row.totalTax.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-white font-black">₹{row.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-emerald-400 font-black">₹{row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))}
               {ratesBreakdown.length === 0 && (
@@ -240,13 +240,13 @@ function GstSales() {
             <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono">
               {nonGstRatesBreakdown.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-100">{row.rate}</td>
+                  <td className="py-3 px-4 font-sans font-bold text-slate-200">{row.rate}</td>
                   <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500 font-bold">₹0.00</td>
-                  <td className="py-3 px-4 text-right text-white font-black">₹{row.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-cyan-400 font-black">₹{row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))}
               {nonGstRatesBreakdown.length === 0 && (

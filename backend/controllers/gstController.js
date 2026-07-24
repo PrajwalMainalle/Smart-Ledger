@@ -5,30 +5,59 @@ const Product = require("../models/Product");
 // Helper to resolve period filters into date query
 const getDateQuery = (period, startDate, endDate) => {
   const now = new Date();
+  // Indian Standard Time (IST) offset: +5:30 = +330 minutes = 19,800,000 ms
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
   let start = null;
-  let end = new Date();
+  let end = null;
 
   if (period === "daily") {
-    start = new Date(now.setHours(0, 0, 0, 0));
-    end = new Date(now.setHours(23, 59, 59, 999));
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    const y = istNow.getUTCFullYear();
+    const m = istNow.getUTCMonth();
+    const d = istNow.getUTCDate();
+
+    start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0) - IST_OFFSET_MS);
+    end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999) - IST_OFFSET_MS);
   } else if (period === "weekly") {
-    start = new Date();
-    start.setDate(now.getDate() - 7);
-    start.setHours(0, 0, 0, 0);
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    const y = istNow.getUTCFullYear();
+    const m = istNow.getUTCMonth();
+    const d = istNow.getUTCDate();
+
+    start = new Date(Date.UTC(y, m, d - 7, 0, 0, 0, 0) - IST_OFFSET_MS);
+    end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999) - IST_OFFSET_MS);
   } else if (period === "monthly") {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    start.setHours(0, 0, 0, 0);
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    const y = istNow.getUTCFullYear();
+    const m = istNow.getUTCMonth();
+
+    start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0) - IST_OFFSET_MS);
+    const lastDayOfMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    end = new Date(Date.UTC(y, m, lastDayOfMonth, 23, 59, 59, 999) - IST_OFFSET_MS);
   } else if (period === "yearly") {
-    start = new Date(now.getFullYear(), 0, 1);
-    start.setHours(0, 0, 0, 0);
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    const y = istNow.getUTCFullYear();
+
+    start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0) - IST_OFFSET_MS);
+    end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999) - IST_OFFSET_MS);
   } else if (startDate || endDate) {
     if (startDate) {
-      start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
+      const parts = startDate.split("-").map(Number);
+      if (parts.length === 3) {
+        start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0) - IST_OFFSET_MS);
+      } else {
+        start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+      }
     }
     if (endDate) {
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const parts = endDate.split("-").map(Number);
+      if (parts.length === 3) {
+        end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999) - IST_OFFSET_MS);
+      } else {
+        end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+      }
     }
   }
 
@@ -339,12 +368,20 @@ const getGstSalesSummary = async (req, res) => {
           _id: null,
           gstSales: {
             $sum: {
-              $cond: { if: { $eq: ["$isGstBilling", true] }, then: { $ifNull: ["$revenueTotal", "$total"] }, else: 0 }
+              $cond: {
+                if: { $ne: ["$isGstBilling", false] },
+                then: { $ifNull: ["$revenueTotal", "$total"] },
+                else: 0
+              }
             }
           },
           nonGstSales: {
             $sum: {
-              $cond: { if: { $eq: ["$isGstBilling", false] }, then: { $ifNull: ["$revenueTotal", "$total"] }, else: 0 }
+              $cond: {
+                if: { $eq: ["$isGstBilling", false] },
+                then: { $ifNull: ["$revenueTotal", "$total"] },
+                else: 0
+              }
             }
           },
           totalSales: { $sum: { $ifNull: ["$revenueTotal", "$total"] } },
@@ -522,12 +559,12 @@ const getGstPurchasesSummary = async (req, res) => {
           _id: null,
           gstPurchases: {
             $sum: {
-              $cond: { if: { $eq: ["$isGst", true] }, then: "$total", else: 0 }
+              $cond: { if: { $ne: ["$isGst", false] }, then: "$total", else: 0 }
             }
           },
           nonGstPurchases: {
             $sum: {
-              $cond: { if: { $ne: ["$isGst", true] }, then: "$total", else: 0 }
+              $cond: { if: { $eq: ["$isGst", false] }, then: "$total", else: 0 }
             }
           },
           totalPurchases: { $sum: "$total" },
@@ -766,7 +803,7 @@ const getProfitReport = async (req, res) => {
       const invGstAmount = inv.revenueGstAmount !== undefined ? inv.revenueGstAmount : inv.gstAmount;
 
       totalSales += invTotal;
-      if (inv.isGst) {
+      if (inv.isGstBilling !== false && inv.isGst !== false) {
         gstSalesTaxable += invTaxableAmount;
         gstSalesTax += invGstAmount;
       } else {
