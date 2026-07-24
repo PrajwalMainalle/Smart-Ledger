@@ -10,7 +10,6 @@ import {
   FaRedo,
   FaCheckCircle,
 } from "react-icons/fa";
-import btLogo from "../../../assets/BTLogo.png";
 
 function QuotationList() {
   const { user } = useSelector((state) => state.auth);
@@ -37,12 +36,12 @@ function QuotationList() {
     firmAddress: defaultAddress,
     firmSubtext: defaultSubtext,
     
-    // Bank & Payment Details (Fully Editable)
-    bankAccountName: defaultShopName,
-    bankName: "CANARA BANK",
-    bankAccountNo: "120033287950",
-    bankIfsc: "CNRB0010700",
-    upiId: "9845757296@cnrb",
+    // Bank & Payment Details (Fully Editable - Default Empty)
+    bankAccountName: "",
+    bankName: "",
+    bankAccountNo: "",
+    bankIfsc: "",
+    upiId: "",
 
     // Customer Details
     customerName: "",
@@ -54,7 +53,6 @@ function QuotationList() {
     transport: "",
     cashDiscountPercent: "",
     cashDiscountAmount: "",
-    gstType: "CGST+SGST",
     items: [
       { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" },
     ],
@@ -93,11 +91,11 @@ function QuotationList() {
       firmAddress: defaultAddress,
       firmSubtext: defaultSubtext,
 
-      bankAccountName: defaultShopName,
-      bankName: "CANARA BANK",
-      bankAccountNo: "120033287950",
-      bankIfsc: "CNRB0010700",
-      upiId: "9845757296@cnrb",
+      bankAccountName: "",
+      bankName: "",
+      bankAccountNo: "",
+      bankIfsc: "",
+      upiId: "",
 
       customerName: "",
       customerPhone: "",
@@ -107,7 +105,6 @@ function QuotationList() {
       transport: "",
       cashDiscountPercent: "",
       cashDiscountAmount: "",
-      gstType: "CGST+SGST",
       items: [
         { productId: "", sku: "", name: "", price: "", qty: "1", gstRate: "18", schDiscount: "", splDiscount: "" },
       ],
@@ -156,13 +153,12 @@ function QuotationList() {
     setFormData({ ...formData, items: newItems });
   };
 
-  // Calculation engine matching purchase log calculations
+  // Calculation engine matching checkout bill calculations
   const calculateTotals = (data = formData) => {
     let totalQty = 0;
     let subtotal = 0;
     let totalItemDiscounts = 0;
     let baseTaxable = 0;
-    const isGst = data.gstType !== "Non-GST";
 
     const round2 = (num) => Math.round(num * 100) / 100;
 
@@ -171,6 +167,7 @@ function QuotationList() {
       const qty = parseInt(item.qty) || 0;
       const schDiscount = parseFloat(item.schDiscount) || 0;
       const splDiscount = parseFloat(item.splDiscount) || 0;
+      const gstRate = parseFloat(item.gstRate) || 0;
 
       totalQty += qty;
       const itemSubtotal = round2(price * qty);
@@ -190,7 +187,7 @@ function QuotationList() {
         itemSubtotal,
         itemDiscount,
         itemTaxableBeforeCash,
-        gstRate: isGst ? parseFloat(item.gstRate) || 0 : 0,
+        gstRate,
       };
     });
 
@@ -218,7 +215,7 @@ function QuotationList() {
       finalTaxableAmount += itemTaxable;
 
       let itemGst = 0;
-      if (isGst && item.gstRate > 0) {
+      if (item.gstRate > 0) {
         itemGst = round2(itemTaxable * (item.gstRate / 100));
       }
       gstAmount += itemGst;
@@ -278,7 +275,6 @@ function QuotationList() {
       transport: parseFloat(formData.transport) || 0,
       cashDiscountPercent: parseFloat(formData.cashDiscountPercent) || 0,
       cashDiscountAmount: calculated.cashDiscountAmount,
-      gstType: formData.gstType,
       subtotal: calculated.subtotal,
       totalQty: calculated.totalQty,
       gstAmount: calculated.gstAmount,
@@ -328,7 +324,7 @@ function QuotationList() {
       {/* INSTANT EDITABLE FORM (Purchase Log Screen Inspired) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-6 text-xs text-slate-300">
         {/* Document Setup Header Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
           <div>
             <label className="block text-slate-400 font-semibold mb-1">Document Type *</label>
             <select
@@ -360,19 +356,6 @@ function QuotationList() {
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-bold focus:border-orange-500"
             />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 font-semibold mb-1">GST Calculation Mode</label>
-            <select
-              value={formData.gstType}
-              onChange={(e) => setFormData({ ...formData, gstType: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-bold focus:border-orange-500"
-            >
-              <option value="CGST+SGST">CGST + SGST (9%+9%)</option>
-              <option value="IGST">IGST (18%)</option>
-              <option value="Non-GST">Non-GST / Estimate</option>
-            </select>
           </div>
         </div>
 
@@ -541,7 +524,7 @@ function QuotationList() {
                   className="grid grid-cols-12 gap-2 items-center bg-slate-950/80 p-2.5 rounded-xl border border-slate-800"
                 >
                   {/* Particulars / Item Name */}
-                  <div className="col-span-12 md:col-span-4">
+                  <div className="col-span-12 md:col-span-3">
                     <label className="block text-[10px] text-slate-400 mb-0.5">Particulars / Item Name *</label>
                     <input
                       type="text"
@@ -583,8 +566,24 @@ function QuotationList() {
                     />
                   </div>
 
+                  {/* GST % Alteration */}
+                  <div className="col-span-6 md:col-span-1.5">
+                    <label className="block text-[10px] text-slate-400 mb-0.5">GST %</label>
+                    <select
+                      value={item.gstRate !== undefined ? item.gstRate : "18"}
+                      onChange={(e) => handleItemChange(index, "gstRate", e.target.value)}
+                      className="w-full px-1.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-bold focus:border-orange-500"
+                    >
+                      <option value="0">0% GST</option>
+                      <option value="5">5% GST</option>
+                      <option value="12">12% GST</option>
+                      <option value="18">18% GST</option>
+                      <option value="28">28% GST</option>
+                    </select>
+                  </div>
+
                   {/* Sch % */}
-                  <div className="col-span-4 md:col-span-1">
+                  <div className="col-span-3 md:col-span-1">
                     <label className="block text-[10px] text-slate-400 mb-0.5">Sch %</label>
                     <input
                       type="number"
@@ -597,7 +596,7 @@ function QuotationList() {
                   </div>
 
                   {/* Spl % */}
-                  <div className="col-span-4 md:col-span-1">
+                  <div className="col-span-3 md:col-span-1">
                     <label className="block text-[10px] text-slate-400 mb-0.5">Spl %</label>
                     <input
                       type="number"
@@ -610,7 +609,7 @@ function QuotationList() {
                   </div>
 
                   {/* Amount & Delete */}
-                  <div className="col-span-4 md:col-span-3 flex items-center justify-between gap-2 pt-3 md:pt-0">
+                  <div className="col-span-6 md:col-span-2.5 flex items-center justify-between gap-2 pt-3 md:pt-0">
                     <div>
                       <span className="block text-[9px] text-slate-400">Total</span>
                       <span className="font-mono font-bold text-xs text-orange-400">
@@ -742,9 +741,6 @@ function QuotationList() {
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
                   REG. GSTIN - {selectedPrintQuote.firmGst || defaultShopGst}
                 </div>
-                <div className="flex items-center justify-center">
-                  <img src={btLogo} alt="BT Logo" className="h-10 object-contain" />
-                </div>
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
                   MOBILE: {selectedPrintQuote.firmPhone || defaultShopPhone}
                 </div>
@@ -834,7 +830,7 @@ function QuotationList() {
                   {/* TOTAL ROW */}
                   <tr className="font-black bg-slate-100 uppercase border-t-2 border-black">
                     <td colSpan="2" className="border border-black py-1.5 px-3 text-right">
-                      TOTAL
+                      SUBTOTAL
                     </td>
                     <td className="border border-black py-1.5 px-2 text-center font-mono">
                       {calculateTotals(selectedPrintQuote).totalQty}
@@ -845,40 +841,64 @@ function QuotationList() {
                     </td>
                   </tr>
 
+                  {/* GST TAX ROW (if applicable) */}
+                  {calculateTotals(selectedPrintQuote).gstAmount > 0 && (
+                    <tr className="font-bold bg-slate-50 uppercase border-t border-black">
+                      <td colSpan="4" className="border border-black py-1 px-3 text-right text-[9px]">
+                        TOTAL GST TAX
+                      </td>
+                      <td className="border border-black py-1 px-2 text-right font-mono text-xs text-black">
+                        ₹{calculateTotals(selectedPrintQuote).gstAmount.toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+
                   {/* BOTTOM SUMMARY GRID (BANK, SCAN & PAY, GRAND TOTAL) */}
                   <tr>
                     <td colSpan="3" className="border border-black p-2 align-top bg-slate-50">
                       <div className="font-bold text-[9px] uppercase border-b border-slate-400 pb-1 mb-1">
                         BANK ACCOUNT DETAILS:
                       </div>
-                      <div className="text-[8px] space-y-0.5 font-semibold leading-tight">
-                        <div>Account Name: {selectedPrintQuote.bankAccountName || selectedPrintQuote.firmName || defaultShopName}</div>
-                        <div>Bank Name: {selectedPrintQuote.bankName || "CANARA BANK"}</div>
-                        <div>A/C No: {selectedPrintQuote.bankAccountNo || "120033287950"}</div>
-                        <div>IFSC Code: {selectedPrintQuote.bankIfsc || "CNRB0010700"}</div>
-                      </div>
+                      {selectedPrintQuote.bankName || selectedPrintQuote.bankAccountNo || selectedPrintQuote.bankIfsc || selectedPrintQuote.bankAccountName ? (
+                        <div className="text-[8px] space-y-0.5 font-semibold leading-tight">
+                          {selectedPrintQuote.bankAccountName && (
+                            <div>Account Name: {selectedPrintQuote.bankAccountName}</div>
+                          )}
+                          {selectedPrintQuote.bankName && (
+                            <div>Bank Name: {selectedPrintQuote.bankName}</div>
+                          )}
+                          {selectedPrintQuote.bankAccountNo && (
+                            <div>A/C No: {selectedPrintQuote.bankAccountNo}</div>
+                          )}
+                          {selectedPrintQuote.bankIfsc && (
+                            <div>IFSC Code: {selectedPrintQuote.bankIfsc}</div>
+                          )}
+                        </div>
+                      ) : null}
                     </td>
 
                     <td colSpan="1" className="border border-black p-2 align-top text-center bg-slate-50">
                       <div className="font-bold text-[8px] uppercase mb-1">SCAN & PAY (UPI)</div>
-                      <div className="flex flex-col items-center justify-center">
-                        {/* Generated UPI QR Box graphic */}
-                        <div className="w-12 h-12 border border-black bg-white flex items-center justify-center p-0.5">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${
-                              selectedPrintQuote.upiId || "9845757296@cnrb"
-                            }&pn=${encodeURIComponent(selectedPrintQuote.firmName || defaultShopName)}&am=${
-                              selectedPrintQuote.grandTotal || calculateTotals(selectedPrintQuote).grandTotal
-                            }`}
-                            alt="UPI QR"
-                            className="w-full h-full object-contain"
-                          />
+                      {selectedPrintQuote.upiId ? (
+                        <div className="flex flex-col items-center justify-center">
+                          {/* Generated UPI QR Box graphic */}
+                          <div className="w-12 h-12 border border-black bg-white flex items-center justify-center p-0.5">
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${
+                                selectedPrintQuote.upiId
+                              }&pn=${encodeURIComponent(selectedPrintQuote.firmName || defaultShopName)}&am=${
+                                selectedPrintQuote.grandTotal || calculateTotals(selectedPrintQuote).grandTotal
+                              }`}
+                              alt="UPI QR"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="text-[7px] font-bold mt-1">
+                            UPI ID: {selectedPrintQuote.upiId}
+                          </div>
+                          <div className="text-[6px] text-slate-600">GPay/PhonePe/Paytm</div>
                         </div>
-                        <div className="text-[7px] font-bold mt-1">
-                          UPI ID: {selectedPrintQuote.upiId || "9845757296@cnrb"}
-                        </div>
-                        <div className="text-[6px] text-slate-600">GPay/PhonePe/Paytm</div>
-                      </div>
+                      ) : null}
                     </td>
 
                     <td colSpan="1" className="border border-black p-2 align-middle text-right bg-slate-100">
