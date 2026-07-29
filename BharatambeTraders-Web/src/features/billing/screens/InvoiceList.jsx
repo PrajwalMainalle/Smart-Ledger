@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
-import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload } from "react-icons/fa";
+import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload, FaWhatsapp } from "react-icons/fa";
 import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod } from "../billingSlice";
 import { fetchProducts } from "../../inventory/inventorySlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
@@ -178,11 +178,11 @@ function InvoiceList() {
     });
   };
 
-  const getDynamicPdfUrl = () => {
-    if (!selectedInvoice?._id) return "";
+  const getDynamicPdfUrl = (inv = selectedInvoice) => {
+    if (!inv?._id) return "";
     const serverUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000";
     const token = authStoreToken || user?.token || "";
-    return `${serverUrl}/api/billing/${selectedInvoice._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}`;
+    return `${serverUrl}/api/billing/${inv._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}`;
   };
 
   // Trigger Receipt Printing using dynamic PDF streaming (via blob same-origin URL to avoid CORS blocks)
@@ -223,9 +223,106 @@ function InvoiceList() {
       });
   };
 
-  const getPdfDownloadLink = (inv) => {
-    const url = getDynamicPdfUrl();
+  const getPdfDownloadLink = (inv = selectedInvoice) => {
+    const url = getDynamicPdfUrl(inv);
     return url ? `${url}&download=true` : "";
+  };
+
+  const getWhatsAppInfo = (inv) => {
+    if (!inv) return { phone: "", message: "", whatsappUrl: "" };
+    const cleanPhone = (inv.customerPhone || "").replace(/[^0-9]/g, "");
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    
+    const pdfUrl = getDynamicPdfUrl(inv);
+    const isQuotation = inv.status === "Quotation" || inv.isQuotation;
+    const docTitle = isQuotation ? "ESTIMATE / QUOTATION" : "TAX INVOICE";
+    const statusStr = inv.paymentMethod === "Credit" && !inv.creditSettled ? "UNPAID (CREDIT)" : (inv.status || "PAID").toUpperCase();
+
+    const itemsList = inv.items && inv.items.length > 0
+      ? inv.items.map((it) => `• *${(it.name || it.itemName || "").trim()}* × ${it.qty || it.quantity} @ ₹${(it.price || 0).toFixed(2)}`).join("\n")
+      : "• Invoice items";
+
+    const totalStr = `₹${(inv.total || 0).toFixed(2)}`;
+    let dueStr = "";
+    if (inv.paymentMethod === "Credit" && !inv.creditSettled) {
+      const due = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.total;
+      dueStr = `\n⚠️ *Outstanding Due:* ₹${due.toFixed(2)}`;
+    }
+
+    const msg = `🧾 *${docTitle} - BHARATAMBE TRADERS*
+
+Hello *${inv.customerName || "Customer"}*,
+
+Here is your bill details from *Bharatambe Traders*:
+
+🔖 *Invoice No:* ${inv.invoiceId || inv.id}
+📅 *Date:* ${new Date(inv.date || Date.now()).toLocaleDateString("en-IN")}
+💳 *Payment Mode:* ${inv.paymentMethod || "CASH"} (${statusStr})
+
+📋 *Items Summary:*
+${itemsList}
+
+💰 *Grand Total:* ${totalStr}${dueStr}
+
+📄 *View/Download PDF Bill:*
+${pdfUrl}
+
+Thank you for your business! 🙏
+📍 *Bharatambe Traders*`;
+
+    return {
+      phone: formattedPhone,
+      message: msg,
+      whatsappUrl: formattedPhone 
+        ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
+    };
+  };
+
+  const handleWhatsAppShare = async (inv, e) => {
+    if (e) e.stopPropagation();
+    if (!inv) return;
+
+    const pdfUrl = getDynamicPdfUrl(inv);
+    const { phone, message, whatsappUrl } = getWhatsAppInfo(inv);
+
+    let fileShared = false;
+    if (navigator.canShare && pdfUrl) {
+      try {
+        const res = await fetch(pdfUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const fileName = `Bill-${inv.invoiceId || "Invoice"}.pdf`;
+          const file = new File([blob], fileName, { type: "application/pdf" });
+
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `Invoice ${inv.invoiceId || ""}`,
+              text: message,
+              files: [file],
+            });
+            fileShared = true;
+          }
+        }
+      } catch (err) {
+        console.log("Web share cancelled or unsupported:", err);
+      }
+    }
+
+    if (!fileShared) {
+      if (pdfUrl) {
+        const downloadLink = `${pdfUrl}&download=true`;
+        const hiddenAnchor = document.createElement("a");
+        hiddenAnchor.href = downloadLink;
+        hiddenAnchor.download = `Bill-${inv.invoiceId || "Invoice"}.pdf`;
+        hiddenAnchor.target = "_blank";
+        document.body.appendChild(hiddenAnchor);
+        hiddenAnchor.click();
+        document.body.removeChild(hiddenAnchor);
+      }
+
+      window.open(whatsappUrl, "_blank");
+    }
   };
 
   const profile = user?.profile || {};
@@ -420,6 +517,13 @@ function InvoiceList() {
                             title="View Detailed Tax Receipt"
                           >
                             Receipt
+                          </button>
+                          <button
+                            onClick={(e) => handleWhatsAppShare(inv, e)}
+                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded border border-emerald-500/20 font-semibold text-xs transition flex items-center justify-center"
+                            title="Share Invoice PDF via WhatsApp"
+                          >
+                            <FaWhatsapp className="text-sm" />
                           </button>
                           {inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status === "Paid" && (
                             <button 
@@ -678,7 +782,7 @@ function InvoiceList() {
 
             {/* Print toolbar footer */}
             <div className="bg-slate-950 px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap md:flex-nowrap gap-2">
                 <button
                   onClick={triggerReprint}
                   className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
@@ -693,6 +797,13 @@ function InvoiceList() {
                 >
                   <FaDownload /> Download PDF
                 </a>
+                <button
+                  onClick={(e) => handleWhatsAppShare(selectedInvoice, e)}
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-emerald-500 text-xs shadow-sm transition"
+                  title="Share Invoice PDF via WhatsApp"
+                >
+                  <FaWhatsapp className="text-base text-white" /> Share via WhatsApp
+                </button>
               </div>
 
               {/* Payment Method Quick Change Option */}
