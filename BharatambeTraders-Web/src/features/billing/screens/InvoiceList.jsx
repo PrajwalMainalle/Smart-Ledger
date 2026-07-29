@@ -228,8 +228,8 @@ function InvoiceList() {
     return url ? `${url}&download=true` : "";
   };
 
-  const getWhatsAppInfo = (inv) => {
-    if (!inv) return { phone: "", message: "", whatsappUrl: "" };
+  const getWhatsAppLink = (inv) => {
+    if (!inv) return "#";
     const cleanPhone = (inv.customerPhone || "").replace(/[^0-9]/g, "");
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     
@@ -264,65 +264,15 @@ ${itemsList}
 
 💰 *Grand Total:* ${totalStr}${dueStr}
 
-📄 *View/Download PDF Bill:*
+📄 *View / Download PDF Bill:*
 ${pdfUrl}
 
 Thank you for your business! 🙏
 📍 *Bharatambe Traders*`;
 
-    return {
-      phone: formattedPhone,
-      message: msg,
-      whatsappUrl: formattedPhone 
-        ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
-        : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
-    };
-  };
-
-  const handleWhatsAppShare = async (inv, e) => {
-    if (e) e.stopPropagation();
-    if (!inv) return;
-
-    const pdfUrl = getDynamicPdfUrl(inv);
-    const { phone, message, whatsappUrl } = getWhatsAppInfo(inv);
-
-    let fileShared = false;
-    if (navigator.canShare && pdfUrl) {
-      try {
-        const res = await fetch(pdfUrl);
-        if (res.ok) {
-          const blob = await res.blob();
-          const fileName = `Bill-${inv.invoiceId || "Invoice"}.pdf`;
-          const file = new File([blob], fileName, { type: "application/pdf" });
-
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: `Invoice ${inv.invoiceId || ""}`,
-              text: message,
-              files: [file],
-            });
-            fileShared = true;
-          }
-        }
-      } catch (err) {
-        console.log("Web share cancelled or unsupported:", err);
-      }
-    }
-
-    if (!fileShared) {
-      if (pdfUrl) {
-        const downloadLink = `${pdfUrl}&download=true`;
-        const hiddenAnchor = document.createElement("a");
-        hiddenAnchor.href = downloadLink;
-        hiddenAnchor.download = `Bill-${inv.invoiceId || "Invoice"}.pdf`;
-        hiddenAnchor.target = "_blank";
-        document.body.appendChild(hiddenAnchor);
-        hiddenAnchor.click();
-        document.body.removeChild(hiddenAnchor);
-      }
-
-      window.open(whatsappUrl, "_blank");
-    }
+    return formattedPhone 
+      ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
   };
 
   const profile = user?.profile || {};
@@ -518,13 +468,15 @@ Thank you for your business! 🙏
                           >
                             Receipt
                           </button>
-                          <button
-                            onClick={(e) => handleWhatsAppShare(inv, e)}
+                          <a
+                            href={getWhatsAppLink(inv)}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded border border-emerald-500/20 font-semibold text-xs transition flex items-center justify-center"
-                            title="Share Invoice PDF via WhatsApp"
+                            title="WhatsApp Customer Bill & PDF"
                           >
                             <FaWhatsapp className="text-sm" />
-                          </button>
+                          </a>
                           {inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status === "Paid" && (
                             <button 
                               onClick={() => {
@@ -797,13 +749,15 @@ Thank you for your business! 🙏
                 >
                   <FaDownload /> Download PDF
                 </a>
-                <button
-                  onClick={(e) => handleWhatsAppShare(selectedInvoice, e)}
+                <a
+                  href={getWhatsAppLink(selectedInvoice)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-emerald-500 text-xs shadow-sm transition"
-                  title="Share Invoice PDF via WhatsApp"
+                  title="WhatsApp Customer Bill & PDF"
                 >
-                  <FaWhatsapp className="text-base text-white" /> Share via WhatsApp
-                </button>
+                  <FaWhatsapp className="text-base text-white" /> WhatsApp Bill
+                </a>
               </div>
 
               {/* Payment Method Quick Change Option */}
