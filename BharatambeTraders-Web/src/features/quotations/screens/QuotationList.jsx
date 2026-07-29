@@ -15,7 +15,12 @@ function QuotationList() {
   const { user } = useSelector((state) => state.auth);
   const defaultShopName = user?.profile?.shopName || user?.businessName || "BHARATAMBE TRADERS";
   const defaultShopGst = user?.profile?.gstNumber || "29ANOPM8542Q1ZU";
-  const defaultShopPhone = user?.profile?.phone || user?.phone || "9845757296";
+  const isGstDoc = (docType) => {
+    if (!docType) return false;
+    const str = String(docType).toUpperCase();
+    return str.includes("GST") || str.includes("TAX");
+  };
+  const defaultShopPhone = "9845757296";
   const defaultAddress = "M B PATIL COLONY, NEAR BUSTAND ,GORTA MUCHLAMB ROAD, BASAVAKALYAN";
   const defaultSubtext = "OFFICE STATIONARY , SCHOOL ITEMS , ALL NOTE BOOKS ,XEROX PAPERS ,SPORTS ITEMS,COMPUTERS MATERIALS, GOVERNMENT SUPPLIES AND OTHERS MATERIALS";
 
@@ -729,7 +734,11 @@ function QuotationList() {
                   REG. GSTIN - {selectedPrintQuote.firmGst || defaultShopGst}
                 </div>
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
-                  MOBILE: {selectedPrintQuote.firmPhone || defaultShopPhone}
+                  MOBILE: {
+                    selectedPrintQuote && (isGstDoc(selectedPrintQuote.docType) || selectedPrintQuote.isGstBilling)
+                      ? "9845757296"
+                      : "6361037157"
+                  }
                 </div>
               </div>
 

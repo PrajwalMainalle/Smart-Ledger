@@ -28,7 +28,8 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
   const profile = tenant.profile || {};
   const shopName = profile.shopName || tenant.businessName || "BHARATAMBE TRADERS";
   const address = profile.businessAddress || "M B PATIL COLONY, NEAR BUSTAND, GORTA MUCHLAMB ROAD, BASAVAKALYAN";
-  const phone = profile.mobileNumber || tenant.mobileNumber || "9845757296";
+  const hasGst = invoice.isGstBilling !== false;
+  const phone = hasGst ? "9845757296" : "6361037157";
   const gstNumber = profile.gstNumber || "29ANOPM8542Q1ZU";
   
   const primaryColor = "#034b54"; // Dark Teal

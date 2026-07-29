@@ -752,7 +752,8 @@ function POS() {
   const shopName = profile.shopName || user?.businessName || "SmartLedger";
   const address = profile.businessAddress || "N/A Address";
   const gstNumber = profile.gstNumber || "N/A GSTIN";
-  const contactPhone = profile.mobileNumber || user?.mobileNumber || "N/A Phone";
+  const isCurrentGst = currentActiveReceipt ? (currentActiveReceipt.isGstBilling !== false) : isGstBilling;
+  const contactPhone = isCurrentGst ? "9845757296" : "6361037157";
   const logoSrc = profile.logo || logo;
 
   return (

@@ -274,7 +274,8 @@ Thank you for your business! 🙏
   const shopName = profile.shopName || user?.businessName || "SmartLedger";
   const address = profile.businessAddress || "N/A Address";
   const gstNumber = profile.gstNumber || "N/A GSTIN";
-  const contactPhone = profile.mobileNumber || user?.mobileNumber || "N/A Phone";
+  const isGstBill = selectedInvoice ? (selectedInvoice.isGstBilling !== false) : true;
+  const contactPhone = isGstBill ? "9845757296" : "6361037157";
   const logoSrc = profile.logo || logo;
 
   return (
