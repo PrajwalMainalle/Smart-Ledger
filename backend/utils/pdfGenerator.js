@@ -232,14 +232,25 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         const upiVpa = hasGst ? "9845757296@cnrb" : "6361037157@ybl";
         const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
         const upiString = `upi://pay?pa=${upiVpa}&pn=Bharatambe%20Traders&cu=INR&am=${qrAmount.toFixed(2)}`;
-        qrBuffer = await QRCode.toBuffer(upiString, { width: 120, margin: 1 });
+        // High-DPI 800px buffer, margin 3 quiet-zone, Error Correction 'H' for crystal clear scanning on A5 paper
+        qrBuffer = await QRCode.toBuffer(upiString, { width: 800, margin: 3, errorCorrectionLevel: "H" });
       } catch (qrErr) {
         console.error("Failed to generate QR Code for invoice PDF:", qrErr);
       }
 
+      let pdfPageSize = "A4";
+      if (options.pageSize && options.pageSize !== "auto") {
+        pdfPageSize = options.pageSize.toUpperCase();
+      }
+      let pdfLayout = "portrait";
+      if (options.orientation) {
+        pdfLayout = options.orientation.toLowerCase();
+      }
+
       const doc = new PDFDocument({
-        size: "A4",
-        margin: 35,
+        size: pdfPageSize,
+        layout: pdfLayout,
+        margin: pdfPageSize === "A5" ? 22 : 35,
         bufferPages: true,
         info: {
           Title: `${invoice.isQuotation ? "Quotation" : "Invoice"}_${invoice.invoiceId}`,
@@ -415,7 +426,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       if (qrBuffer) {
         try {
-          doc.image(qrBuffer, rightCardX + 15, y + 22, { width: 50, height: 50 });
+          doc.image(qrBuffer, rightCardX + 10, y + 15, { width: 56, height: 56 });
         } catch (imgErr) {}
       }
 

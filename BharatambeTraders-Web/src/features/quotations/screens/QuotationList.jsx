@@ -859,7 +859,7 @@ function QuotationList() {
                           {/* Generated UPI QR Box graphic */}
                           <div className="w-12 h-12 border border-black bg-white flex items-center justify-center p-0.5">
                             <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=upi://pay?pa=${
                                 selectedPrintQuote.upiId
                               }&pn=${encodeURIComponent(selectedPrintQuote.firmName || defaultShopName)}&am=${
                                 selectedPrintQuote.grandTotal || calculateTotals(selectedPrintQuote).grandTotal
