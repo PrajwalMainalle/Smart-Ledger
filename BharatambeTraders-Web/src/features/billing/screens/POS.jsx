@@ -748,6 +748,9 @@ function POS() {
     setManualItemForm({ name: "", price: "", qty: 1, gstRate: 0, addToRevenue: true });
   };
 
+  const currentActiveReceipt = (activeTabReceipt === "quotation" && quotationReceiptData) 
+    ? quotationReceiptData 
+    : receiptData;
   const profile = user?.profile || {};
   const shopName = profile.shopName || user?.businessName || "SmartLedger";
   const address = profile.businessAddress || "N/A Address";
