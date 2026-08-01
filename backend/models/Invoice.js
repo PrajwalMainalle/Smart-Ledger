@@ -131,6 +131,10 @@ const InvoiceSchema = new mongoose.Schema(
       required: true,
       default: 0.0,
     },
+    roundOff: {
+      type: Number,
+      default: 0.0,
+    },
     revenueTotal: {
       type: Number,
       default: 0.0,

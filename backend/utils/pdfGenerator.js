@@ -382,11 +382,22 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
 
       y += 28;
 
+      const pillWidth = 240;
+      const pillX = pageWidth - margin - pillWidth;
+
+      // Round Off Row (if applicable)
+      if (invoice.roundOff && Math.abs(invoice.roundOff) >= 0.01) {
+        const roundOffVal = invoice.roundOff;
+        const signStr = roundOffVal > 0 ? "+" : "";
+        doc.fillColor("#475569").font(fontRegular).fontSize(8.5);
+        doc.text("Round Off:", pillX + 12, y, { width: 90, align: "left" });
+        doc.font(fontBold).text(`${signStr}${currencySymbol} ${roundOffVal.toFixed(2)}`, pillX + 110, y, { width: pillWidth - 122, align: "right" });
+        y += 18;
+      }
+
       // Grand Total Right-Aligned Pill Card
       const grandTotalLabel = invoice.isQuotation ? "GRAND TOTAL (EST.)" : "GRAND TOTAL (INCL. TAX)";
-      const pillWidth = 240;
       const pillHeight = 30;
-      const pillX = pageWidth - margin - pillWidth;
       
       doc.save();
       doc.roundedRect(pillX, y, pillWidth, pillHeight, 6).fill(primaryColor);

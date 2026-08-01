@@ -346,9 +346,12 @@ const createInvoice = async (req, res) => {
       }
     }
 
-    // Final Net Total
+    // Final Net Total (with whole-number rounding)
     const netTotal = newItemsTotal - returnedTotal;
+    const finalRoundedTotal = Math.round(netTotal);
+    const calculatedRoundOff = Math.round((finalRoundedTotal - netTotal) * 100) / 100;
     const revenueTotal = Math.max(0, revenueNewItemsTotal - revenueReturnedTotal);
+    const finalRevenueRoundedTotal = Math.round(revenueTotal);
 
     // Determine Paid Amount and Outstanding
     let paidAmount = 0;
@@ -358,18 +361,18 @@ const createInvoice = async (req, res) => {
 
     if (paymentMethod === "Credit") {
       paidAmount = parseFloat(amountPaid) || 0.0;
-      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
+      outstandingAmount = Math.max(0, finalRevenueRoundedTotal - paidAmount);
     } else if (paymentMethod === "Split") {
       savedCashAmount = parseFloat(cashAmount) || 0.0;
       savedUpiAmount = parseFloat(upiAmount) || 0.0;
       paidAmount = savedCashAmount + savedUpiAmount;
-      outstandingAmount = Math.max(0, revenueTotal - paidAmount);
+      outstandingAmount = Math.max(0, finalRevenueRoundedTotal - paidAmount);
     } else {
-      paidAmount = netTotal;
+      paidAmount = finalRoundedTotal;
       outstandingAmount = 0.0;
     }
 
-    const revenuePaidAmount = Math.min(paidAmount, revenueTotal);
+    const revenuePaidAmount = Math.min(paidAmount, finalRevenueRoundedTotal);
 
     // 4. Deduct Stock Levels for new purchases (only if not a quotation)
     if (!isQuotation) {
@@ -430,8 +433,9 @@ const createInvoice = async (req, res) => {
       discountPercent: discPercent,
       discountAmount,
       gstAmount,
-      total: netTotal,
-      revenueTotal,
+      total: finalRoundedTotal,
+      roundOff: calculatedRoundOff,
+      revenueTotal: finalRevenueRoundedTotal,
       revenueTaxableAmount: isGst ? (isInclusiveGst ? (revenueDiscountedSubtotal - revenueGstAmount) : revenueDiscountedSubtotal) : 0.0,
       revenueGstAmount,
       revenueCgst,

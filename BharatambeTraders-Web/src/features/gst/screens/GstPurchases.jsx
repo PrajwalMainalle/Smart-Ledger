@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
-import { FaFileCsv, FaPrint, FaSearch, FaSpinner } from "react-icons/fa";
+import { FaFileCsv, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, FaChevronDown, FaUndo } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
 function GstPurchases() {
@@ -10,6 +10,8 @@ function GstPurchases() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
+  const [printMode, setPrintMode] = useState("all"); // 'all' | 'gst' | 'nongst'
+  const [showPrintDropdown, setShowPrintDropdown] = useState(false);
 
   const fetchPurchasesReport = async () => {
     try {
@@ -33,13 +35,29 @@ function GstPurchases() {
     fetchPurchasesReport();
   }, [period]);
 
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPrintMode("all");
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
+
   const handleCustomSearch = (e) => {
     e.preventDefault();
+    setPeriod("custom");
     fetchPurchasesReport();
+  };
+
+  const handleResetDates = () => {
+    setStartDate("");
+    setEndDate("");
+    setPeriod("monthly");
   };
 
   const handleExportCSV = () => {
     if (!data) return alert("No data to export");
+    const { ratesBreakdown, nonGstRatesBreakdown } = data;
     const rows = [];
     
     // Section 1: GST Purchases
@@ -68,8 +86,12 @@ function GstPurchases() {
     document.body.removeChild(link);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const triggerPrint = (mode = "all") => {
+    setPrintMode(mode);
+    setShowPrintDropdown(false);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   if (loading && !data) {
@@ -88,107 +110,205 @@ function GstPurchases() {
 
   const { summary, ratesBreakdown, nonGstRatesBreakdown } = data || { summary: {}, ratesBreakdown: [], nonGstRatesBreakdown: [] };
 
+  const getReportTitle = () => {
+    if (printMode === "gst") return "GST Purchases Report (With GSTIN)";
+    if (printMode === "nongst") return "Non-GST Purchases Report (Without GSTIN)";
+    return "Purchases GST Tax Report (Combined)";
+  };
+
+  const getDateRangeLabel = () => {
+    if (period === "custom" && (startDate || endDate)) {
+      return `${startDate || "Beginning"} to ${endDate || "Today"}`;
+    }
+    return period.toUpperCase();
+  };
+
   return (
     <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
-      {/* Page Header */}
+      {/* Printable Header (Visible only when printing) */}
+      <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">BHARATAMBE TRADERS</h1>
+            <h2 className="text-lg font-bold text-slate-700 mt-1">{getReportTitle()}</h2>
+            <p className="text-xs text-slate-600 mt-0.5">Filter Period: <span className="font-semibold">{getDateRangeLabel()}</span></p>
+          </div>
+          <div className="text-right text-xs text-slate-500">
+            <p>Generated on: {new Date().toLocaleDateString("en-IN")} {new Date().toLocaleTimeString("en-IN")}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Screen Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 print:hidden">
         <div>
           <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">Purchases GST Tax Report</h2>
-          <p className="text-slate-400 text-sm mt-1">Audit inward input credits (ITC) and purchase tax brackets.</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Audit inward input credits (ITC) and purchase tax brackets. Active Range: <span className="text-orange-400 font-semibold">{getDateRangeLabel()}</span>
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150"
-          >
-            Print Report
-          </button>
+
+        {/* Print Dropdown & Export CSV Actions */}
+        <div className="flex flex-wrap gap-3">
+          {/* Print Dropdown Menu */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowPrintDropdown(!showPrintDropdown)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
+            >
+              <FaPrint className="text-orange-400" />
+              <span>Print Report</span>
+              <FaChevronDown size={10} className="text-slate-400" />
+            </button>
+
+            {showPrintDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+                <button
+                  onClick={() => triggerPrint("all")}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition flex items-center justify-between cursor-pointer"
+                >
+                  <span>🖨️ Print Full Report</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Both</span>
+                </button>
+                <button
+                  onClick={() => triggerPrint("gst")}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-slate-800 hover:text-emerald-300 transition flex items-center justify-between border-t border-slate-850 cursor-pointer"
+                >
+                  <span>🏷️ Print GST Purchases Only</span>
+                  <span className="text-[10px] text-slate-500 font-mono">GST</span>
+                </button>
+                <button
+                  onClick={() => triggerPrint("nongst")}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition flex items-center justify-between border-t border-slate-850 cursor-pointer"
+                >
+                  <span>📦 Print Non-GST Purchases Only</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Non-GST</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
           >
             <FaFileCsv /> Export CSV
           </button>
         </div>
       </div>
 
-      {/* Date Filter & Range Selector */}
-      <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl mb-6 print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
+      {/* Date Filter & Range Selector Toolbar */}
+      <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl mb-6 print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Preset Period Pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-400 text-xs font-bold mr-1 flex items-center gap-1">
+            <FaCalendarAlt className="text-orange-500" /> Filter:
+          </span>
           {["daily", "weekly", "monthly", "yearly", "custom"].map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold border capitalize transition-all duration-150
+              onClick={() => {
+                setPeriod(p);
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border capitalize transition-all duration-150 cursor-pointer
                 ${period === p 
-                  ? "bg-orange-500 text-white border-transparent" 
-                  : "bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200"
+                  ? "bg-orange-500 text-white border-transparent shadow-md shadow-orange-500/20" 
+                  : "bg-slate-955 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
                 }
               `}
             >
-              {p}
+              {p === "custom" ? "Custom Range" : p}
             </button>
           ))}
         </div>
 
-        {period === "custom" && (
-          <form onSubmit={handleCustomSearch} className="flex flex-wrap items-center gap-3">
-            <div className="space-y-1">
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none"
-              />
-            </div>
-            <span className="text-slate-500 text-xs">to</span>
-            <div className="space-y-1">
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none"
-              />
-            </div>
+        {/* Date Inputs (From Date to To Date) */}
+        <form onSubmit={handleCustomSearch} className="flex flex-wrap items-center gap-3 bg-slate-950 p-2.5 rounded-xl border border-slate-850">
+          <div className="flex items-center gap-2">
+            <label className="text-slate-400 text-[11px] font-bold">From:</label>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPeriod("custom");
+              }}
+              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500 cursor-pointer"
+            />
+          </div>
+          <span className="text-slate-500 text-xs font-bold">to</span>
+          <div className="flex items-center gap-2">
+            <label className="text-slate-400 text-[11px] font-bold">To:</label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPeriod("custom");
+              }}
+              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500 cursor-pointer"
+            />
+          </div>
+          
+          <button 
+            type="submit"
+            className="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition shadow-md shadow-orange-500/20 flex items-center gap-1.5 cursor-pointer"
+          >
+            <FaSearch size={10} /> Apply
+          </button>
+
+          {(startDate || endDate || period === "custom") && (
             <button 
-              type="submit"
-              className="px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition shadow-md shadow-orange-500/10 flex items-center gap-1.5"
+              type="button"
+              onClick={handleResetDates}
+              title="Reset date filters"
+              className="p-2 bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-slate-200 rounded-lg text-xs transition cursor-pointer"
             >
-              <FaSearch size={10} /> Filter
+              <FaUndo size={10} />
             </button>
-          </form>
-        )}
+          )}
+        </form>
       </div>
 
       {/* Summary KPI Panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">GST Purchases</span>
-          <p className="text-lg font-black text-emerald-400 font-mono">₹{(summary?.gstPurchases || 0).toFixed(2)}</p>
+        <div className={`p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 ${printMode === "nongst" ? "print:hidden" : ""}`}>
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">GST Purchases (With GSTIN)</span>
+          <p className="text-lg font-black text-emerald-400 font-mono print:text-black">₹{(summary?.gstPurchases || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+        <div className={`p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 ${printMode === "gst" ? "print:hidden" : ""}`}>
           <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Non-GST Purchases</span>
-          <p className="text-lg font-black text-cyan-400 font-mono">₹{(summary?.nonGstPurchases || 0).toFixed(2)}</p>
+          <p className="text-lg font-black text-cyan-400 font-mono print:text-black">₹{(summary?.nonGstPurchases || 0).toFixed(2)}</p>
         </div>
         <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
           <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total Purchases</span>
-          <p className="text-lg font-black text-teal-400 font-mono">₹{(summary?.totalPurchases || 0).toFixed(2)}</p>
+          <p className="text-lg font-black text-teal-400 font-mono print:text-black">₹{(summary?.totalPurchases || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
+        <div className={`p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 ${printMode === "nongst" ? "print:hidden" : ""}`}>
           <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total ITC Paid</span>
-          <p className="text-lg font-black text-emerald-400 font-mono">₹{(summary?.totalTax || 0).toFixed(2)}</p>
+          <p className="text-lg font-black text-emerald-400 font-mono print:text-black">₹{(summary?.totalTax || 0).toFixed(2)}</p>
         </div>
       </div>
 
-      {/* Breakdown Details Table */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">GST Purchases Inward ITC Tally (With GST Number)</h3>
+      {/* Breakdown Details Table: GST Purchases */}
+      <div className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-5 shadow-xl ${printMode === "nongst" ? "print:hidden" : ""}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 print:text-slate-900">
+            GST Purchases Inward ITC Tally (With GST Number)
+          </h3>
+          <button
+            onClick={() => triggerPrint("gst")}
+            className="print:hidden text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1 rounded-lg font-semibold flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <FaPrint size={10} /> Print GST Purchases
+          </button>
+        </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs md:text-sm">
+          <table className="w-full text-left text-xs md:text-sm print:text-black">
             <thead>
-              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold">
+              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold print:border-slate-300 print:text-slate-700">
                 <th className="py-3 px-4">GST Bracket</th>
                 <th className="py-3 px-4 text-right">Taxable Base Amount</th>
                 <th className="py-3 px-4 text-right">CGST Claimable</th>
@@ -198,16 +318,16 @@ function GstPurchases() {
                 <th className="py-3 px-4 text-right">Total Gross Purchases</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono">
+            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono print:divide-slate-200 print:text-slate-900">
               {ratesBreakdown.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-200">{row.rate}</td>
+                  <td className="py-3 px-4 font-sans font-bold text-slate-200 print:text-black">{row.rate}</td>
                   <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400">₹{row.cgst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400">₹{row.sgst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400">₹{row.igst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-emerald-400 font-bold">₹{row.totalTax.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-teal-400 font-black">₹{row.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.cgst.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.sgst.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.igst.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-emerald-400 font-bold print:text-black">₹{row.totalTax.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-teal-400 font-black print:text-black">₹{row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))}
               {ratesBreakdown.length === 0 && (
@@ -220,14 +340,24 @@ function GstPurchases() {
         </div>
       </div>
 
-      {/* Non-GST Breakdown Details Table */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 shadow-xl mt-6">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Non-GST Purchases Inward Tally (Without GST Number)</h3>
+      {/* Breakdown Details Table: Non-GST Purchases */}
+      <div className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-5 shadow-xl mt-6 ${printMode === "gst" ? "print:hidden" : ""}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 print:text-slate-900">
+            Non-GST Purchases Inward Tally (Without GST Number)
+          </h3>
+          <button
+            onClick={() => triggerPrint("nongst")}
+            className="print:hidden text-xs bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 px-3 py-1 rounded-lg font-semibold flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <FaPrint size={10} /> Print Non-GST Purchases
+          </button>
+        </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs md:text-sm">
+          <table className="w-full text-left text-xs md:text-sm print:text-black">
             <thead>
-              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold">
+              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold print:border-slate-300 print:text-slate-700">
                 <th className="py-3 px-4">GST Bracket</th>
                 <th className="py-3 px-4 text-right">Base Purchase Amount</th>
                 <th className="py-3 px-4 text-right">CGST Claimable</th>
@@ -237,16 +367,16 @@ function GstPurchases() {
                 <th className="py-3 px-4 text-right">Total Purchase Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono">
+            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono print:divide-slate-200 print:text-slate-900">
               {nonGstRatesBreakdown.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-200">{row.rate}</td>
+                  <td className="py-3 px-4 font-sans font-bold text-slate-200 print:text-black">{row.rate}</td>
                   <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500 font-bold">₹0.00</td>
-                  <td className="py-3 px-4 text-right text-cyan-400 font-black">₹{row.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-cyan-400 font-black print:text-black">₹{row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))}
               {nonGstRatesBreakdown.length === 0 && (

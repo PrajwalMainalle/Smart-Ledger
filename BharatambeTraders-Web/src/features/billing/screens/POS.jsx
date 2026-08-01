@@ -135,7 +135,9 @@ function POS() {
   }, 0);
 
   const newTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmt);
-  const grandTotal = Math.max(0, newTotal - returnedTotalWithTax);
+  const unroundedGrandTotal = Math.max(0, newTotal - returnedTotalWithTax);
+  const grandTotal = Math.round(unroundedGrandTotal);
+  const roundOff = Math.round((grandTotal - unroundedGrandTotal) * 100) / 100;
 
   // Load products and customers on mount
   useEffect(() => {
@@ -1263,6 +1265,13 @@ function POS() {
             <div className="flex justify-between text-[11px] text-emerald-450 font-bold">
               <span>GST (Included in Prices)</span>
               <span className="font-mono">₹{gstAmt.toFixed(2)}</span>
+            </div>
+          )}
+
+          {Math.abs(roundOff) >= 0.01 && (
+            <div className="flex justify-between text-xs text-slate-400 font-medium">
+              <span>Round Off</span>
+              <span className="font-mono">{roundOff > 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
           )}
 
