@@ -3,6 +3,7 @@ import axiosInstance from "../../../app/api/axiosInstance";
 import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, FaChevronDown, FaUndo } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
+import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
 
 function GstSales() {
   const [loading, setLoading] = useState(true);
@@ -167,9 +168,7 @@ function GstSales() {
   const triggerPrint = (mode = "all") => {
     setPrintMode(mode);
     setShowPrintDropdown(false);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    triggerSafePrint();
   };
 
   if (loading && !data) {
@@ -201,8 +200,8 @@ function GstSales() {
       <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-4">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">BHARATAMBE TRADERS</h1>
-            <h2 className="text-lg font-bold text-slate-800 mt-1">{getReportTitle()}</h2>
+            <MultiColorCompanyTitle className="text-2xl font-black tracking-tight" />
+            <MultiColorReportTitle title={getReportTitle()} className="text-lg font-bold mt-1" />
             <p className="text-xs text-slate-700 mt-0.5">Filter Range: <span className="font-bold">{getDateRangeLabel()}</span></p>
           </div>
           <div className="text-right text-xs text-slate-700 font-mono">
@@ -345,69 +344,69 @@ function GstSales() {
 
       {/* Summary KPI Panel */}
       <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 ${printMode !== "all" ? "print:hidden" : ""}`}>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">GST Sales (With GST Number)</span>
-          <p className="text-lg font-black text-emerald-400 font-mono print:text-black">₹{(summary?.gstSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 print-card-emerald">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold print:text-emerald-900">GST Sales (With GST Number)</span>
+          <p className="text-lg font-black text-emerald-400 font-mono print:text-emerald-700">₹{(summary?.gstSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Non-GST Sales (Retail)</span>
-          <p className="text-lg font-black text-cyan-400 font-mono print:text-black">₹{(summary?.nonGstSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 print-card-cyan">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold print:text-cyan-900">Non-GST Sales (Retail)</span>
+          <p className="text-lg font-black text-cyan-400 font-mono print:text-cyan-700">₹{(summary?.nonGstSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total Sales Sum</span>
-          <p className="text-lg font-black text-orange-400 font-mono print:text-black">₹{(summary?.totalSales || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 print-card-amber">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold print:text-amber-900">Total Sales Sum</span>
+          <p className="text-lg font-black text-orange-400 font-mono print:text-amber-700">₹{(summary?.totalSales || 0).toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total GST Tax Collected</span>
-          <p className="text-lg font-black text-rose-400 font-mono print:text-black">₹{(summary?.totalTax || 0).toFixed(2)}</p>
+        <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 print-card-rose">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold print:text-rose-900">Total GST Tax Collected</span>
+          <p className="text-lg font-black text-rose-400 font-mono print:text-rose-700">₹{(summary?.totalTax || 0).toFixed(2)}</p>
         </div>
       </div>
 
       {/* Payment Method Breakdown Panel */}
-      <div className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xl print:bg-white print:border-slate-300 ${printMode !== "all" ? "print:hidden" : ""}`}>
+      <div className={`bg-slate-900/40 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xl print:bg-slate-50 print:border-slate-300 ${printMode !== "all" ? "print:hidden" : ""}`}>
         <h3 className="text-xs uppercase font-extrabold tracking-wider text-slate-400 mb-3 print:text-slate-900">
           Payment Method Breakdown ({getDateRangeLabel()})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           {/* GST Sales Breakdown */}
-          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-slate-200">
-              <span className="font-bold text-emerald-400 print:text-emerald-700">GST Sales Payment Split</span>
-              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-black">₹{(summary?.gstSales || 0).toFixed(2)}</span>
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-emerald-50/60 print:border-emerald-300">
+            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-emerald-300">
+              <span className="font-bold text-emerald-400 print:text-emerald-800">GST Sales Payment Split</span>
+              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-emerald-950">₹{(summary?.gstSales || 0).toFixed(2)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-500 font-bold">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-black">₹{(summary?.gstPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.gstPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.gstPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.gstPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-slate-900">₹{(summary?.gstPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.gstPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.gstPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.gstPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
             </div>
           </div>
 
           {/* Non-GST Sales Breakdown */}
-          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-slate-200">
-              <span className="font-bold text-cyan-400 print:text-cyan-700">Non-GST Sales Payment Split</span>
-              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-black">₹{(summary?.nonGstSales || 0).toFixed(2)}</span>
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-cyan-50/60 print:border-cyan-300">
+            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-cyan-300">
+              <span className="font-bold text-cyan-400 print:text-cyan-800">Non-GST Sales Payment Split</span>
+              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-cyan-950">₹{(summary?.nonGstSales || 0).toFixed(2)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-500 font-bold">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-black">₹{(summary?.nonGstPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.nonGstPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.nonGstPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.nonGstPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-slate-900">₹{(summary?.nonGstPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.nonGstPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.nonGstPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.nonGstPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
             </div>
           </div>
 
           {/* Total Combined Sales Breakdown */}
-          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-slate-200">
-              <span className="font-bold text-orange-400 print:text-orange-700">Overall Sales Payment Split</span>
-              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-black">₹{(summary?.totalSales || 0).toFixed(2)}</span>
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 print:bg-amber-50/60 print:border-amber-300">
+            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-850 print:border-amber-300">
+              <span className="font-bold text-orange-400 print:text-amber-800">Overall Sales Payment Split</span>
+              <span className="font-mono text-[11px] font-bold text-slate-300 print:text-amber-950">₹{(summary?.totalSales || 0).toFixed(2)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-500 font-bold">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-black">₹{(summary?.totalPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.totalPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.totalPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
-              <div><span className="text-slate-500 font-bold">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.totalPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Cash:</span> <span className="font-mono font-bold text-slate-200 print:text-slate-900">₹{(summary?.totalPaymentBreakdown?.Cash || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">UPI:</span> <span className="font-mono font-bold text-emerald-400 print:text-emerald-700">₹{(summary?.totalPaymentBreakdown?.UPI || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Card:</span> <span className="font-mono font-bold text-blue-400 print:text-blue-700">₹{(summary?.totalPaymentBreakdown?.Card || 0).toFixed(2)}</span></div>
+              <div><span className="text-slate-500 font-bold print:text-slate-700">Credit:</span> <span className="font-mono font-bold text-amber-400 print:text-amber-700">₹{(summary?.totalPaymentBreakdown?.Credit || 0).toFixed(2)}</span></div>
             </div>
           </div>
         </div>
@@ -427,31 +426,42 @@ function GstSales() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs md:text-sm print:text-black">
-            <thead>
-              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold print:border-slate-300 print:text-slate-700">
-                <th className="py-3 px-4">GST Rate Bracket</th>
-                <th className="py-3 px-4 text-right">Taxable Base Amount</th>
-                <th className="py-3 px-4 text-right">CGST Collected</th>
-                <th className="py-3 px-4 text-right">SGST Collected</th>
-                <th className="py-3 px-4 text-right">IGST Collected</th>
-                <th className="py-3 px-4 text-right">Total Tax Collected</th>
-                <th className="py-3 px-4 text-right">Total Billable Amount</th>
+        <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
+          <table className="w-full text-left text-xs md:text-sm">
+            <thead className="print-table-header bg-slate-900 text-white">
+              <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
+                <th className="py-3 px-4 text-white">GST Rate Bracket</th>
+                <th className="py-3 px-4 text-right text-white">Taxable Base Amount</th>
+                <th className="py-3 px-4 text-right text-white">CGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">SGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">IGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">Total Tax Collected</th>
+                <th className="py-3 px-4 text-right text-white">Total Billable Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono print:divide-slate-200 print:text-slate-900">
-              {ratesBreakdown.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-200 print:text-black">{row.rate} GST</td>
-                  <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.cgst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.sgst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.igst.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-orange-400 font-bold print:text-black">₹{row.totalTax.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-emerald-400 font-black print:text-black">₹{row.totalAmount.toFixed(2)}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">
+              {ratesBreakdown.map((row, idx) => {
+                let badgeClass = "gst-badge-18";
+                if (row.rate === "0%") badgeClass = "gst-badge-0";
+                if (row.rate === "5%") badgeClass = "gst-badge-5";
+                if (row.rate === "12%") badgeClass = "gst-badge-12";
+                if (row.rate === "18%") badgeClass = "gst-badge-18";
+                if (row.rate === "28%") badgeClass = "gst-badge-28";
+
+                return (
+                  <tr key={idx} className="hover:bg-slate-900/10 transition print:even:bg-slate-50">
+                    <td className="py-3 px-4 font-sans font-bold">
+                      <span className={`gst-badge-pill ${badgeClass}`}>{row.rate} GST</span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-200 print:text-slate-900">₹{row.taxableValue.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.cgst.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.sgst.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right text-slate-400 print:text-slate-700">₹{row.igst.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right text-orange-400 font-bold print:text-amber-800">₹{row.totalTax.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right text-emerald-400 font-black print:text-emerald-800">₹{row.totalAmount.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
               {ratesBreakdown.length === 0 && (
                 <tr>
                   <td colSpan="7" className="py-8 text-center text-slate-500 font-sans">No sales GST transactions logged for this range.</td>
@@ -460,14 +470,14 @@ function GstSales() {
             </tbody>
             {ratesBreakdown.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 print:border-slate-400 print:text-black bg-slate-950/60 print:bg-slate-100">
+                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 bg-slate-900 text-white print-table-header">
                   <td className="py-3 px-4 font-sans uppercase text-[11px]">GST Sales Subtotal</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.taxableValue, 0).toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.cgst, 0).toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.sgst, 0).toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.igst, 0).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-orange-400 print:text-black">₹{ratesBreakdown.reduce((sum, r) => sum + r.totalTax, 0).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-emerald-400 print:text-black">₹{ratesBreakdown.reduce((sum, r) => sum + r.totalAmount, 0).toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-amber-300">₹{ratesBreakdown.reduce((sum, r) => sum + r.totalTax, 0).toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-emerald-300">₹{ratesBreakdown.reduce((sum, r) => sum + r.totalAmount, 0).toFixed(2)}</td>
                 </tr>
               </tfoot>
             )}
@@ -489,29 +499,31 @@ function GstSales() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs md:text-sm print:text-black">
-            <thead>
-              <tr className="border-b border-slate-900 text-slate-500 uppercase tracking-wider text-[10px] font-bold print:border-slate-300 print:text-slate-700">
-                <th className="py-3 px-4">Sales Type</th>
-                <th className="py-3 px-4 text-right">Base Sale Amount</th>
-                <th className="py-3 px-4 text-right">CGST Collected</th>
-                <th className="py-3 px-4 text-right">SGST Collected</th>
-                <th className="py-3 px-4 text-right">IGST Collected</th>
-                <th className="py-3 px-4 text-right">Total Tax Collected</th>
-                <th className="py-3 px-4 text-right">Total Sale Value</th>
+        <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
+          <table className="w-full text-left text-xs md:text-sm">
+            <thead className="print-table-header bg-slate-900 text-white">
+              <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
+                <th className="py-3 px-4 text-white">Sales Type</th>
+                <th className="py-3 px-4 text-right text-white">Base Sale Amount</th>
+                <th className="py-3 px-4 text-right text-white">CGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">SGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">IGST Collected</th>
+                <th className="py-3 px-4 text-right text-white">Total Tax Collected</th>
+                <th className="py-3 px-4 text-right text-white">Total Sale Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900/40 text-slate-350 font-mono print:divide-slate-200 print:text-slate-900">
+            <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">
               {nonGstRatesBreakdown.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-900/10 transition">
-                  <td className="py-3 px-4 font-sans font-bold text-slate-200 print:text-black">{row.rate} GST (Non-GST Bill)</td>
-                  <td className="py-3 px-4 text-right">₹{row.taxableValue.toFixed(2)}</td>
+                <tr key={idx} className="hover:bg-slate-900/10 transition print:even:bg-slate-50">
+                  <td className="py-3 px-4 font-sans font-bold text-slate-200 print:text-slate-900">
+                    <span className="gst-badge-pill gst-badge-0">{row.rate} Non-GST</span>
+                  </td>
+                  <td className="py-3 px-4 text-right font-bold print:text-slate-900">₹{row.taxableValue.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500">₹0.00</td>
                   <td className="py-3 px-4 text-right text-slate-500 font-bold">₹0.00</td>
-                  <td className="py-3 px-4 text-right text-cyan-400 font-black print:text-black">₹{row.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-cyan-400 font-black print:text-cyan-800">₹{row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))}
               {nonGstRatesBreakdown.length === 0 && (
@@ -525,33 +537,33 @@ function GstSales() {
       </div>
 
       {/* CA Audit Master Summary Box */}
-      <div className={`bg-slate-900/60 border border-emerald-500/30 rounded-2xl p-5 mt-6 shadow-2xl print:bg-white print:border-slate-400 ${printMode !== "all" ? "print:hidden" : ""}`}>
-        <h3 className="text-sm font-extrabold uppercase tracking-wider text-emerald-400 mb-3 print:text-slate-900">
+      <div className={`bg-slate-900/60 border border-emerald-500/30 rounded-2xl p-5 mt-6 shadow-2xl print:bg-emerald-50/50 print:border-emerald-300 ${printMode !== "all" ? "print:hidden" : ""}`}>
+        <h3 className="text-sm font-extrabold uppercase tracking-wider text-emerald-400 mb-3 print:text-emerald-900">
           CA Master Reconciliation Grand Total ({getDateRangeLabel()})
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 font-mono text-xs">
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Total Taxable Base</span>
-            <span className="font-bold text-slate-200 print:text-black">₹{(summary?.taxableValue || 0).toFixed(2)}</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-slate-300">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-slate-700">Total Taxable Base</span>
+            <span className="font-bold text-slate-200 print:text-slate-950">₹{(summary?.taxableValue || 0).toFixed(2)}</span>
           </div>
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Total CGST</span>
-            <span className="font-bold text-slate-300 print:text-black">₹{(summary?.cgst || 0).toFixed(2)}</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-slate-300">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-slate-700">Total CGST</span>
+            <span className="font-bold text-slate-300 print:text-slate-900">₹{(summary?.cgst || 0).toFixed(2)}</span>
           </div>
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Total SGST</span>
-            <span className="font-bold text-slate-300 print:text-black">₹{(summary?.sgst || 0).toFixed(2)}</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-slate-300">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-slate-700">Total SGST</span>
+            <span className="font-bold text-slate-300 print:text-slate-900">₹{(summary?.sgst || 0).toFixed(2)}</span>
           </div>
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Total IGST</span>
-            <span className="font-bold text-slate-300 print:text-black">₹{(summary?.igst || 0).toFixed(2)}</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-slate-300">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-slate-700">Total IGST</span>
+            <span className="font-bold text-slate-300 print:text-slate-900">₹{(summary?.igst || 0).toFixed(2)}</span>
           </div>
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Total GST Tax</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-rose-200">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-rose-800">Total GST Tax</span>
             <span className="font-bold text-rose-400 print:text-rose-700">₹{(summary?.totalTax || 0).toFixed(2)}</span>
           </div>
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-slate-50 print:border-slate-200">
-            <span className="text-[10px] text-slate-500 block font-bold uppercase">Grand Total Revenue</span>
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 print:bg-white print:border-emerald-300">
+            <span className="text-[10px] text-slate-500 block font-bold uppercase print:text-emerald-800">Grand Total Revenue</span>
             <span className="font-black text-emerald-400 print:text-emerald-700 text-sm">₹{(summary?.totalSales || 0).toFixed(2)}</span>
           </div>
         </div>

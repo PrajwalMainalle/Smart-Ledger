@@ -355,3 +355,89 @@ body, body * {
   color: #034b54;
 }
 
+@media print {
+  @page {
+    margin: 8mm 10mm;
+    size: auto;
+  }
+  body, html {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Table Header formatting in print */
+  .print-table-header {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+  }
+  .print-table-header th {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+  }
+
+  /* Colored KPI Cards in print */
+  .print-card-emerald {
+    background-color: #ecfdf5 !important;
+    border: 1.5px solid #059669 !important;
+    color: #064e3b !important;
+  }
+  .print-card-cyan {
+    background-color: #ecfeff !important;
+    border: 1.5px solid #0891b2 !important;
+    color: #164e63 !important;
+  }
+  .print-card-amber {
+    background-color: #fffbeb !important;
+    border: 1.5px solid #d97706 !important;
+    color: #78350f !important;
+  }
+  .print-card-rose {
+    background-color: #fff1f2 !important;
+    border: 1.5px solid #e11d48 !important;
+    color: #881337 !important;
+  }
+
+  /* Colored GST Rate Pills in print */
+  .gst-badge-pill {
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    font-weight: 800 !important;
+    display: inline-block !important;
+  }
+  .gst-badge-0 {
+    background-color: #f1f5f9 !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .gst-badge-5 {
+    background-color: #d1fae5 !important;
+    color: #065f46 !important;
+    border: 1px solid #6ee7b7 !important;
+  }
+  .gst-badge-12 {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    border: 1px solid #93c5fd !important;
+  }
+  .gst-badge-18 {
+    background-color: #e0e7ff !important;
+    color: #3730a3 !important;
+    border: 1px solid #a5b4fc !important;
+  }
+  .gst-badge-28 {
+    background-color: #ffe4e6 !important;
+    color: #9f1239 !important;
+    border: 1px solid #fda4af !important;
+  }
+}
+
+
+

@@ -4,6 +4,7 @@ import { FaScaleBalanced } from "react-icons/fa6";
 import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
+import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
 
 function GstSummary() {
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,7 @@ function GstSummary() {
   };
 
   const handlePrint = () => {
-    window.print();
+    triggerSafePrint();
   };
 
   if (loading && !data) {
@@ -90,6 +91,20 @@ function GstSummary() {
   return (
     <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
+      {/* Printable Header (Visible only when printing) */}
+      <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <MultiColorCompanyTitle className="text-2xl font-black tracking-tight" />
+            <MultiColorReportTitle title="GST Tax Variance & Profit Summary" className="text-lg font-bold mt-1" />
+            <p className="text-xs text-slate-600 mt-0.5">Filter Period: <span className="font-semibold">{period}</span></p>
+          </div>
+          <div className="text-right text-xs text-slate-500">
+            <p>Generated on: {new Date().toLocaleDateString("en-IN")} {new Date().toLocaleTimeString("en-IN")}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 print:hidden">
         <div>

@@ -3,6 +3,7 @@ import axiosInstance from "../../../app/api/axiosInstance";
 import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, FaChevronDown, FaUndo } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
+import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
 
 function GstPurchases() {
   const [loading, setLoading] = useState(true);
@@ -132,9 +133,7 @@ function GstPurchases() {
   const triggerPrint = (mode = "all") => {
     setPrintMode(mode);
     setShowPrintDropdown(false);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    triggerSafePrint();
   };
 
   if (loading && !data) {
@@ -166,8 +165,8 @@ function GstPurchases() {
       <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">BHARATAMBE TRADERS</h1>
-            <h2 className="text-lg font-bold text-slate-700 mt-1">{getReportTitle()}</h2>
+            <MultiColorCompanyTitle className="text-2xl font-black tracking-tight" />
+            <MultiColorReportTitle title={getReportTitle()} className="text-lg font-bold mt-1" />
             <p className="text-xs text-slate-600 mt-0.5">Filter Period: <span className="font-semibold">{getDateRangeLabel()}</span></p>
           </div>
           <div className="text-right text-xs text-slate-500">
