@@ -9,7 +9,7 @@ const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-layout-bg">
+    <div className="flex h-screen overflow-hidden bg-layout-bg print:h-auto print:overflow-visible print:bg-white">
       {/* Sidebar */}
       <Sidebar
         mobileOpen={mobileOpen}
@@ -19,17 +19,17 @@ const MainLayout = () => {
       />
 
       {/* Right section */}
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 print:block print:w-full">
         {/* Header */}
         <Headers onMenuClick={() => setMobileOpen(true)} />
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-4">
+        <main className="flex-1 overflow-auto p-4 print:p-0 print:m-0 print:overflow-visible print:w-full">
           <Outlet />
         </main>
 
         {/* Bottom Navigation - Mobile only */}
-      <div className="mt-12 md:hidden"><BottomNav /></div>
+      <div className="mt-12 md:hidden print:hidden"><BottomNav /></div>
       </div>
       
     </div>

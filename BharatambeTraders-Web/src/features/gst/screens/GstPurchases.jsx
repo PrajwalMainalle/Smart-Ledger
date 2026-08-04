@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
-import { FaFileCsv, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, FaChevronDown, FaUndo } from "react-icons/fa";
+import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, FaChevronDown, FaUndo } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import { exportToExcel } from "../../../utils/excelExporter";
 
 function GstPurchases() {
   const [loading, setLoading] = useState(true);
@@ -10,7 +11,7 @@ function GstPurchases() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
-  const [printMode, setPrintMode] = useState("all"); // 'all' | 'gst' | 'nongst'
+  const [printMode, setPrintMode] = useState("all");
   const [showPrintDropdown, setShowPrintDropdown] = useState(false);
 
   const fetchPurchasesReport = async () => {
@@ -55,35 +56,77 @@ function GstPurchases() {
     setPeriod("monthly");
   };
 
-  const handleExportCSV = () => {
+  const getDateRangeLabel = () => {
+    if (period === "custom" && (startDate || endDate)) {
+      return `${startDate || "Beginning"} to ${endDate || "Today"}`;
+    }
+    return period.toUpperCase();
+  };
+
+  const handleExportExcel = () => {
     if (!data) return alert("No data to export");
     const { ratesBreakdown, nonGstRatesBreakdown } = data;
-    const rows = [];
-    
-    // Section 1: GST Purchases
-    rows.push("GST PURCHASES REPORT (WITH GSTIN)");
-    rows.push("GST Slab,Taxable Value,CGST Amount,SGST Amount,IGST Amount,Total ITC Claimable,Total Gross Value");
+    const dateRangeStr = getDateRangeLabel();
+    const todayStr = new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN");
+
+    const sheetData = [
+      ["BHARATAMBE TRADERS - CA GST INWARD PURCHASES & ITC REPORT"],
+      ["Filter Period / Range:", dateRangeStr],
+      ["Report Generated On:", todayStr],
+      [],
+      ["1. GST INWARD PURCHASES BY TAX SLAB (WITH GSTIN)"],
+      ["GST Rate Bracket", "Taxable Base Amount (INR)", "CGST Paid (INR)", "SGST Paid (INR)", "IGST Paid (INR)", "Total ITC Claimable (INR)", "Total Gross Purchase Value (INR)"]
+    ];
+
+    let totTaxable = 0;
+    let totCgst = 0;
+    let totSgst = 0;
+    let totIgst = 0;
+    let totGstTax = 0;
+    let totGross = 0;
+
     (ratesBreakdown || []).forEach(row => {
-      rows.push(`"${row.rate}",${row.taxableValue.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.igst.toFixed(2)},${row.totalTax.toFixed(2)},${row.totalAmount.toFixed(2)}`);
-    });
-    
-    rows.push(""); // spacer
-    
-    // Section 2: Non-GST Purchases
-    rows.push("NON-GST PURCHASES REPORT (WITHOUT GSTIN)");
-    rows.push("GST Slab,Taxable Value,CGST Amount,SGST Amount,IGST Amount,Total ITC Claimable,Total Gross Value");
-    (nonGstRatesBreakdown || []).forEach(row => {
-      rows.push(`"${row.rate}",${row.taxableValue.toFixed(2)},0.00,0.00,0.00,0.00,${row.taxableValue.toFixed(2)}`);
+      totTaxable += row.taxableValue || 0;
+      totCgst += row.cgst || 0;
+      totSgst += row.sgst || 0;
+      totIgst += row.igst || 0;
+      totGstTax += row.totalTax || 0;
+      totGross += row.totalAmount || 0;
+
+      sheetData.push([
+        row.rate,
+        row.taxableValue || 0,
+        row.cgst || 0,
+        row.sgst || 0,
+        row.igst || 0,
+        row.totalTax || 0,
+        row.totalAmount || 0
+      ]);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `gst_purchases_report_${period}_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    sheetData.push(["SUB-TOTAL (GST PURCHASES)", totTaxable, totCgst, totSgst, totIgst, totGstTax, totGross]);
+    sheetData.push([]);
+
+    sheetData.push(["2. NON-GST INWARD PURCHASES (WITHOUT GSTIN)"]);
+    sheetData.push(["Category", "Taxable Base Amount (INR)", "CGST Paid (INR)", "SGST Paid (INR)", "IGST Paid (INR)", "Total Tax Paid (INR)", "Total Gross Purchase Value (INR)"]);
+
+    let totNonGstTaxable = 0;
+    (nonGstRatesBreakdown || []).forEach(row => {
+      totNonGstTaxable += row.taxableValue || 0;
+    });
+
+    sheetData.push(["Non-GST Purchases", totNonGstTaxable, 0, 0, 0, 0, totNonGstTaxable]);
+    sheetData.push([]);
+
+    sheetData.push(["3. MASTER GRAND TOTAL PURCHASES"]);
+    sheetData.push(["Category", "Taxable Base Amount (INR)", "CGST Paid (INR)", "SGST Paid (INR)", "IGST Paid (INR)", "Total Tax Paid (INR)", "Grand Total Purchase Value (INR)"]);
+
+    sheetData.push(["MASTER GRAND TOTAL", totTaxable + totNonGstTaxable, totCgst, totSgst, totIgst, totGstTax, totGross + totNonGstTaxable]);
+
+    exportToExcel({
+      fileName: `GST_Purchases_Report_${period}_${new Date().toISOString().split("T")[0]}`,
+      sheets: [{ sheetName: "Purchases ITC Summary", data: sheetData }]
+    });
   };
 
   const triggerPrint = (mode = "all") => {
@@ -114,13 +157,6 @@ function GstPurchases() {
     if (printMode === "gst") return "GST Purchases Report (With GSTIN)";
     if (printMode === "nongst") return "Non-GST Purchases Report (Without GSTIN)";
     return "Purchases GST Tax Report (Combined)";
-  };
-
-  const getDateRangeLabel = () => {
-    if (period === "custom" && (startDate || endDate)) {
-      return `${startDate || "Beginning"} to ${endDate || "Today"}`;
-    }
-    return period.toUpperCase();
   };
 
   return (
@@ -190,10 +226,10 @@ function GstPurchases() {
           </div>
 
           <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/20 transition duration-150 cursor-pointer"
           >
-            <FaFileCsv /> Export CSV
+            <FaFileExcel className="text-sm" /> Export Excel Report
           </button>
         </div>
       </div>
@@ -272,7 +308,7 @@ function GstPurchases() {
       </div>
 
       {/* Summary KPI Panel */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 ${printMode !== "all" ? "print:hidden" : ""}`}>
         <div className={`p-4 bg-slate-900/40 border border-slate-800 rounded-2xl text-center space-y-1 ${printMode === "nongst" ? "print:hidden" : ""}`}>
           <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">GST Purchases (With GSTIN)</span>
           <p className="text-lg font-black text-emerald-400 font-mono print:text-black">₹{(summary?.gstPurchases || 0).toFixed(2)}</p>

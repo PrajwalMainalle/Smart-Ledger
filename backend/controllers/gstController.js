@@ -70,12 +70,67 @@ const getDateQuery = (period, startDate, endDate) => {
   return query;
 };
 
-// @desc    Get GST Dashboard metrics
-// @route   GET /api/gst/dashboard
-// @access  Private
+// Helper to calculate payment method breakdown for a list of invoices
+const calculatePaymentBreakdown = (invoices) => {
+  const breakdown = {
+    Cash: 0,
+    UPI: 0,
+    Card: 0,
+    Credit: 0,
+    Exchange: 0,
+    Other: 0
+  };
+
+  invoices.forEach(inv => {
+    const rev = inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total;
+    const method = inv.paymentMethod || "Cash";
+
+    if (method === "Cash") {
+      breakdown.Cash += rev;
+    } else if (method === "UPI") {
+      breakdown.UPI += rev;
+    } else if (method === "Card") {
+      breakdown.Card += rev;
+    } else if (method === "Exchange") {
+      breakdown.Exchange += rev;
+    } else if (method === "Split") {
+      const cAmt = inv.cashAmount || 0;
+      const uAmt = inv.upiAmount || 0;
+      breakdown.Cash += cAmt;
+      breakdown.UPI += uAmt;
+      const splitSum = cAmt + uAmt;
+      if (rev > splitSum) {
+        breakdown.Other += (rev - splitSum);
+      }
+    } else if (method === "Credit") {
+      const paidUpfront = Math.min(inv.amountPaid || 0, rev);
+      const pendingCredit = Math.max(0, rev - paidUpfront);
+      breakdown.Credit += pendingCredit;
+
+      if (paidUpfront > 0) {
+        const settleMethod = inv.settlementMethod || "Cash";
+        if (settleMethod === "UPI") breakdown.UPI += paidUpfront;
+        else if (settleMethod === "Card") breakdown.Card += paidUpfront;
+        else breakdown.Cash += paidUpfront;
+      }
+    } else {
+      breakdown.Other += rev;
+    }
+  });
+
+  Object.keys(breakdown).forEach(key => {
+    breakdown[key] = Math.round(breakdown[key] * 100) / 100;
+  });
+
+  return breakdown;
+};
+
 const getGstDashboard = async (req, res) => {
   try {
     const tenantId = req.user._id;
+    const { period, startDate, endDate } = req.query;
+    const dateQuery = getDateQuery(period, startDate, endDate);
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
@@ -92,21 +147,50 @@ const getGstDashboard = async (req, res) => {
       status: { $ne: "Refunded" }
     }).lean();
 
-    const todayGstSales = sales
-      .filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && inv.isGst)
-      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const todayGstInvoices = sales.filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && inv.isGstBilling !== false);
+    const todayNonGstInvoices = sales.filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && inv.isGstBilling === false);
 
-    const todayNonGstSales = sales
-      .filter(inv => inv.date >= startOfToday && inv.date <= endOfToday && !inv.isGst)
-      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const todayGstSales = todayGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const todayNonGstSales = todayNonGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
 
-    const monthlyGstSales = sales
-      .filter(inv => inv.date >= startOfMonth && inv.isGst)
-      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const monthlyGstInvoices = sales.filter(inv => inv.date >= startOfMonth && inv.isGstBilling !== false);
+    const monthlyNonGstInvoices = sales.filter(inv => inv.date >= startOfMonth && inv.isGstBilling === false);
 
-    const monthlyNonGstSales = sales
-      .filter(inv => inv.date >= startOfMonth && !inv.isGst)
-      .reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const monthlyGstSales = monthlyGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const monthlyNonGstSales = monthlyNonGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+
+    // Payment breakdowns for today & monthly
+    const todayGstPaymentBreakdown = calculatePaymentBreakdown(todayGstInvoices);
+    const todayNonGstPaymentBreakdown = calculatePaymentBreakdown(todayNonGstInvoices);
+    const todayPaymentBreakdown = calculatePaymentBreakdown([...todayGstInvoices, ...todayNonGstInvoices]);
+
+    const monthlyGstPaymentBreakdown = calculatePaymentBreakdown(monthlyGstInvoices);
+    const monthlyNonGstPaymentBreakdown = calculatePaymentBreakdown(monthlyNonGstInvoices);
+    const monthlyPaymentBreakdown = calculatePaymentBreakdown([...monthlyGstInvoices, ...monthlyNonGstInvoices]);
+
+    // Period / Custom Date Range Filtered Sales
+    let filterStart = null;
+    let filterEnd = null;
+    if (dateQuery.date) {
+      filterStart = dateQuery.date.$gte || null;
+      filterEnd = dateQuery.date.$lte || null;
+    }
+
+    const filteredSales = sales.filter(inv => {
+      if (filterStart && new Date(inv.date) < filterStart) return false;
+      if (filterEnd && new Date(inv.date) > filterEnd) return false;
+      return true;
+    });
+
+    const periodGstInvoices = filteredSales.filter(inv => inv.isGstBilling !== false);
+    const periodNonGstInvoices = filteredSales.filter(inv => inv.isGstBilling === false);
+
+    const periodGstSales = periodGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+    const periodNonGstSales = periodNonGstInvoices.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
+
+    const periodGstPaymentBreakdown = calculatePaymentBreakdown(periodGstInvoices);
+    const periodNonGstPaymentBreakdown = calculatePaymentBreakdown(periodNonGstInvoices);
+    const periodPaymentBreakdown = calculatePaymentBreakdown(filteredSales);
 
     // 2. Purchases metrics
     const purchases = await Purchase.find({ tenantId }).lean();
@@ -119,19 +203,27 @@ const getGstDashboard = async (req, res) => {
       .filter(p => p.date >= startOfMonth && !p.isGst)
       .reduce((sum, p) => sum + p.total, 0);
 
+    const filteredPurchases = purchases.filter(p => {
+      if (filterStart && new Date(p.date) < filterStart) return false;
+      if (filterEnd && new Date(p.date) > filterEnd) return false;
+      return true;
+    });
+
+    const periodGstPurchases = filteredPurchases.filter(p => p.isGst).reduce((sum, p) => sum + p.total, 0);
+    const periodNonGstPurchases = filteredPurchases.filter(p => !p.isGst).reduce((sum, p) => sum + p.total, 0);
+
     // Net Sales (Total Sales - Returns)
     const totalSales = sales.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
     const totalReturns = sales
       .filter(inv => inv.isReturnExchange)
       .reduce((sum, inv) => {
         const retSum = inv.returnedItems?.reduce((s, item) => {
-          // Check if original item was excluded from revenue
           const correspondingItem = inv.items?.find(oi => 
             (item.productId && oi.productId && oi.productId.toString() === item.productId.toString()) ||
             (!item.productId && oi.name === item.name)
           );
           if (correspondingItem && correspondingItem.excludeFromRevenue) {
-            return s; // skip
+            return s;
           }
           const itemTaxFactor = 1 + (item.gstRate || 0) / 100;
           return s + (item.price * item.qty) * itemTaxFactor;
@@ -145,7 +237,7 @@ const getGstDashboard = async (req, res) => {
 
     // GST Payable for current month = (Month's Sales GST Collected) - (Month's Purchase GST Paid)
     const monthlySalesGst = sales
-      .filter(inv => inv.date >= startOfMonth && inv.isGst)
+      .filter(inv => inv.date >= startOfMonth && inv.isGstBilling !== false)
       .reduce((sum, inv) => sum + (inv.revenueGstAmount !== undefined ? inv.revenueGstAmount : inv.gstAmount), 0);
 
     const monthlyPurchasesGst = purchases
@@ -155,21 +247,17 @@ const getGstDashboard = async (req, res) => {
     const gstPayable = monthlySalesGst - monthlyPurchasesGst;
 
     // Profit Calculations
-    // Gross Profit = Taxable Sales - Cost of Goods Sold (COGS)
     const taxableSalesSum = sales.reduce((sum, inv) => sum + (inv.revenueTaxableAmount !== undefined ? inv.revenueTaxableAmount : (inv.taxableAmount || (inv.subtotal - inv.discountAmount))), 0);
     
-    // COGS = sum of purchasePrice * qty for all sold items
     let cogsSum = 0;
     sales.forEach(inv => {
       inv.items.forEach(item => {
-        if (item.excludeFromRevenue) return; // Skip non-revenue items
+        if (item.excludeFromRevenue) return;
         cogsSum += (item.purchasePrice || 0) * item.qty;
       });
     });
 
     const grossProfit = taxableSalesSum - cogsSum;
-
-    // Net Profit = Gross Profit - Expenses (using Purchase transport costs as expense)
     const totalTransportExpense = purchases.reduce((sum, p) => sum + (p.transport || 0), 0);
     const netProfit = grossProfit - totalTransportExpense;
 
@@ -178,6 +266,20 @@ const getGstDashboard = async (req, res) => {
       todayNonGstSales,
       monthlyGstSales,
       monthlyNonGstSales,
+      todayGstPaymentBreakdown,
+      todayNonGstPaymentBreakdown,
+      todayPaymentBreakdown,
+      monthlyGstPaymentBreakdown,
+      monthlyNonGstPaymentBreakdown,
+      monthlyPaymentBreakdown,
+      // Period/Date-Filtered Data
+      periodGstSales,
+      periodNonGstSales,
+      periodGstPurchases,
+      periodNonGstPurchases,
+      periodGstPaymentBreakdown,
+      periodNonGstPaymentBreakdown,
+      periodPaymentBreakdown,
       gstPurchases: monthlyGstPurchases,
       nonGstPurchases: monthlyNonGstPurchases,
       profit: {
@@ -394,15 +496,29 @@ const getGstSalesSummary = async (req, res) => {
       }
     ]);
 
-    const summary = salesAggregation[0] || {
-      gstSales: 0,
-      nonGstSales: 0,
-      totalSales: 0,
-      taxableValue: 0,
-      cgst: 0,
-      sgst: 0,
-      igst: 0,
-      totalTax: 0
+    // Calculate payment method breakdowns for matched period invoices
+    const salesInvoices = await Invoice.find(matchStage).lean();
+    const gstSalesInvoices = salesInvoices.filter(inv => inv.isGstBilling !== false);
+    const nonGstSalesInvoices = salesInvoices.filter(inv => inv.isGstBilling === false);
+
+    const gstPaymentBreakdown = calculatePaymentBreakdown(gstSalesInvoices);
+    const nonGstPaymentBreakdown = calculatePaymentBreakdown(nonGstSalesInvoices);
+    const totalPaymentBreakdown = calculatePaymentBreakdown(salesInvoices);
+
+    const summary = {
+      ...(salesAggregation[0] || {
+        gstSales: 0,
+        nonGstSales: 0,
+        totalSales: 0,
+        taxableValue: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        totalTax: 0
+      }),
+      gstPaymentBreakdown,
+      nonGstPaymentBreakdown,
+      totalPaymentBreakdown
     };
 
     // Format breakdown keys to read as percentage string

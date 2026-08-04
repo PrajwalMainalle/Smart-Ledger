@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
-import { FaFileCsv, FaPrint, FaSpinner } from "react-icons/fa";
+import { FaFileCsv, FaFileExcel, FaPrint, FaSpinner } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import { exportToExcel } from "../../../utils/excelExporter";
 
 function GstCAReports() {
   const [loading, setLoading] = useState(true);
@@ -26,24 +27,65 @@ function GstCAReports() {
     fetchCaSummary();
   }, [type]);
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (data.length === 0) return alert("No data to export");
-    const headers = ["Period", "Sales Taxable Value", "Sales Tax Collected", "Sales Total", "Purchases Taxable Value", "Purchases Tax Paid", "Purchases Total", "Net Tax Liability"];
-    const rows = [headers.join(",")];
-    
+
+    const headers = ["Period", "Sales Taxable Value (INR)", "Sales Tax Collected (INR)", "Sales Total Gross (INR)", "Purchases Taxable Value (INR)", "Purchases Tax Paid / ITC (INR)", "Purchases Total Gross (INR)", "Net Tax Liability (INR)"];
+
+    const sheetData = [
+      ["BHARATAMBE TRADERS - CA GST RECONCILIATION SUMMARY REPORT"],
+      ["Grouped By:", type.toUpperCase()],
+      ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
+      [],
+      headers
+    ];
+
+    let totSalesTaxable = 0;
+    let totSalesTax = 0;
+    let totSalesGross = 0;
+    let totPurchasesTaxable = 0;
+    let totPurchasesTax = 0;
+    let totPurchasesGross = 0;
+    let totNetLiability = 0;
+
     data.forEach(row => {
       const netLiability = row.salesTotalTax - row.purchasesTotalTax;
-      rows.push(`"${row.period}",${row.salesTaxable.toFixed(2)},${row.salesTotalTax.toFixed(2)},${row.salesTotal.toFixed(2)},${row.purchasesTaxable.toFixed(2)},${row.purchasesTotalTax.toFixed(2)},${row.purchasesTotal.toFixed(2)},${netLiability.toFixed(2)}`);
+
+      totSalesTaxable += row.salesTaxable;
+      totSalesTax += row.salesTotalTax;
+      totSalesGross += row.salesTotal;
+      totPurchasesTaxable += row.purchasesTaxable;
+      totPurchasesTax += row.purchasesTotalTax;
+      totPurchasesGross += row.purchasesTotal;
+      totNetLiability += netLiability;
+
+      sheetData.push([
+        row.period,
+        row.salesTaxable,
+        row.salesTotalTax,
+        row.salesTotal,
+        row.purchasesTaxable,
+        row.purchasesTotalTax,
+        row.purchasesTotal,
+        netLiability
+      ]);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `gst_ca_reconciliation_${type}_report_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    sheetData.push([
+      "CUMULATIVE GRAND TOTAL",
+      totSalesTaxable,
+      totSalesTax,
+      totSalesGross,
+      totPurchasesTaxable,
+      totPurchasesTax,
+      totPurchasesGross,
+      totNetLiability
+    ]);
+
+    exportToExcel({
+      fileName: `CA_GST_Reconciliation_${type}_Report_${new Date().toISOString().split("T")[0]}`,
+      sheets: [{ sheetName: "CA Reconciliation", data: sheetData }]
+    });
   };
 
   const handlePrint = () => {
@@ -78,15 +120,15 @@ function GstCAReports() {
         <div className="flex gap-3">
           <button 
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
           >
             Print Report
           </button>
           <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/20 transition duration-150 cursor-pointer"
           >
-            <FaFileCsv /> Export CSV for CA
+            <FaFileExcel className="text-sm" /> Export CA Excel Report
           </button>
         </div>
       </div>

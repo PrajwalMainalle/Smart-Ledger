@@ -68,7 +68,7 @@ const SideBar = ({
   return (
     <aside
       className={`
-        fixed md:relative top-0 left-0 h-full z-40
+        fixed md:relative top-0 left-0 h-full z-40 print:hidden
         bg-sidebar-bg text-sidebar-text flex flex-col
         transition-all duration-300
         ${collapsed ? "w-20" : "w-64"}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
 import { FaScaleBalanced } from "react-icons/fa6";
-import { FaFileCsv, FaPrint, FaSearch, FaSpinner } from "react-icons/fa";
+import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import { exportToExcel } from "../../../utils/excelExporter";
 
 function GstSummary() {
   const [loading, setLoading] = useState(true);
@@ -39,23 +40,29 @@ function GstSummary() {
     fetchGstSummary();
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (!data) return alert("No data to export");
-    const headers = ["Metric Type", "Taxable Value", "Tax Amount", "Total Value"];
-    const rows = [headers.join(",")];
-    
-    rows.push(`"Sales (Outward)",${data.gstSalesTaxable.toFixed(2)},${data.gstSalesTax.toFixed(2)},${data.totalSales.toFixed(2)}`);
-    rows.push(`"Purchases (Inward)",${data.gstPurchasesTaxable.toFixed(2)},${data.gstPurchasesTax.toFixed(2)},${data.totalPurchases.toFixed(2)}`);
-    rows.push(`"Net Variance",${(data.gstSalesTaxable - data.gstPurchasesTaxable).toFixed(2)},${(data.gstSalesTax - data.gstPurchasesTax).toFixed(2)},${(data.totalSales - data.totalPurchases).toFixed(2)}`);
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `gst_variance_summary_${period}_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const sheetData = [
+      ["BHARATAMBE TRADERS - GST TAX VARIANCE & COMPARATIVE SUMMARY"],
+      ["Period / Filter Range:", period.toUpperCase()],
+      ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
+      [],
+      ["Metric Type", "Taxable Value (INR)", "Tax Amount (INR)", "Total Value (INR)"],
+      ["Sales (Outward)", data.gstSalesTaxable, data.gstSalesTax, data.totalSales],
+      ["Purchases (Inward)", data.gstPurchasesTaxable, data.gstPurchasesTax, data.totalPurchases],
+      [
+        "Net Variance / Liability",
+        data.gstSalesTaxable - data.gstPurchasesTaxable,
+        data.gstSalesTax - data.gstPurchasesTax,
+        data.totalSales - data.totalPurchases
+      ]
+    ];
+
+    exportToExcel({
+      fileName: `GST_Tax_Variance_Summary_${period}_${new Date().toISOString().split("T")[0]}`,
+      sheets: [{ sheetName: "Tax Variance Summary", data: sheetData }]
+    });
   };
 
   const handlePrint = () => {
@@ -63,7 +70,7 @@ function GstSummary() {
   };
 
   if (loading && !data) {
-    return <LoadingOverlay message="Compiling comparative GST summaries..." />;
+    return <LoadingOverlay message="Compiling GST Tax Variance summaries..." />;
   }
 
   if (error) {
@@ -83,24 +90,26 @@ function GstSummary() {
   return (
     <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 print:hidden">
         <div>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">GST Comparative Variance</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2">
+            <FaScaleBalanced className="text-orange-500" /> Tax Variance &amp; Profit Summary
+          </h2>
           <p className="text-slate-400 text-sm mt-1">Audit net tax liability and outward sales vs inward ITC credit variances.</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
           >
             Print Report
           </button>
           <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/20 transition duration-150 cursor-pointer"
           >
-            <FaFileCsv /> Export CSV
+            <FaFileExcel className="text-sm" /> Export Excel Report
           </button>
         </div>
       </div>

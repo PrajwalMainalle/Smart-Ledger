@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
-import { FaFileCsv, FaPrint, FaSpinner, FaSearch, FaBoxes } from "react-icons/fa";
+import { FaFileCsv, FaFileExcel, FaPrint, FaSpinner, FaSearch, FaBoxes } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import { exportToExcel } from "../../../utils/excelExporter";
 
 function GstInventory() {
   const [loading, setLoading] = useState(true);
@@ -26,24 +27,57 @@ function GstInventory() {
     fetchInventoryGst();
   }, []);
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (products.length === 0) return alert("No data to export");
-    const headers = ["Product Name", "SKU", "HSN Code", "GST Purchased Stock", "Non-GST Purchased Stock", "Total Stock Balance", "Cost Price", "Stock Valuation"];
-    const rows = [headers.join(",")];
     
+    const headers = ["Product Name", "SKU", "HSN Code", "GST Purchased Stock", "Non-GST Purchased Stock", "Total Stock Balance", "Cost Price (INR)", "Stock Valuation (INR)"];
+    
+    const sheetData = [
+      ["BHARATAMBE TRADERS - GST INVENTORY STOCK SPLIT REPORT"],
+      ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
+      [],
+      headers
+    ];
+
+    let totalGstStk = 0;
+    let totalNonGstStk = 0;
+    let totalStk = 0;
+    let totalVal = 0;
+
     products.forEach(p => {
-      const valuation = (p.gstStock + p.nonGstStock) * p.purchasePrice;
-      rows.push(`"${p.name}","${p.sku}","${p.hsnCode}",${p.gstStock},${p.nonGstStock},${p.totalStock},${p.purchasePrice.toFixed(2)},${valuation.toFixed(2)}`);
+      const val = (p.gstStock + p.nonGstStock) * p.purchasePrice;
+      totalGstStk += p.gstStock;
+      totalNonGstStk += p.nonGstStock;
+      totalStk += p.totalStock;
+      totalVal += val;
+
+      sheetData.push([
+        p.name,
+        p.sku,
+        p.hsnCode,
+        p.gstStock,
+        p.nonGstStock,
+        p.totalStock,
+        p.purchasePrice,
+        val
+      ]);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `gst_inventory_split_report_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    sheetData.push([
+      "CUMULATIVE GRAND TOTAL",
+      "",
+      "",
+      totalGstStk,
+      totalNonGstStk,
+      totalStk,
+      "",
+      totalVal
+    ]);
+
+    exportToExcel({
+      fileName: `GST_Inventory_Stock_Report_${new Date().toISOString().split("T")[0]}`,
+      sheets: [{ sheetName: "Inventory Valuation", data: sheetData }]
+    });
   };
 
   const handlePrint = () => {
@@ -90,15 +124,15 @@ function GstInventory() {
         <div className="flex gap-3">
           <button 
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shadow transition duration-150 cursor-pointer"
           >
             Print Report
           </button>
           <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition duration-150"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/20 transition duration-150 cursor-pointer"
           >
-            <FaFileCsv /> Export CSV
+            <FaFileExcel className="text-sm" /> Export Excel Report
           </button>
         </div>
       </div>

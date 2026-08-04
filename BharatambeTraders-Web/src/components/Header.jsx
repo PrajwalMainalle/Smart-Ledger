@@ -101,7 +101,7 @@ const Headers = ({ onMenuClick }) => {
 
   return (
     <header className="flex items-center justify-between 
-        bg-slate-900 border-b border-slate-800
+        bg-slate-900 border-b border-slate-800 print:hidden
         shadow px-6 h-16 text-slate-100 z-35">
       <div className="flex items-center gap-3">
         <button
