@@ -582,15 +582,14 @@ const getGstPurchasesSummary = async (req, res) => {
       {
         $project: {
           gstRate: { $ifNull: ["$items.gstRate", 0] },
-          qty: { $ifNull: ["$items.qty", 0] },
-          price: { $ifNull: ["$items.price", 0] },
+          taxableValue: { $ifNull: ["$items.taxableAmount", { $multiply: ["$items.qty", "$items.price"] }] },
           igst: { $ifNull: ["$igst", 0] }
         }
       },
       {
         $project: {
           gstRate: 1,
-          taxableValue: { $multiply: ["$qty", "$price"] },
+          taxableValue: 1,
           isInterstate: { $cond: { if: { $gt: ["$igst", 0] }, then: true, else: false } }
         }
       },
@@ -657,14 +656,7 @@ const getGstPurchasesSummary = async (req, res) => {
       {
         $project: {
           gstRate: { $ifNull: ["$items.gstRate", 0] },
-          qty: { $ifNull: ["$items.qty", 0] },
-          price: { $ifNull: ["$items.price", 0] }
-        }
-      },
-      {
-        $project: {
-          gstRate: 1,
-          taxableValue: { $multiply: ["$qty", "$price"] }
+          taxableValue: { $ifNull: ["$items.taxableAmount", { $multiply: ["$items.qty", "$items.price"] }] }
         }
       },
       {
