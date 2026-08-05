@@ -17,6 +17,7 @@ import {
   FaPercent,
   FaClipboardList,
   FaFileAlt,
+  FaLandmark,
 } from "react-icons/fa";
 import { BsBoxSeamFill } from "react-icons/bs";
 
@@ -42,6 +43,7 @@ const SideBar = ({
     { name: "POS / New Bill", path: "/pos", icon: FaCalculator },
     { name: "Invoices History", path: "/invoices", icon: FaHistory },
     { name: "Inventory", path: "/inventory", icon: BsBoxSeamFill },
+    { name: "Government Schools", path: "/gov-schools", icon: FaLandmark },
     { name: "Request Book", path: "/request-book", icon: FaClipboardList },
     { name: "Purchases", path: "/purchases", icon: FaReceipt },
     { name: "Quotations", path: "/quotations", icon: FaFileAlt },

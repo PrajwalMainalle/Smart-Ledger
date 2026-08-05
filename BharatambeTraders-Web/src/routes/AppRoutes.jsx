@@ -19,6 +19,7 @@ import GstSummary from "../features/gst/screens/GstSummary";
 import GstInventory from "../features/gst/screens/GstInventory";
 import GstCAReports from "../features/gst/screens/GstCAReports";
 import QuotationListPage from "../features/quotations/screens/QuotationList";
+import GovSchoolsPage from "../features/gov-funds/screens/GovSchoolsPage";
 
 const AppRoutes = () => {
   return (
@@ -49,6 +50,9 @@ const AppRoutes = () => {
             <Route path="/gst/summary" element={<GstSummary />} />
             <Route path="/gst/inventory" element={<GstInventory />} />
             <Route path="/gst/ca-reports" element={<GstCAReports />} />
+
+            {/* Government Schools Panel Route */}
+            <Route path="/gov-schools" element={<GovSchoolsPage />} />
           </Route>
         </Route>
 

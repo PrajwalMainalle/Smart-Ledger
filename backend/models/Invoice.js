@@ -161,8 +161,28 @@ const InvoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "UPI", "Card", "Credit", "Split", "Exchange"],
+      enum: ["Cash", "UPI", "Card", "Credit", "Split", "Exchange", "Government School Fund"],
       default: "Cash",
+    },
+    govSchoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GovSchool",
+      default: null,
+    },
+    govGrantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GovGrant",
+      default: null,
+    },
+    govTeacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GovTeacher",
+      default: null,
+    },
+    govDetails: {
+      schoolName: { type: String, default: "" },
+      grantName: { type: String, default: "" },
+      teacherName: { type: String, default: "" },
     },
     cashAmount: {
       type: Number,

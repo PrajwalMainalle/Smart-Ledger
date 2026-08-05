@@ -4,6 +4,12 @@ const User = require("../models/User");
 const Customer = require("../models/Customer");
 const CustomerLedger = require("../models/CustomerLedger");
 const DamagedStock = require("../models/DamagedStock");
+const GovGrant = require("../models/GovGrant");
+const GovSchool = require("../models/GovSchool");
+const GovTeacher = require("../models/GovTeacher");
+const GovTransaction = require("../models/GovTransaction");
+const GovAuditLog = require("../models/GovAuditLog");
+const { calculateGrantBalance } = require("./govFundController");
 const { generateInvoicePDF } = require("../utils/pdfGenerator");
 const path = require("path");
 const fs = require("fs");
@@ -70,7 +76,10 @@ const createInvoice = async (req, res) => {
     returnedItems,
     cashAmount,
     upiAmount,
-    date
+    date,
+    govSchoolId,
+    govGrantId,
+    govTeacherId,
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -79,6 +88,18 @@ const createInvoice = async (req, res) => {
 
   try {
     const tenantId = req.user._id;
+
+    // Government School Fund Validation before checkout
+    let targetGovSchool = null;
+    if (paymentMethod === "Government School Fund") {
+      if (!govSchoolId) {
+        return res.status(400).json({ message: "School selection is required for Government School Fund payment" });
+      }
+      targetGovSchool = await GovSchool.findOne({ _id: govSchoolId, tenantId, isDeleted: { $ne: true } });
+      if (!targetGovSchool) {
+        return res.status(404).json({ message: "Selected Government School record not found" });
+      }
+    }
 
     // 1. Verify stock availability first & cache products for cost calculations
     const checkedItems = [];
@@ -353,6 +374,16 @@ const createInvoice = async (req, res) => {
     const revenueTotal = Math.max(0, revenueNewItemsTotal - revenueReturnedTotal);
     const finalRevenueRoundedTotal = Math.round(revenueTotal);
 
+    // Check Government School Fund remaining balance right before finalizing checkout
+    if (paymentMethod === "Government School Fund" && targetGovSchool) {
+      const stats = await getSchoolFundStats(tenantId, targetGovSchool._id, targetGovSchool.grantedAmount);
+      if (finalRoundedTotal > stats.remainingAmount) {
+        return res.status(400).json({
+          message: `Insufficient Granted Amount for '${targetGovSchool.schoolName}'. Available balance: ₹${stats.remainingAmount.toFixed(2)}, Bill Total: ₹${finalRoundedTotal.toFixed(2)}.`,
+        });
+      }
+    }
+
     // Determine Paid Amount and Outstanding
     let paidAmount = 0;
     let outstandingAmount = 0;
@@ -442,6 +473,12 @@ const createInvoice = async (req, res) => {
       revenueSgst,
       revenueIgst,
       paymentMethod: paymentMethod || "Cash",
+      govSchoolId: paymentMethod === "Government School Fund" ? govSchoolId : null,
+      govDetails: paymentMethod === "Government School Fund" ? {
+        schoolName: targetGovSchool?.schoolName || "",
+        headmasterName: targetGovSchool?.headmasterName || "",
+        contactNumber: targetGovSchool?.contactNumber || "",
+      } : {},
       cashAmount: savedCashAmount,
       upiAmount: savedUpiAmount,
       status: isQuotation ? "Quotation" : "Paid",

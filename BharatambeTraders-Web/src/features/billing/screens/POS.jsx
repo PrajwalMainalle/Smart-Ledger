@@ -78,6 +78,22 @@ function POS() {
   const [editCash, setEditCash] = useState(0);
   const [editUpi, setEditUpi] = useState(0);
   const [editAmountPaid, setEditAmountPaid] = useState(0);
+
+  // Government School Fund states
+  const [selectedGovSchoolId, setSelectedGovSchoolId] = useState("");
+  const [selectedGovGrantId, setSelectedGovGrantId] = useState("");
+  const [selectedGovTeacherId, setSelectedGovTeacherId] = useState("");
+  const [govSchoolsList, setGovSchoolsList] = useState([]);
+  const [govGrantsList, setGovGrantsList] = useState([]);
+  const [govTeachersList, setGovTeachersList] = useState([]);
+
+  useEffect(() => {
+    if (paymentMethod === "Government School Fund") {
+      axiosInstance.get("/gov-funds/schools").then((res) => setGovSchoolsList(res.data)).catch(console.error);
+      axiosInstance.get("/gov-funds/grants").then((res) => setGovGrantsList(res.data)).catch(console.error);
+      axiosInstance.get("/gov-funds/teachers").then((res) => setGovTeachersList(res.data)).catch(console.error);
+    }
+  }, [paymentMethod]);
   
   // Return Lookup Modal states
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -301,6 +317,19 @@ function POS() {
       return;
     }
 
+    if (paymentMethod === "Government School Fund") {
+      if (!selectedGovSchoolId) {
+        alert("Please select a Government School for Government School Fund payment.");
+        return;
+      }
+      const selSchoolObj = govSchoolsList.find((s) => s._id === selectedGovSchoolId);
+      const remaining = selSchoolObj?.remainingAmount ?? selSchoolObj?.grantedAmount ?? 0;
+      if (grandTotal > remaining) {
+        alert(`Insufficient Granted Amount for '${selSchoolObj?.schoolName}'! Bill total is ₹${grandTotal.toFixed(2)}, but available balance is only ₹${remaining.toFixed(2)}.`);
+        return;
+      }
+    }
+
     // Verify no item exceeds available stock
     const overStockItem = cart.find(item => item.qty > item.maxStock);
     if (overStockItem) {
@@ -360,6 +389,9 @@ function POS() {
         cashAmount: paymentMethod === "Split" ? cashAmount : 0,
         upiAmount: paymentMethod === "Split" ? upiAmount : 0,
         date: customInvoiceDate,
+        govSchoolId: paymentMethod === "Government School Fund" ? selectedGovSchoolId : null,
+        govGrantId: paymentMethod === "Government School Fund" ? selectedGovGrantId : null,
+        govTeacherId: paymentMethod === "Government School Fund" ? selectedGovTeacherId : null,
       };
 
       dispatch(checkout(taxInvoiceData)).then((resTax) => {
@@ -380,6 +412,9 @@ function POS() {
             cashAmount: 0,
             upiAmount: 0,
             date: customInvoiceDate,
+            govSchoolId: paymentMethod === "Government School Fund" ? selectedGovSchoolId : null,
+            govGrantId: paymentMethod === "Government School Fund" ? selectedGovGrantId : null,
+            govTeacherId: paymentMethod === "Government School Fund" ? selectedGovTeacherId : null,
           };
 
           dispatch(checkout(quotationData)).then((resQuote) => {
@@ -426,6 +461,9 @@ function POS() {
             cashAmount: paymentMethod === "Split" ? cashAmount : 0,
             upiAmount: paymentMethod === "Split" ? upiAmount : 0,
             date: customInvoiceDate,
+            govSchoolId: paymentMethod === "Government School Fund" ? selectedGovSchoolId : null,
+            govGrantId: paymentMethod === "Government School Fund" ? selectedGovGrantId : null,
+            govTeacherId: paymentMethod === "Government School Fund" ? selectedGovTeacherId : null,
           }
         })
       : checkout({
@@ -442,6 +480,9 @@ function POS() {
           cashAmount: paymentMethod === "Split" ? cashAmount : 0,
           upiAmount: paymentMethod === "Split" ? upiAmount : 0,
           date: customInvoiceDate,
+          govSchoolId: paymentMethod === "Government School Fund" ? selectedGovSchoolId : null,
+          govGrantId: paymentMethod === "Government School Fund" ? selectedGovGrantId : null,
+          govTeacherId: paymentMethod === "Government School Fund" ? selectedGovTeacherId : null,
         });
 
     dispatch(checkoutAction).then((res) => {
@@ -1291,7 +1332,7 @@ function POS() {
           <span className="text-xs font-bold uppercase tracking-wider text-slate-450 block">Payment Method</span>
           <div className="flex flex-wrap gap-1.5">
             {(() => {
-              const baseMethods = ["Cash", "UPI", "Card", "Credit", "Split"];
+              const baseMethods = ["Cash", "UPI", "Card", "Credit", "Split", "Government School Fund"];
               const methods = (returnedItems.length > 0 || editingInvoiceId)
                 ? [...baseMethods, "Exchange"]
                 : baseMethods;
@@ -1302,7 +1343,7 @@ function POS() {
                     key={method}
                     type="button"
                     onClick={() => dispatch(setPaymentMethod(method))}
-                    className={`flex-1 min-w-[70px] py-2 rounded-lg text-xs font-bold border transition-all duration-150
+                    className={`flex-1 min-w-[80px] py-2 px-1 rounded-lg text-[11px] font-bold border transition-all duration-150
                       ${active 
                         ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
                         : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
@@ -1316,6 +1357,67 @@ function POS() {
             })()}
           </div>
         </div>
+
+        {paymentMethod === "Government School Fund" && (
+          <div className="bg-slate-900/80 p-3 rounded-lg border border-amber-500/30 text-xs space-y-2.5 text-left">
+            <span className="text-[11px] font-bold uppercase text-amber-400 block tracking-wider flex items-center gap-1.5">
+              🏛️ Government School Details
+            </span>
+
+            {/* Select School */}
+            <div>
+              <label className="block text-[10px] text-slate-400 font-semibold mb-1">Select Government School *</label>
+              <select
+                value={selectedGovSchoolId}
+                onChange={(e) => setSelectedGovSchoolId(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+              >
+                <option value="">-- Select Government School --</option>
+                {govSchoolsList.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.schoolName} (HM: {s.headmasterName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Live Remaining Balance Alert */}
+            {selectedGovSchoolId && (() => {
+              const selSchoolObj = govSchoolsList.find((s) => s._id === selectedGovSchoolId);
+              const granted = selSchoolObj?.grantedAmount || 0;
+              const remaining = selSchoolObj?.remainingAmount ?? granted;
+              const hasBalance = remaining >= grandTotal;
+
+              return (
+                <div className="p-2.5 bg-slate-950 rounded border border-slate-800 space-y-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-400">Head Master:</span>
+                    <span className="font-semibold text-slate-200">{selSchoolObj?.headmasterName}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-400">Contact Number:</span>
+                    <span className="font-mono text-slate-200">{selSchoolObj?.contactNumber}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-400">Granted Amount:</span>
+                    <span className="font-bold text-slate-100">₹{granted.toLocaleString()}</span>
+                  </div>
+                  <div className={`flex justify-between text-[11px] font-black pt-1 border-t border-slate-800 ${
+                    hasBalance ? "text-emerald-400" : "text-red-400"
+                  }`}>
+                    <span>Remaining Balance:</span>
+                    <span>₹{remaining.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {!hasBalance && (
+                    <p className="text-[10px] text-red-400 font-bold pt-1 text-center">
+                      ⚠️ Bill total exceeds school remaining balance!
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {paymentMethod === "Credit" && (
           <div className="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-900 text-xs">

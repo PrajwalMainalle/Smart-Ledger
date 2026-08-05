@@ -4,6 +4,7 @@ import billingReducer from "../../features/billing/billingSlice";
 import authReducer from "../../features/auth/authSlice";
 import customerReducer from "../../features/customers/customerSlice";
 import requestsReducer from "../../features/requests/requestsSlice";
+import govFundsReducer from "../../features/gov-funds/govFundSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     billing: billingReducer,
     customers: customerReducer,
     requests: requestsReducer,
+    govFunds: govFundsReducer,
   },
 });
 
