@@ -188,9 +188,9 @@ function GstSales() {
   const { summary, ratesBreakdown, nonGstRatesBreakdown } = data || { summary: {}, ratesBreakdown: [], nonGstRatesBreakdown: [] };
 
   const getReportTitle = () => {
-    if (printMode === "gst") return "GST Sales Tax Report (GST Bills)";
-    if (printMode === "nongst") return "Non-GST Sales Report (Retail Bills)";
-    return "Sales GST Tax Report (Combined)";
+    if (printMode === "gst") return "GST Sales Tax Report";
+    if (printMode === "nongst") return "Non-GST Sales Report";
+    return "Sales GST Tax Report";
   };
 
   return (

@@ -153,24 +153,25 @@ function GstPurchases() {
   const { summary, ratesBreakdown, nonGstRatesBreakdown } = data || { summary: {}, ratesBreakdown: [], nonGstRatesBreakdown: [] };
 
   const getReportTitle = () => {
-    if (printMode === "gst") return "GST Purchases Report (With GSTIN)";
-    if (printMode === "nongst") return "Non-GST Purchases Report (Without GSTIN)";
-    return "Purchases GST Tax Report (Combined)";
+    if (printMode === "gst") return "GST Purchases Report";
+    if (printMode === "nongst") return "Non-GST Purchases Report";
+    return "Purchases GST Tax Report";
   };
 
   return (
     <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
-      {/* Printable Header (Visible only when printing) */}
-      <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">
+      {/* Printable Formal Document Header (Visible ONLY when printing) */}
+      <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-4">
         <div className="flex justify-between items-start">
           <div>
             <MultiColorCompanyTitle className="text-2xl font-black tracking-tight" />
             <MultiColorReportTitle title={getReportTitle()} className="text-lg font-bold mt-1" />
-            <p className="text-xs text-slate-600 mt-0.5">Filter Period: <span className="font-semibold">{getDateRangeLabel()}</span></p>
+            <p className="text-xs text-slate-700 mt-0.5">Filter Range: <span className="font-bold">{getDateRangeLabel()}</span></p>
           </div>
-          <div className="text-right text-xs text-slate-500">
+          <div className="text-right text-xs text-slate-700 font-mono">
             <p>Generated on: {new Date().toLocaleDateString("en-IN")} {new Date().toLocaleTimeString("en-IN")}</p>
+            <p className="mt-1 font-sans font-bold text-slate-900">CA Audit Copy</p>
           </div>
         </div>
       </div>
