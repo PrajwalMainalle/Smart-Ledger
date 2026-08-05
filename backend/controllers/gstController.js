@@ -195,12 +195,14 @@ const getGstDashboard = async (req, res) => {
     // 2. Purchases metrics
     const purchases = await Purchase.find({ tenantId }).lean();
 
+    const hasSupplierGstin = (p) => p.isGst !== false && Boolean(p.supplierGst && p.supplierGst.trim());
+
     const monthlyGstPurchases = purchases
-      .filter(p => p.date >= startOfMonth && p.isGst)
+      .filter(p => p.date >= startOfMonth && hasSupplierGstin(p))
       .reduce((sum, p) => sum + p.total, 0);
 
     const monthlyNonGstPurchases = purchases
-      .filter(p => p.date >= startOfMonth && !p.isGst)
+      .filter(p => p.date >= startOfMonth && !hasSupplierGstin(p))
       .reduce((sum, p) => sum + p.total, 0);
 
     const filteredPurchases = purchases.filter(p => {
@@ -209,8 +211,8 @@ const getGstDashboard = async (req, res) => {
       return true;
     });
 
-    const periodGstPurchases = filteredPurchases.filter(p => p.isGst).reduce((sum, p) => sum + p.total, 0);
-    const periodNonGstPurchases = filteredPurchases.filter(p => !p.isGst).reduce((sum, p) => sum + p.total, 0);
+    const periodGstPurchases = filteredPurchases.filter(p => hasSupplierGstin(p)).reduce((sum, p) => sum + p.total, 0);
+    const periodNonGstPurchases = filteredPurchases.filter(p => !hasSupplierGstin(p)).reduce((sum, p) => sum + p.total, 0);
 
     // Net Sales (Total Sales - Returns)
     const totalSales = sales.reduce((sum, inv) => sum + (inv.revenueTotal !== undefined ? inv.revenueTotal : inv.total), 0);
@@ -349,9 +351,9 @@ const getGstSalesSummary = async (req, res) => {
           isInterstate: { $cond: { if: { $gt: ["$igst", 0] }, then: true, else: false } },
           isInclusive: {
             $cond: {
-              if: { $in: ["$customerType", ["School", "Retail"]] },
-              then: true,
-              else: false
+              if: { $in: ["$customerType", ["B2B", "Wholesale", "Trader", "Distributor"]] },
+              then: false,
+              else: true
             }
           },
           rawItemSubtotal: { $multiply: ["$qty", "$price", "$discountRatio"] }
@@ -567,10 +569,11 @@ const getGstPurchasesSummary = async (req, res) => {
       ...dateQuery
     };
 
-    // Group purchases by GST rate (where isGst is true)
+    // Group purchases by GST rate (where isGst is true and supplierGst is non-empty)
     const gstPurchasesMatchStage = {
       ...matchStage,
-      isGst: { $ne: false }
+      isGst: { $ne: false },
+      supplierGst: { $exists: true, $ne: "", $regex: /\S/ }
     };
 
     const ratesBreakdown = await Purchase.aggregate([
@@ -636,10 +639,16 @@ const getGstPurchasesSummary = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Group purchases by GST rate (where isGst is false)
+    // Group purchases by GST rate (where isGst is false OR supplierGst is empty)
     const nonGstPurchasesMatchStage = {
       ...matchStage,
-      isGst: false
+      $or: [
+        { isGst: false },
+        { supplierGst: { $exists: false } },
+        { supplierGst: "" },
+        { supplierGst: null },
+        { supplierGst: { $regex: /^\s*$/ } }
+      ]
     };
 
     const nonGstRatesBreakdown = await Purchase.aggregate([
@@ -675,12 +684,30 @@ const getGstPurchasesSummary = async (req, res) => {
           _id: null,
           gstPurchases: {
             $sum: {
-              $cond: { if: { $ne: ["$isGst", false] }, then: "$total", else: 0 }
+              $cond: {
+                if: {
+                  $and: [
+                    { $ne: ["$isGst", false] },
+                    { $ne: [{ $ifNull: ["$supplierGst", ""] }, ""] }
+                  ]
+                },
+                then: "$total",
+                else: 0
+              }
             }
           },
           nonGstPurchases: {
             $sum: {
-              $cond: { if: { $eq: ["$isGst", false] }, then: "$total", else: 0 }
+              $cond: {
+                if: {
+                  $or: [
+                    { $eq: ["$isGst", false] },
+                    { $eq: [{ $ifNull: ["$supplierGst", ""] }, ""] }
+                  ]
+                },
+                then: "$total",
+                else: 0
+              }
             }
           },
           totalPurchases: { $sum: "$total" },
