@@ -8,6 +8,21 @@ const GovGrantSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    fundNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      default: null,
+    },
+    invoiceNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     schoolId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "GovSchool",
@@ -16,26 +31,46 @@ const GovGrantSchema = new mongoose.Schema(
     },
     headmasterName: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     grantName: {
       type: String,
       required: true,
+      default: "Composite School Grant",
       trim: true,
     },
     academicYear: {
       type: String,
-      required: true,
+      default: "2026-27",
       trim: true,
     },
     grantCategory: {
       type: String,
-      required: true,
       default: "Composite School Grant",
       trim: true,
     },
-    grantAmount: {
+    department: {
+      type: String,
+      default: "School Education Department",
+      trim: true,
+    },
+    approvedBudget: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    materialUtilized: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    cashWithdrawn: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    remainingBalance: {
       type: Number,
       required: true,
       min: 0,
@@ -56,8 +91,18 @@ const GovGrantSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Active", "Closed"],
-      default: "Active",
+      enum: [
+        "Draft Invoice",
+        "Invoice Issued",
+        "Government Approved",
+        "Fund Active",
+        "Partially Utilized",
+        "Fully Utilized",
+        "Closed",
+        "Cancelled",
+        "Expired",
+      ],
+      default: "Fund Active",
       index: true,
     },
     closedAt: {
@@ -72,6 +117,6 @@ const GovGrantSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-GovGrantSchema.index({ tenantId: 1, schoolId: 1 });
+GovGrantSchema.index({ tenantId: 1, schoolId: 1, fundNumber: 1 });
 
 module.exports = mongoose.model("GovGrant", GovGrantSchema);

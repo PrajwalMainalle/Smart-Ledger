@@ -494,6 +494,50 @@ const createInvoice = async (req, res) => {
     // Save invoice to DB
     const savedInvoice = await invoice.save();
 
+    // If this is a Government Invoice / Government School bill, lock it and auto-initialize the Government Fund Account
+    if (!isQuotation && (customerType === "School" || paymentMethod === "Government School Fund" || govSchoolId || req.body.isGovInvoice)) {
+      try {
+        savedInvoice.isGovInvoice = true;
+        savedInvoice.isLocked = true;
+        savedInvoice.govFundStatus = "Invoice Issued";
+        await savedInvoice.save();
+
+        let school = targetGovSchool;
+        if (!school && govSchoolId) {
+          school = await GovSchool.findOne({ _id: govSchoolId, tenantId });
+        }
+        if (!school && customerName && customerName !== "Walk-in Customer") {
+          school = await GovSchool.findOne({ tenantId, schoolName: customerName });
+        }
+
+        if (school) {
+          const fundCount = await GovGrant.countDocuments({ tenantId });
+          const currentYear = new Date().getFullYear();
+          const fundNumber = `GF-${currentYear}-${String(fundCount + 1).padStart(4, "0")}`;
+
+          await GovGrant.create({
+            tenantId,
+            fundNumber,
+            invoiceId: savedInvoice._id,
+            invoiceNumber: savedInvoice.invoiceId,
+            schoolId: school._id,
+            headmasterName: school.headmasterName,
+            grantName: req.body.grantName || "Composite School Grant",
+            grantCategory: req.body.grantCategory || "Composite School Grant",
+            academicYear: req.body.academicYear || `${currentYear}-${(currentYear + 1).toString().slice(-2)}`,
+            department: req.body.department || "School Education Department",
+            approvedBudget: savedInvoice.total,
+            materialUtilized: 0,
+            cashWithdrawn: 0,
+            remainingBalance: savedInvoice.total,
+            status: "Invoice Issued",
+          });
+        }
+      } catch (govErr) {
+        console.error("Non-fatal error initializing Government Fund Account for invoice:", govErr.message);
+      }
+    }
+
     // 5. Generate & Save PDF file on Server disk (optional cached copy)
     try {
       await generateInvoicePDF(savedInvoice, tenantUser, absolutePdfPath);
@@ -1248,6 +1292,12 @@ const updateInvoice = async (req, res) => {
 
     if (!invoice) {
       return res.status(404).json({ message: "Invoice not found or unauthorized" });
+    }
+
+    if (invoice.isLocked || invoice.isGovInvoice) {
+      return res.status(400).json({
+        message: "Government Invoice is locked and read-only. Invoice amounts, GST, and items cannot be modified directly after issuance.",
+      });
     }
 
     // Fetch tenant settings for GST billing rules and state info

@@ -16,50 +16,79 @@ import {
   FaReceipt,
   FaCalendarAlt,
   FaBoxes,
+  FaMoneyBillWave,
+  FaHistory,
+  FaUndo,
+  FaCheckCircle,
+  FaPrint,
+  FaExchangeAlt,
 } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import GovFundVoucherModal from "../components/GovFundVoucherModal";
 
 const GovSchoolsPage = () => {
   const [schools, setSchools] = useState([]);
+  const [funds, setFunds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   // Modal State: Create / Edit School
-  const [showModal, setShowModal] = useState(false);
+  const [showSchoolModal, setShowSchoolModal] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
-  const [formData, setFormData] = useState({
+  const [schoolFormData, setSchoolFormData] = useState({
     schoolName: "",
     headmasterName: "",
     contactNumber: "",
     grantedAmount: "",
   });
 
-  // Modal State: View Purchased Items Details
-  const [selectedSchoolDetails, setSelectedSchoolDetails] = useState(null);
-  const [detailsData, setDetailsData] = useState(null);
+  // Modal State: Create Government Fund Account
+  const [showFundModal, setShowFundModal] = useState(false);
+  const [fundFormData, setFundFormData] = useState({
+    schoolId: "",
+    grantName: "Composite School Grant",
+    grantCategory: "Composite School Grant",
+    academicYear: "2026-27",
+    department: "School Education Department",
+    approvedBudget: "",
+    referenceNumber: "",
+    notes: "",
+  });
+
+  // Modal State: View Permanent Audit Ledger
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState(null);
+  const [schoolDetailsData, setSchoolDetailsData] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
+  // Voucher Print State
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
+
   useEffect(() => {
-    fetchSchools();
+    fetchInitialData();
   }, []);
 
-  const fetchSchools = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/gov-funds/schools");
-      setSchools(res.data);
+      const [schoolsRes, fundsRes] = await Promise.all([
+        axiosInstance.get("/gov-funds/schools"),
+        axiosInstance.get("/gov-funds/funds"),
+      ]);
+      setSchools(schoolsRes.data);
+      setFunds(fundsRes.data);
     } catch (err) {
       console.error(err);
-      alert("Failed to load government schools");
+      alert("Failed to load Government School Fund data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenModal = (school = null) => {
+  const handleOpenSchoolModal = (school = null) => {
     if (school) {
       setEditingSchool(school);
-      setFormData({
+      setSchoolFormData({
         schoolName: school.schoolName || "",
         headmasterName: school.headmasterName || "",
         contactNumber: school.contactNumber || "",
@@ -67,29 +96,29 @@ const GovSchoolsPage = () => {
       });
     } else {
       setEditingSchool(null);
-      setFormData({
+      setSchoolFormData({
         schoolName: "",
         headmasterName: "",
         contactNumber: "",
         grantedAmount: "",
       });
     }
-    setShowModal(true);
+    setShowSchoolModal(true);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSchoolSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.schoolName || !formData.headmasterName || !formData.contactNumber || !formData.grantedAmount) {
+    if (!schoolFormData.schoolName || !schoolFormData.headmasterName || !schoolFormData.contactNumber) {
       alert("Please fill all required fields");
       return;
     }
 
     const payload = {
-      schoolName: formData.schoolName,
-      headmasterName: formData.headmasterName,
-      contactNumber: formData.contactNumber,
-      mobileNumber: formData.contactNumber,
-      grantedAmount: formData.grantedAmount,
+      schoolName: schoolFormData.schoolName,
+      headmasterName: schoolFormData.headmasterName,
+      contactNumber: schoolFormData.contactNumber,
+      mobileNumber: schoolFormData.contactNumber,
+      grantedAmount: schoolFormData.grantedAmount || 0,
     };
 
     try {
@@ -98,37 +127,100 @@ const GovSchoolsPage = () => {
       } else {
         await axiosInstance.post("/gov-funds/schools", payload);
       }
-      setShowModal(false);
-      fetchSchools();
+      setShowSchoolModal(false);
+      fetchInitialData();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to save government school");
+      alert(err.response?.data?.message || "Failed to save school record");
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete government school record for "${name}"?`)) {
+  const handleOpenFundModal = (schoolId = "") => {
+    setFundFormData({
+      schoolId: schoolId || (schools.length > 0 ? schools[0]._id : ""),
+      grantName: "Composite School Grant",
+      grantCategory: "Composite School Grant",
+      academicYear: "2026-27",
+      department: "School Education Department",
+      approvedBudget: "",
+      referenceNumber: "",
+      notes: "",
+    });
+    setShowFundModal(true);
+  };
+
+  const handleFundSubmit = async (e) => {
+    e.preventDefault();
+    if (!fundFormData.schoolId || !fundFormData.approvedBudget || parseFloat(fundFormData.approvedBudget) <= 0) {
+      alert("Please select a school and enter an Approved Budget (> ₹0)");
+      return;
+    }
+
+    try {
+      await axiosInstance.post("/gov-funds/funds", fundFormData);
+      alert("Government Fund Account created successfully!");
+      setShowFundModal(false);
+      fetchInitialData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to create Government Fund Account");
+    }
+  };
+
+  const handleActivateFund = async (fundId) => {
+    if (window.confirm("Activate this Government Fund Account? This enables material distribution & cash withdrawals via POS.")) {
       try {
-        await axiosInstance.delete(`/gov-funds/schools/${id}`);
-        fetchSchools();
+        await axiosInstance.put(`/gov-funds/funds/${fundId}/activate`);
+        alert("Fund Account activated successfully!");
+        fetchInitialData();
       } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Failed to delete school");
+        alert(err.response?.data?.message || "Failed to activate fund account");
       }
     }
   };
 
-  const handleViewDetails = async (school) => {
-    setSelectedSchoolDetails(school);
+  const handleViewSchoolLedger = async (school) => {
+    setSelectedSchool(school);
+    setShowLedgerModal(true);
     setDetailsLoading(true);
     try {
       const res = await axiosInstance.get(`/gov-funds/schools/${school._id}`);
-      setDetailsData(res.data);
+      setSchoolDetailsData(res.data);
     } catch (err) {
       console.error(err);
-      alert("Failed to load school purchase details");
+      alert("Failed to load school fund audit ledger");
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  const handleReverseLedger = async (ledgerId, voucherNo) => {
+    const reason = window.prompt(`Enter reason for reversing transaction ${voucherNo}:`, "Correction of entry");
+    if (reason !== null) {
+      try {
+        const res = await axiosInstance.post(`/gov-funds/ledger/${ledgerId}/reverse`, { reason });
+        alert(res.data.message || "Transaction reversed successfully!");
+        if (selectedSchool) {
+          handleViewSchoolLedger(selectedSchool);
+        }
+        fetchInitialData();
+      } catch (err) {
+        console.error(err);
+        alert(err.response?.data?.message || "Failed to reverse transaction");
+      }
+    }
+  };
+
+  const handleDeleteSchool = async (id, name) => {
+    if (window.confirm(`Are you sure you want to delete school record for "${name}"?`)) {
+      try {
+        await axiosInstance.delete(`/gov-funds/schools/${id}`);
+        fetchInitialData();
+      } catch (err) {
+        console.error(err);
+        alert(err.response?.data?.message || "Failed to delete school");
+      }
     }
   };
 
@@ -140,230 +232,263 @@ const GovSchoolsPage = () => {
   );
 
   // Overall KPI Aggregations
-  const totalGrantedAll = schools.reduce((acc, s) => acc + (s.grantedAmount || 0), 0);
-  const totalSpentAll = schools.reduce((acc, s) => acc + (s.totalSpent || 0), 0);
-  const totalRemainingAll = schools.reduce((acc, s) => acc + (s.remainingAmount || 0), 0);
+  const totalApprovedAll = funds.reduce((acc, f) => acc + (f.approvedBudget || 0), 0);
+  const totalMaterialUtilizedAll = funds.reduce((acc, f) => acc + (f.materialUtilized || 0), 0);
+  const totalCashWithdrawnAll = funds.reduce((acc, f) => acc + (f.cashWithdrawn || 0), 0);
+  const totalRemainingAll = funds.reduce((acc, f) => acc + (f.remainingBalance !== undefined ? f.remainingBalance : (f.approvedBudget - f.materialUtilized - f.cashWithdrawn)), 0);
 
   return (
     <div className="p-4 md:p-6 space-y-6 text-slate-100 min-h-screen">
-      {loading && <LoadingOverlay message="Loading Government Schools..." />}
+      {loading && <LoadingOverlay message="Loading Government School Funds..." />}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800 backdrop-blur">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black text-amber-400 flex items-center gap-2">
-            <FaLandmark className="text-amber-500" /> Government Schools Fund Management
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Track school details, head master contacts, granted amounts, and automatically deduct item purchase costs in real time.
-          </p>
-        </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-lg transition flex items-center gap-2 shadow"
-        >
-          <FaPlus /> Add Government School
-        </button>
-      </div>
-
-      {/* KPI Cards Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Granted Amount</span>
-            <span className="text-2xl font-black text-slate-100 mt-1 block">
-              ₹{totalGrantedAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
+      {/* Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+            <FaLandmark className="text-2xl" />
           </div>
-          <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-500/20">
-            <FaLandmark className="text-xl" />
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              Government School Fund Management
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Manage school fund accounts, material distributions, cash withdrawals, and audit ledgers in real time.
+            </p>
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Items Purchased Cost</span>
-            <span className="text-2xl font-black text-blue-400 mt-1 block">
-              ₹{totalSpentAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
-            <FaShoppingBag className="text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Remaining Balance</span>
-            <span className="text-2xl font-black text-emerald-400 mt-1 block">
-              ₹{totalRemainingAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
-            <FaWallet className="text-xl" />
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => handleOpenFundModal()}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95"
+          >
+            <FaPlus /> + Create Fund Account
+          </button>
+          <button
+            onClick={() => handleOpenSchoolModal()}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 transition-colors"
+          >
+            <FaSchool /> + Add Government School
+          </button>
         </div>
       </div>
 
-      {/* Action & Search Bar */}
-      <div className="relative max-w-md">
-        <FaSearch className="absolute left-3 top-3 text-slate-500 text-xs" />
-        <input
-          type="text"
-          placeholder="Search by School Name, Head Master Name, Phone..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-        />
+      {/* Top Analytics KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg">
+          <div className="flex justify-between items-center text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Total Approved Budget</span>
+            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><FaLandmark /></div>
+          </div>
+          <p className="text-2xl font-black text-white font-mono">₹{totalApprovedAll.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium">{funds.length} Fund Accounts Registered</p>
+        </div>
+
+        <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg">
+          <div className="flex justify-between items-center text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Materials Utilized</span>
+            <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><FaBoxes /></div>
+          </div>
+          <p className="text-2xl font-black text-blue-400 font-mono">₹{totalMaterialUtilizedAll.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium">Physical inventory materials issued</p>
+        </div>
+
+        <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg">
+          <div className="flex justify-between items-center text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Cash Withdrawn</span>
+            <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg"><FaMoneyBillWave /></div>
+          </div>
+          <p className="text-2xl font-black text-purple-400 font-mono">₹{totalCashWithdrawnAll.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium">Teacher cash withdrawals logged</p>
+        </div>
+
+        <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg">
+          <div className="flex justify-between items-center text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Remaining Balance</span>
+            <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><FaWallet /></div>
+          </div>
+          <p className="text-2xl font-black text-emerald-400 font-mono">₹{totalRemainingAll.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium">Available for POS utilization</p>
+        </div>
       </div>
 
-      {/* Single Main Table: Government Schools */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      {/* Main Content Area */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40">
+          <div className="relative flex-1 min-w-[240px]">
+            <FaSearch className="absolute left-3.5 top-3 text-slate-500 text-xs" />
+            <input
+              type="text"
+              placeholder="Search school name, headmaster, contact..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+          <div className="text-xs text-slate-400 font-medium">
+            Showing <strong className="text-white">{filteredSchools.length}</strong> Government Schools
+          </div>
+        </div>
+
+        {/* Table of Schools */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-950 text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-800">
               <tr>
-                <th className="p-3">School Name</th>
-                <th className="p-3">Head Master Name</th>
-                <th className="p-3">Contact Number</th>
-                <th className="p-3 text-right">Granted Amount (₹)</th>
-                <th className="p-3 text-right">Items Purchased Cost (₹)</th>
-                <th className="p-3 text-right">Remaining Balance (₹)</th>
-                <th className="p-3 text-center">Actions</th>
+                <th className="p-4">School Details</th>
+                <th className="p-4">Head Master Info</th>
+                <th className="p-4 text-right">Approved Budget</th>
+                <th className="p-4 text-right">Material Utilized</th>
+                <th className="p-4 text-right">Cash Withdrawn</th>
+                <th className="p-4 text-right">Remaining Balance</th>
+                <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {filteredSchools.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="p-6 text-center text-slate-500">
-                    No Government School records found. Click <strong>"+ Add Government School"</strong> to create one.
-                  </td>
-                </tr>
-              ) : (
-                filteredSchools.map((s) => (
-                  <tr key={s._id} className="hover:bg-slate-800/40">
-                    <td className="p-3 font-bold text-slate-100">{s.schoolName}</td>
-                    <td className="p-3 font-semibold text-slate-300">{s.headmasterName}</td>
-                    <td className="p-3 font-mono">{s.contactNumber}</td>
-                    <td className="p-3 text-right font-bold text-slate-100">
-                      ₹{s.grantedAmount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            <tbody className="divide-y divide-slate-850">
+              {filteredSchools.map((school) => {
+                const schoolFunds = funds.filter(f => (f.schoolId?._id === school._id || f.schoolId === school._id));
+                const approved = schoolFunds.reduce((acc, f) => acc + (f.approvedBudget || 0), school.grantedAmount || 0);
+                const matUtil = schoolFunds.reduce((acc, f) => acc + (f.materialUtilized || 0), 0);
+                const cashUtil = schoolFunds.reduce((acc, f) => acc + (f.cashWithdrawn || 0), 0);
+                const remaining = approved - (matUtil + cashUtil);
+
+                return (
+                  <tr key={school._id} className="hover:bg-slate-850/50 transition-colors">
+                    <td className="p-4">
+                      <p className="font-bold text-white text-sm flex items-center gap-2">
+                        <FaSchool className="text-amber-400" /> {school.schoolName}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{schoolFunds.length} Active Fund Accounts</p>
                     </td>
-                    <td className="p-3 text-right font-bold text-blue-400">
-                      ₹{(s.totalSpent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    <td className="p-4">
+                      <p className="font-semibold text-slate-200">{school.headmasterName}</p>
+                      <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                        <FaPhone className="text-[10px]" /> {school.contactNumber || "N/A"}
+                      </p>
                     </td>
-                    <td className="p-3 text-right font-black text-emerald-400">
-                      ₹{(s.remainingAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                    <td className="p-4 text-right font-mono font-bold text-white">₹{approved.toLocaleString()}</td>
+                    <td className="p-4 text-right font-mono font-bold text-blue-400">₹{matUtil.toLocaleString()}</td>
+                    <td className="p-4 text-right font-mono font-bold text-purple-400">₹{cashUtil.toLocaleString()}</td>
+                    <td className="p-4 text-right font-mono font-black text-emerald-400 text-sm">₹{remaining.toLocaleString()}</td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => handleViewDetails(s)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded text-[10px] font-bold transition flex items-center gap-1"
-                          title="View Purchased Items & Ledger"
+                          onClick={() => handleViewSchoolLedger(school)}
+                          className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                          title="View Fund Ledger & History"
                         >
-                          <FaEye /> Purchased Items
+                          <FaHistory /> Audit Ledger
                         </button>
                         <button
-                          onClick={() => handleOpenModal(s)}
-                          className="p-1.5 text-slate-400 hover:text-amber-400 transition"
-                          title="Edit School"
+                          onClick={() => handleOpenFundModal(school._id)}
+                          className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                          title="Add Fund Account"
+                        >
+                          <FaPlus />
+                        </button>
+                        <button
+                          onClick={() => handleOpenSchoolModal(school)}
+                          className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition-colors"
+                          title="Edit School Info"
                         >
                           <FaEdit />
                         </button>
                         <button
-                          onClick={() => handleDelete(s._id, s.schoolName)}
-                          className="p-1.5 text-slate-400 hover:text-red-400 transition"
-                          title="Delete School"
+                          onClick={() => handleDeleteSchool(school._id, school.schoolName)}
+                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                          title="Delete School Record"
                         >
                           <FaTrash />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })}
+              {filteredSchools.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="p-12 text-center text-slate-500 font-medium">
+                    No Government Schools found matching your query.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal 1: Add / Edit Government School */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-xl shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
-                <FaLandmark /> {editingSchool ? "Edit Government School" : "Add Government School"}
+      {/* CREATE / EDIT SCHOOL MODAL */}
+      {showSchoolModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <FaSchool className="text-amber-400" />
+                {editingSchool ? "Edit Government School" : "Add Government School"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowSchoolModal(false)} className="text-slate-400 hover:text-white">
                 <FaTimes />
               </button>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSchoolSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">School Name *</label>
+                <label className="block text-slate-400 font-semibold mb-1">School Name *</label>
                 <input
                   type="text"
                   required
-                  value={formData.schoolName}
-                  onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                  placeholder="e.g. Government High School, Main Branch"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                  value={schoolFormData.schoolName}
+                  onChange={(e) => setSchoolFormData({ ...schoolFormData, schoolName: e.target.value })}
+                  placeholder="e.g. Govt High School Hulsoor"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">Head Master Name *</label>
+                <label className="block text-slate-400 font-semibold mb-1">Headmaster Name *</label>
                 <input
                   type="text"
                   required
-                  value={formData.headmasterName}
-                  onChange={(e) => setFormData({ ...formData, headmasterName: e.target.value })}
-                  placeholder="e.g. Head Master Ramesh Kumar"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                  value={schoolFormData.headmasterName}
+                  onChange={(e) => setSchoolFormData({ ...schoolFormData, headmasterName: e.target.value })}
+                  placeholder="e.g. Ramesh Patil"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">Contact Number *</label>
+                <label className="block text-slate-400 font-semibold mb-1">Contact Number *</label>
                 <input
                   type="text"
                   required
-                  value={formData.contactNumber}
-                  onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
-                  placeholder="e.g. 9876543210"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                  value={schoolFormData.contactNumber}
+                  onChange={(e) => setSchoolFormData({ ...schoolFormData, contactNumber: e.target.value })}
+                  placeholder="e.g. 9449458521"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">Granted Amount (₹) *</label>
+                <label className="block text-slate-400 font-semibold mb-1">Initial Granted Amount (₹)</label>
                 <input
                   type="number"
-                  step="0.01"
                   min="0"
-                  required
-                  value={formData.grantedAmount}
-                  onChange={(e) => setFormData({ ...formData, grantedAmount: e.target.value })}
-                  placeholder="e.g. 100000"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono"
+                  value={schoolFormData.grantedAmount}
+                  onChange={(e) => setSchoolFormData({ ...schoolFormData, grantedAmount: e.target.value })}
+                  placeholder="e.g. 50000"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500 font-mono"
                 />
               </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg transition"
+                  onClick={() => setShowSchoolModal(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-lg transition"
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold rounded-xl shadow-lg"
                 >
-                  {editingSchool ? "Update Record" : "Save Record"}
+                  Save School
                 </button>
               </div>
             </form>
@@ -371,136 +496,261 @@ const GovSchoolsPage = () => {
         </div>
       )}
 
-      {/* Modal 2: View Purchased Items & Ledger Breakdown */}
-      {selectedSchoolDetails && (
+      {/* CREATE GOVERNMENT FUND ACCOUNT MODAL */}
+      {showFundModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl p-5 space-y-4 flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <FaLandmark className="text-amber-400" /> Create Government Fund Account
+              </h3>
+              <button onClick={() => setShowFundModal(false)} className="text-slate-400 hover:text-white">
+                <FaTimes />
+              </button>
+            </div>
+            <form onSubmit={handleFundSubmit} className="space-y-3 text-xs">
               <div>
-                <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
-                  <FaBoxes /> Purchased Items History: {selectedSchoolDetails.schoolName}
+                <label className="block text-slate-400 font-semibold mb-1">Select Government School *</label>
+                <select
+                  required
+                  value={fundFormData.schoolId}
+                  onChange={(e) => setFundFormData({ ...fundFormData, schoolId: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">-- Select School --</option>
+                  {schools.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.schoolName} ({s.headmasterName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Grant Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={fundFormData.grantName}
+                    onChange={(e) => setFundFormData({ ...fundFormData, grantName: e.target.value })}
+                    placeholder="e.g. Library Grant"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Academic Year</label>
+                  <input
+                    type="text"
+                    value={fundFormData.academicYear}
+                    onChange={(e) => setFundFormData({ ...fundFormData, academicYear: e.target.value })}
+                    placeholder="e.g. 2026-27"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Approved Budget Amount (₹) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={fundFormData.approvedBudget}
+                  onChange={(e) => setFundFormData({ ...fundFormData, approvedBudget: e.target.value })}
+                  placeholder="e.g. 50000"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Reference Number / Sanction Order (Optional)</label>
+                <input
+                  type="text"
+                  value={fundFormData.referenceNumber}
+                  onChange={(e) => setFundFormData({ ...fundFormData, referenceNumber: e.target.value })}
+                  placeholder="e.g. GOVT/EDU/2026/8942"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFundModal(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold rounded-xl shadow-lg"
+                >
+                  Create Fund Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PERMANENT AUDIT LEDGER & HISTORY MODAL */}
+      {showLedgerModal && selectedSchool && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="bg-slate-950 px-6 py-4 flex items-center justify-between border-b border-slate-800">
+              <div>
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <FaHistory className="text-amber-400" /> Government Fund Audit Ledger – {selectedSchool.schoolName}
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Head Master: {selectedSchoolDetails.headmasterName} • Phone: {selectedSchoolDetails.contactNumber}
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Permanent audit history log of all material distributions, cash withdrawals, and fund balance updates.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedSchoolDetails(null);
-                  setDetailsData(null);
-                }}
-                className="text-slate-400 hover:text-white"
-              >
+              <button onClick={() => setShowLedgerModal(false)} className="text-slate-400 hover:text-white p-2">
                 <FaTimes />
               </button>
             </div>
 
-            {detailsLoading || !detailsData ? (
-              <div className="p-8 text-center text-slate-400">Loading purchase details...</div>
-            ) : (
-              <div className="overflow-y-auto space-y-5 flex-1 pr-1">
-                {/* Summary Banner */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Granted Amount</span>
-                    <span className="text-base font-black text-slate-100">
-                      ₹{detailsData.summary.grantedAmount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </span>
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              {detailsLoading ? (
+                <div className="p-8 text-center text-slate-400">Loading audit ledger history...</div>
+              ) : schoolDetailsData ? (
+                <>
+                  {/* Fund Accounts Summary Grid */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                      <FaLandmark className="text-amber-400" /> Government Fund Accounts ({schoolDetailsData.funds?.length || 0})
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(schoolDetailsData.funds || []).map((f) => (
+                        <div key={f._id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-white text-xs">{f.fundNumber} | {f.grantName}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              f.status === "Fund Active" ? "bg-emerald-950 text-emerald-400 border border-emerald-800" :
+                              f.status === "Partially Utilized" ? "bg-amber-950 text-amber-400 border border-amber-800" :
+                              "bg-slate-800 text-slate-400"
+                            }`}>
+                              {f.status}
+                            </span>
+                          </div>
+                          {f.invoiceNumber && (
+                            <p className="text-[11px] text-slate-400">Ref Tax Invoice: <strong className="text-slate-200 font-mono">{f.invoiceNumber}</strong></p>
+                          )}
+                          <div className="grid grid-cols-3 gap-1 pt-2 border-t border-slate-900 text-[11px] text-center">
+                            <div>
+                              <span className="text-slate-500 block text-[10px]">Approved</span>
+                              <span className="font-bold text-slate-200">₹{(f.approvedBudget || 0).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[10px]">Utilized</span>
+                              <span className="font-bold text-blue-400">₹{((f.materialUtilized || 0) + (f.cashWithdrawn || 0)).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[10px]">Remaining</span>
+                              <span className="font-bold text-emerald-400">₹{(f.remainingBalance || 0).toLocaleString()}</span>
+                            </div>
+                          </div>
+                          {["Invoice Issued", "Pending Approval"].includes(f.status) && (
+                            <button
+                              onClick={() => handleActivateGovFund(f._id)}
+                              className="w-full mt-2 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold"
+                            >
+                              <FaCheckCircle className="inline mr-1" /> Activate Fund Account
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Total Items Purchased Cost</span>
-                    <span className="text-base font-black text-blue-400">
-                      ₹{detailsData.summary.totalSpent?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Remaining Balance</span>
-                    <span className="text-base font-black text-emerald-400">
-                      ₹{detailsData.summary.remainingAmount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Purchased Items Table */}
-                <div>
-                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Itemised Purchased Products</h4>
-                  <div className="overflow-x-auto border border-slate-800 rounded-lg">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase border-b border-slate-800">
-                        <tr>
-                          <th className="p-2.5">Date</th>
-                          <th className="p-2.5">Invoice #</th>
-                          <th className="p-2.5">Purchased Item Name</th>
-                          <th className="p-2.5 text-right">Qty</th>
-                          <th className="p-2.5 text-right">Unit Price (₹)</th>
-                          <th className="p-2.5 text-right">Total Cost (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800 text-slate-300">
-                        {detailsData.purchasedItems.length === 0 ? (
+                  {/* Permanent Audit Log Table */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                      <FaReceipt className="text-amber-400" /> Permanent Transaction Ledger Log ({schoolDetailsData.ledgers?.length || 0})
+                    </h4>
+                    <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-900 text-slate-400 uppercase font-bold text-[9.5px] tracking-wider border-b border-slate-800">
                           <tr>
-                            <td colSpan="6" className="p-4 text-center text-slate-500">
-                              No items purchased by this school yet.
-                            </td>
+                            <th className="p-3">Voucher #</th>
+                            <th className="p-3">Date</th>
+                            <th className="p-3">Type</th>
+                            <th className="p-3">Teacher Info</th>
+                            <th className="p-3 text-right">Deducted Amount</th>
+                            <th className="p-3 text-right">Balance After</th>
+                            <th className="p-3 text-center">Actions</th>
                           </tr>
-                        ) : (
-                          detailsData.purchasedItems.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-800/40">
-                              <td className="p-2.5 font-mono">{new Date(item.date).toLocaleDateString()}</td>
-                              <td className="p-2.5 font-mono font-bold text-amber-400">{item.invoiceNumber}</td>
-                              <td className="p-2.5 font-semibold text-slate-100">{item.name}</td>
-                              <td className="p-2.5 text-right font-bold text-slate-200">{item.qty}</td>
-                              <td className="p-2.5 text-right">₹{item.price?.toLocaleString()}</td>
-                              <td className="p-2.5 text-right font-black text-blue-400">
-                                ₹{item.total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </thead>
+                        <tbody className="divide-y divide-slate-900">
+                          {(schoolDetailsData.ledgers || []).map((log) => (
+                            <tr key={log._id} className={log.isReversal ? "bg-red-950/20" : ""}>
+                              <td className="p-3 font-mono font-bold text-amber-400">{log.voucherNumber}</td>
+                              <td className="p-3 text-slate-400">{new Date(log.date).toLocaleDateString("en-IN")}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  log.type === "Material Issue" ? "bg-blue-950 text-blue-400 border border-blue-800" :
+                                  log.type === "Cash Withdrawal" ? "bg-purple-950 text-purple-400 border border-purple-800" :
+                                  log.type === "Reversal" ? "bg-red-950 text-red-400 border border-red-800" :
+                                  "bg-amber-950 text-amber-400 border border-amber-800"
+                                }`}>
+                                  {log.type}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-300">
+                                {log.teacherDetails?.name || "N/A"}
+                                {log.teacherDetails?.designation && <span className="text-slate-500 block text-[10px]">{log.teacherDetails.designation}</span>}
+                              </td>
+                              <td className="p-3 text-right font-mono font-bold text-white">₹{(log.amount || 0).toFixed(2)}</td>
+                              <td className="p-3 text-right font-mono font-bold text-emerald-400">₹{(log.balanceAfter || 0).toFixed(2)}</td>
+                              <td className="p-3 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => setSelectedVoucher(log)}
+                                    className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-900 rounded"
+                                    title="Print / View Voucher"
+                                  >
+                                    <FaPrint />
+                                  </button>
+                                  {!log.isReversal && log.type !== "Reversal" && (
+                                    <button
+                                      onClick={() => handleReverseLedger(log._id, log.voucherNumber)}
+                                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-900 rounded"
+                                      title="Reverse Transaction (Admin)"
+                                    >
+                                      <FaUndo />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Invoices List */}
-                <div>
-                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Invoice Bills Summary</h4>
-                  <div className="overflow-x-auto border border-slate-800 rounded-lg">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase border-b border-slate-800">
-                        <tr>
-                          <th className="p-2.5">Invoice Number</th>
-                          <th className="p-2.5">Date</th>
-                          <th className="p-2.5 text-right">Bill Total (Deducted from Grant)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800 text-slate-300">
-                        {detailsData.invoices.length === 0 ? (
-                          <tr>
-                            <td colSpan="3" className="p-4 text-center text-slate-500">
-                              No billing invoices generated yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          detailsData.invoices.map((inv) => (
-                            <tr key={inv._id}>
-                              <td className="p-2.5 font-mono font-bold text-amber-400">{inv.invoiceId}</td>
-                              <td className="p-2.5 font-mono">{new Date(inv.date).toLocaleDateString()}</td>
-                              <td className="p-2.5 text-right font-black text-amber-400">
-                                -₹{inv.total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ))}
+                          {(schoolDetailsData.ledgers || []).length === 0 && (
+                            <tr>
+                              <td colSpan="7" className="p-8 text-center text-slate-500">
+                                No ledger transactions logged yet. Use POS with "Government School Fund" payment method to process visits.
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
       )}
+
+      {/* VOUCHER REPRINT MODAL */}
+      {selectedVoucher && (
+        <GovFundVoucherModal
+          voucher={selectedVoucher}
+          onClose={() => setSelectedVoucher(null)}
+          merchantInfo={{ firmName: "BHARATAMBE TRADERS", mobileNumber: "9741166742" }}
+        />
+      )}
+
     </div>
   );
 };

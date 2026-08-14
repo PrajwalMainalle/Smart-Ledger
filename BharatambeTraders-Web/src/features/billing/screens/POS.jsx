@@ -23,6 +23,7 @@ import { fetchCustomers, addCustomer } from "../../customers/customerSlice";
 import logo from "../../../assets/SLLogo.png";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import axiosInstance from "../../../app/api/axiosInstance";
+import GovFundVoucherModal from "../../gov-funds/components/GovFundVoucherModal";
 
 
 function POS() {
@@ -86,11 +87,20 @@ function POS() {
   const [govSchoolsList, setGovSchoolsList] = useState([]);
   const [govGrantsList, setGovGrantsList] = useState([]);
   const [govTeachersList, setGovTeachersList] = useState([]);
+  const [govTxType, setGovTxType] = useState("Material Issue");
+  const [govCashWithdrawnAmount, setGovCashWithdrawnAmount] = useState(0);
+  const [govTeacherName, setGovTeacherName] = useState("");
+  const [govTeacherMobile, setGovTeacherMobile] = useState("");
+  const [govTeacherDesignation, setGovTeacherDesignation] = useState("");
+  const [govRemarks, setGovRemarks] = useState("");
+  const [showGovVoucherModal, setShowGovVoucherModal] = useState(false);
+  const [govVoucherData, setGovVoucherData] = useState(null);
+  const [govCheckoutLoading, setGovCheckoutLoading] = useState(false);
 
   useEffect(() => {
     if (paymentMethod === "Government School Fund") {
       axiosInstance.get("/gov-funds/schools").then((res) => setGovSchoolsList(res.data)).catch(console.error);
-      axiosInstance.get("/gov-funds/grants").then((res) => setGovGrantsList(res.data)).catch(console.error);
+      axiosInstance.get("/gov-funds/funds").then((res) => setGovGrantsList(res.data)).catch(console.error);
       axiosInstance.get("/gov-funds/teachers").then((res) => setGovTeachersList(res.data)).catch(console.error);
     }
   }, [paymentMethod]);
@@ -317,19 +327,6 @@ function POS() {
       return;
     }
 
-    if (paymentMethod === "Government School Fund") {
-      if (!selectedGovSchoolId) {
-        alert("Please select a Government School for Government School Fund payment.");
-        return;
-      }
-      const selSchoolObj = govSchoolsList.find((s) => s._id === selectedGovSchoolId);
-      const remaining = selSchoolObj?.remainingAmount ?? selSchoolObj?.grantedAmount ?? 0;
-      if (grandTotal > remaining) {
-        alert(`Insufficient Granted Amount for '${selSchoolObj?.schoolName}'! Bill total is ₹${grandTotal.toFixed(2)}, but available balance is only ₹${remaining.toFixed(2)}.`);
-        return;
-      }
-    }
-
     // Verify no item exceeds available stock
     const overStockItem = cart.find(item => item.qty > item.maxStock);
     if (overStockItem) {
@@ -372,6 +369,65 @@ function POS() {
       outstandingAmount: inv.outstandingAmount,
       returnedItems: inv.returnedItems || [],
     });
+
+    // Government School Fund Payment Method Handler (Module 2: Fund Utilization - NO Sales Invoice Created!)
+    if (paymentMethod === "Government School Fund") {
+      if (!selectedGovSchoolId) {
+        alert("Please select a Government School.");
+        return;
+      }
+      if (!selectedGovGrantId) {
+        alert("Please select an Active Government Fund Account.");
+        return;
+      }
+
+      const selectedFund = govGrantsList.find(f => f._id === selectedGovGrantId);
+      const materialTotal = grandTotal;
+      const cashVal = Number(govCashWithdrawnAmount) || 0;
+      const totalVal = materialTotal + cashVal;
+
+      if (totalVal <= 0) {
+        alert("Please add materials to cart or enter a valid Cash Withdrawal amount.");
+        return;
+      }
+
+      if (selectedFund && totalVal > selectedFund.remainingBalance) {
+        alert(`Transaction total (₹${totalVal.toFixed(2)}) exceeds remaining fund balance (₹${selectedFund.remainingBalance.toFixed(2)}).`);
+        return;
+      }
+
+      setGovCheckoutLoading(true);
+      axiosInstance.post("/gov-funds/utilize", {
+        schoolId: selectedGovSchoolId,
+        grantId: selectedGovGrantId,
+        type: govTxType || (materialTotal > 0 && cashVal > 0 ? "Material + Cash Withdrawal" : (materialTotal > 0 ? "Material Issue" : "Cash Withdrawal")),
+        items: checkoutItems,
+        cashWithdrawnAmount: cashVal,
+        teacherDetails: {
+          name: govTeacherName,
+          mobile: govTeacherMobile,
+          designation: govTeacherDesignation,
+          remarks: govRemarks,
+        },
+        remarks: govRemarks,
+      })
+      .then((res) => {
+        setGovCheckoutLoading(false);
+        setGovVoucherData(res.data.voucher);
+        setShowGovVoucherModal(true);
+        dispatch(clearCart());
+        dispatch(fetchProducts());
+        setDiscountValue(0);
+        setGovCashWithdrawnAmount(0);
+        setGovRemarks("");
+        axiosInstance.get("/gov-funds/funds").then((fRes) => setGovGrantsList(fRes.data)).catch(console.error);
+      })
+      .catch((err) => {
+        setGovCheckoutLoading(false);
+        alert(err.response?.data?.message || "Failed to process Government Fund utilization");
+      });
+      return;
+    }
 
     // Dual Bill Mode: User selected BOTH GST Calculation AND Quotation / Estimate
     if (isGstBilling && isQuotation && !editingInvoiceId) {
@@ -1359,18 +1415,29 @@ function POS() {
         </div>
 
         {paymentMethod === "Government School Fund" && (
-          <div className="bg-slate-900/80 p-3 rounded-lg border border-amber-500/30 text-xs space-y-2.5 text-left">
-            <span className="text-[11px] font-bold uppercase text-amber-400 block tracking-wider flex items-center gap-1.5">
-              🏛️ Government School Details
-            </span>
+          <div className="bg-slate-900/90 p-3 rounded-xl border border-amber-500/40 text-xs space-y-3 text-left shadow-lg">
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
+              <span className="text-[11px] font-bold uppercase text-amber-400 block tracking-wider flex items-center gap-1.5">
+                🏛️ Government Fund Utilization (No Sales Invoice Created)
+              </span>
+              <span className="text-[9.5px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-full">
+                Layer 2 Active
+              </span>
+            </div>
 
             {/* Select School */}
             <div>
               <label className="block text-[10px] text-slate-400 font-semibold mb-1">Select Government School *</label>
               <select
                 value={selectedGovSchoolId}
-                onChange={(e) => setSelectedGovSchoolId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                onChange={(e) => {
+                  const sId = e.target.value;
+                  setSelectedGovSchoolId(sId);
+                  const firstFund = govGrantsList.find(f => (f.schoolId?._id === sId || f.schoolId === sId) && ["Fund Active", "Partially Utilized"].includes(f.status));
+                  if (firstFund) setSelectedGovGrantId(firstFund._id);
+                  else setSelectedGovGrantId("");
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
               >
                 <option value="">-- Select Government School --</option>
                 {govSchoolsList.map((s) => (
@@ -1381,41 +1448,155 @@ function POS() {
               </select>
             </div>
 
-            {/* Live Remaining Balance Alert */}
-            {selectedGovSchoolId && (() => {
-              const selSchoolObj = govSchoolsList.find((s) => s._id === selectedGovSchoolId);
-              const granted = selSchoolObj?.grantedAmount || 0;
-              const remaining = selSchoolObj?.remainingAmount ?? granted;
-              const hasBalance = remaining >= grandTotal;
+            {/* Select Active Government Fund Account */}
+            {selectedGovSchoolId && (
+              <div>
+                <label className="block text-[10px] text-slate-400 font-semibold mb-1">Select Active Government Fund Account *</label>
+                <select
+                  value={selectedGovGrantId}
+                  onChange={(e) => setSelectedGovGrantId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-medium"
+                >
+                  <option value="">-- Select Government Fund Account --</option>
+                  {govGrantsList
+                    .filter((f) => (f.schoolId?._id === selectedGovSchoolId || f.schoolId === selectedGovSchoolId))
+                    .map((f) => (
+                      <option key={f._id} value={f._id}>
+                        {f.fundNumber} | {f.grantName} ({f.invoiceNumber ? `Ref: ${f.invoiceNumber}` : "Direct"}) - Bal: ₹{(f.remainingBalance || 0).toLocaleString()}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {/* Fund Account Details & Live Balance Card */}
+            {selectedGovGrantId && (() => {
+              const selFund = govGrantsList.find((f) => f._id === selectedGovGrantId);
+              if (!selFund) return null;
+
+              const approved = selFund.approvedBudget || 0;
+              const materialUtil = selFund.materialUtilized || 0;
+              const cashWithdrawn = selFund.cashWithdrawn || 0;
+              const remaining = selFund.remainingBalance ?? (approved - materialUtil - cashWithdrawn);
+              
+              const currentTotal = grandTotal + (Number(govCashWithdrawnAmount) || 0);
+              const hasBalance = remaining >= currentTotal;
 
               return (
-                <div className="p-2.5 bg-slate-950 rounded border border-slate-800 space-y-1">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-400">Head Master:</span>
-                    <span className="font-semibold text-slate-200">{selSchoolObj?.headmasterName}</span>
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">Fund Account Number:</span>
+                    <span className="font-bold font-mono text-amber-400">{selFund.fundNumber}</span>
                   </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-400">Contact Number:</span>
-                    <span className="font-mono text-slate-200">{selSchoolObj?.contactNumber}</span>
+                  {selFund.invoiceNumber && (
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Ref Tax Invoice:</span>
+                      <span className="font-mono text-slate-300">{selFund.invoiceNumber}</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-800 text-[10.5px]">
+                    <div>
+                      <span className="text-slate-500 block">Approved Budget</span>
+                      <span className="font-bold text-slate-200">₹{approved.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Materials Utilized</span>
+                      <span className="font-bold text-slate-200">₹{materialUtil.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Cash Withdrawn</span>
+                      <span className="font-bold text-slate-200">₹{cashWithdrawn.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Remaining Balance</span>
+                      <span className={`font-black ${hasBalance ? "text-emerald-400" : "text-red-400"}`}>
+                        ₹{remaining.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-400">Granted Amount:</span>
-                    <span className="font-bold text-slate-100">₹{granted.toLocaleString()}</span>
-                  </div>
-                  <div className={`flex justify-between text-[11px] font-black pt-1 border-t border-slate-800 ${
-                    hasBalance ? "text-emerald-400" : "text-red-400"
-                  }`}>
-                    <span>Remaining Balance:</span>
-                    <span>₹{remaining.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                  </div>
+
                   {!hasBalance && (
-                    <p className="text-[10px] text-red-400 font-bold pt-1 text-center">
-                      ⚠️ Bill total exceeds school remaining balance!
+                    <p className="text-[10px] text-red-400 font-bold pt-1.5 text-center border-t border-red-900/40">
+                      ⚠️ Utilization Total (₹{currentTotal.toFixed(2)}) exceeds remaining fund balance!
                     </p>
                   )}
                 </div>
               );
             })()}
+
+            {/* Transaction Type Selector */}
+            <div>
+              <label className="block text-[10px] text-slate-400 font-semibold mb-1">Transaction Type</label>
+              <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px]">
+                {["Material Issue", "Cash Withdrawal", "Material + Cash Withdrawal"].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setGovTxType(t)}
+                    className={`py-1 rounded font-bold text-[9.5px] transition-colors ${
+                      govTxType === t
+                        ? "bg-amber-500 text-slate-950"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {t === "Material + Cash Withdrawal" ? "Material + Cash" : t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cash Withdrawal Input Field */}
+            {(govTxType === "Cash Withdrawal" || govTxType === "Material + Cash Withdrawal") && (
+              <div className="bg-slate-950 p-2.5 rounded-lg border border-amber-500/30">
+                <label className="block text-[10px] text-amber-400 font-bold mb-1">
+                  💵 Cash Withdrawal Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={govCashWithdrawnAmount}
+                  onChange={(e) => setGovCashWithdrawnAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="Enter Cash Withdrawal Amount"
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            )}
+
+            {/* Teacher Info Inputs */}
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-[10px] text-slate-400 font-semibold">Teacher / Receiver Details</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Teacher Name *"
+                  value={govTeacherName}
+                  onChange={(e) => setGovTeacherName(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Mobile Number"
+                  value={govTeacherMobile}
+                  onChange={(e) => setGovTeacherMobile(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Designation (e.g. Head Master / Asst Teacher)"
+                value={govTeacherDesignation}
+                onChange={(e) => setGovTeacherDesignation(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500"
+              />
+              <input
+                type="text"
+                placeholder="Remarks / Notes"
+                value={govRemarks}
+                onChange={(e) => setGovRemarks(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
           </div>
         )}
 
@@ -1532,7 +1713,7 @@ function POS() {
         {/* Checkout Button */}
         <button
           onClick={handleCheckout}
-          disabled={cart.length === 0 || checkoutLoading || cart.some(item => item.qty > item.maxStock || item.qty <= 0)}
+          disabled={cart.length === 0 || checkoutLoading || govCheckoutLoading || cart.some(item => item.qty > item.maxStock || item.qty <= 0)}
           className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform transform active:scale-98 text-xs
             ${(cart.length === 0 || cart.some(item => item.qty > item.maxStock || item.qty <= 0))
               ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
@@ -1540,7 +1721,7 @@ function POS() {
             }
           `}
         >
-          {checkoutLoading ? <FaSpinner className="animate-spin" /> : <><FaCheckCircle /> Proceed to Checkout</>}
+          {(checkoutLoading || govCheckoutLoading) ? <FaSpinner className="animate-spin" /> : <><FaCheckCircle /> Proceed to Checkout</>}
         </button>
 
       </div>
@@ -2248,6 +2429,15 @@ function POS() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* GOVERNMENT FUND UTILIZATION VOUCHER MODAL */}
+      {showGovVoucherModal && govVoucherData && (
+        <GovFundVoucherModal
+          voucher={govVoucherData}
+          onClose={() => setShowGovVoucherModal(false)}
+          merchantInfo={user?.profile || { firmName: "BHARATAMBE TRADERS", mobileNumber: "9741166742" }}
+        />
       )}
 
     </div>

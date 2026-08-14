@@ -197,6 +197,29 @@ const InvoiceSchema = new mongoose.Schema(
       enum: ["Paid", "Refunded", "Quotation"],
       default: "Paid",
     },
+    isGovInvoice: {
+      type: Boolean,
+      default: false,
+    },
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
+    govFundStatus: {
+      type: String,
+      enum: [
+        "Draft Invoice",
+        "Invoice Issued",
+        "Government Approved",
+        "Fund Active",
+        "Partially Utilized",
+        "Fully Utilized",
+        "Closed",
+        "Cancelled",
+        "Expired"
+      ],
+      default: "Invoice Issued",
+    },
     isQuotation: {
       type: Boolean,
       default: false,

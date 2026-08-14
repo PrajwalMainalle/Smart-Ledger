@@ -6,7 +6,7 @@ export const fetchGovDashboard = createAsyncThunk(
   "govFunds/fetchDashboard",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await axiosInstance.get("/gov-funds/dashboard");
+      const res = await axiosInstance.get("/gov-funds/dashboard-stats");
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Failed to load dashboard data");
@@ -62,64 +62,15 @@ export const deleteGovSchool = createAsyncThunk(
   }
 );
 
-export const fetchGovTeachers = createAsyncThunk(
-  "govFunds/fetchTeachers",
-  async (schoolId, { rejectWithValue }) => {
-    try {
-      const url = schoolId ? `/gov-funds/teachers?schoolId=${schoolId}` : "/gov-funds/teachers";
-      const res = await axiosInstance.get(url);
-      return res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load teachers");
-    }
-  }
-);
-
-export const createGovTeacher = createAsyncThunk(
-  "govFunds/createTeacher",
-  async (teacherData, { rejectWithValue }) => {
-    try {
-      const res = await axiosInstance.post("/gov-funds/teachers", teacherData);
-      return res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to create teacher");
-    }
-  }
-);
-
-export const updateGovTeacher = createAsyncThunk(
-  "govFunds/updateTeacher",
-  async ({ id, teacherData }, { rejectWithValue }) => {
-    try {
-      const res = await axiosInstance.put(`/gov-funds/teachers/${id}`, teacherData);
-      return res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to update teacher");
-    }
-  }
-);
-
-export const deleteGovTeacher = createAsyncThunk(
-  "govFunds/deleteTeacher",
-  async (id, { rejectWithValue }) => {
-    try {
-      await axiosInstance.delete(`/gov-funds/teachers/${id}`);
-      return id;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to delete teacher");
-    }
-  }
-);
-
 export const fetchGovGrants = createAsyncThunk(
   "govFunds/fetchGrants",
   async (queryParams = {}, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams(queryParams).toString();
-      const res = await axiosInstance.get(`/gov-funds/grants?${params}`);
+      const res = await axiosInstance.get(`/gov-funds/funds?${params}`);
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load grants");
+      return rejectWithValue(err.response?.data?.message || "Failed to load funds");
     }
   }
 );
@@ -128,73 +79,59 @@ export const createGovGrant = createAsyncThunk(
   "govFunds/createGrant",
   async (grantData, { rejectWithValue }) => {
     try {
-      const res = await axiosInstance.post("/gov-funds/grants", grantData);
+      const res = await axiosInstance.post("/gov-funds/funds", grantData);
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to create grant");
+      return rejectWithValue(err.response?.data?.message || "Failed to create fund account");
     }
   }
 );
 
-export const closeGovGrant = createAsyncThunk(
-  "govFunds/closeGrant",
+export const activateGovGrant = createAsyncThunk(
+  "govFunds/activateGrant",
   async (id, { rejectWithValue }) => {
     try {
-      const res = await axiosInstance.post(`/gov-funds/grants/${id}/settlement`);
+      const res = await axiosInstance.put(`/gov-funds/funds/${id}/activate`);
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to close grant");
-    }
-  }
-);
-
-export const fetchGovCashPayments = createAsyncThunk(
-  "govFunds/fetchCashPayments",
-  async (queryParams = {}, { rejectWithValue }) => {
-    try {
-      const params = new URLSearchParams(queryParams).toString();
-      const res = await axiosInstance.get(`/gov-funds/cash-payments?${params}`);
-      return res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load cash payments");
-    }
-  }
-);
-
-export const createGovCashPayment = createAsyncThunk(
-  "govFunds/createCashPayment",
-  async (paymentData, { rejectWithValue }) => {
-    try {
-      const res = await axiosInstance.post("/gov-funds/cash-payments", paymentData);
-      return res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to record cash payment");
+      return rejectWithValue(err.response?.data?.message || "Failed to activate fund account");
     }
   }
 );
 
 export const fetchGovTransactions = createAsyncThunk(
   "govFunds/fetchTransactions",
-  async (queryParams = {}, { rejectWithValue }) => {
+  async (fundId = "all", { rejectWithValue }) => {
     try {
-      const params = new URLSearchParams(queryParams).toString();
-      const res = await axiosInstance.get(`/gov-funds/transactions?${params}`);
+      const url = fundId && fundId !== "all" ? `/gov-funds/ledger/${fundId}` : "/gov-funds/ledger";
+      const res = await axiosInstance.get(url);
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load transactions");
+      return rejectWithValue(err.response?.data?.message || "Failed to load ledger transactions");
     }
   }
 );
 
-export const fetchGovMaterialUsage = createAsyncThunk(
-  "govFunds/fetchMaterialUsage",
-  async (queryParams = {}, { rejectWithValue }) => {
+export const reverseGovLedger = createAsyncThunk(
+  "govFunds/reverseLedger",
+  async ({ id, reason }, { rejectWithValue }) => {
     try {
-      const params = new URLSearchParams(queryParams).toString();
-      const res = await axiosInstance.get(`/gov-funds/material-usage?${params}`);
+      const res = await axiosInstance.post(`/gov-funds/ledger/${id}/reverse`, { reason });
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load material usage");
+      return rejectWithValue(err.response?.data?.message || "Failed to reverse transaction");
+    }
+  }
+);
+
+export const adjustGovFund = createAsyncThunk(
+  "govFunds/adjustFund",
+  async ({ fundId, adjustmentData }, { rejectWithValue }) => {
+    try {
+      const res = await axiosInstance.post(`/gov-funds/funds/${fundId}/adjust`, adjustmentData);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Failed to adjust fund balance");
     }
   }
 );
@@ -204,11 +141,8 @@ const govFundSlice = createSlice({
   initialState: {
     dashboard: null,
     schools: [],
-    teachers: [],
     grants: [],
-    cashPayments: [],
     transactions: [],
-    materialUsage: [],
     loading: false,
     error: null,
   },
@@ -239,30 +173,11 @@ const govFundSlice = createSlice({
       .addCase(deleteGovSchool.fulfilled, (state, action) => {
         state.schools = state.schools.filter((s) => s._id !== action.payload);
       })
-      // Teachers
-      .addCase(fetchGovTeachers.fulfilled, (state, action) => { state.teachers = action.payload; })
-      .addCase(createGovTeacher.fulfilled, (state, action) => { state.teachers.unshift(action.payload); })
-      .addCase(updateGovTeacher.fulfilled, (state, action) => {
-        const index = state.teachers.findIndex((t) => t._id === action.payload._id);
-        if (index !== -1) state.teachers[index] = action.payload;
-      })
-      .addCase(deleteGovTeacher.fulfilled, (state, action) => {
-        state.teachers = state.teachers.filter((t) => t._id !== action.payload);
-      })
-      // Grants
+      // Grants (Funds)
       .addCase(fetchGovGrants.fulfilled, (state, action) => { state.grants = action.payload; })
       .addCase(createGovGrant.fulfilled, (state, action) => { state.grants.unshift(action.payload); })
-      .addCase(closeGovGrant.fulfilled, (state, action) => {
-        const index = state.grants.findIndex((g) => g._id === action.payload.grant._id);
-        if (index !== -1) state.grants[index] = action.payload.grant;
-      })
-      // Cash Payments
-      .addCase(fetchGovCashPayments.fulfilled, (state, action) => { state.cashPayments = action.payload; })
-      .addCase(createGovCashPayment.fulfilled, (state, action) => { state.cashPayments.unshift(action.payload); })
-      // Transactions
-      .addCase(fetchGovTransactions.fulfilled, (state, action) => { state.transactions = action.payload; })
-      // Material Usage
-      .addCase(fetchGovMaterialUsage.fulfilled, (state, action) => { state.materialUsage = action.payload; });
+      // Transactions (Ledgers)
+      .addCase(fetchGovTransactions.fulfilled, (state, action) => { state.transactions = action.payload; });
   },
 });
 

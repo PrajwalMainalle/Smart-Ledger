@@ -8,6 +8,11 @@ const GovTransactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    voucherNumber: {
+      type: String,
+      required: true,
+      index: true,
+    },
     grantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "GovGrant",
@@ -20,11 +25,13 @@ const GovTransactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    teacherId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "GovTeacher",
-      default: null,
-      index: true,
+    fundNumber: {
+      type: String,
+      default: "",
+    },
+    invoiceNumber: {
+      type: String,
+      default: "",
     },
     date: {
       type: Date,
@@ -33,44 +40,75 @@ const GovTransactionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
-        "Grant Received",
-        "Material Purchase",
-        "Cash Given",
-        "Adjustment",
-        "Refund",
-        "Closing Adjustment",
+        "Material Issue",
+        "Cash Withdrawal",
+        "Material + Cash Withdrawal",
+        "Manual Adjustment",
+        "Balance Return",
+        "Correction",
+        "Cancellation",
+        "Reversal",
       ],
       required: true,
     },
-    invoiceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Invoice",
-      default: null,
+    materialItems: [
+      {
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
+        qty: { type: Number, required: true },
+        sku: { type: String, default: "" },
+        gstRate: { type: Number, default: 0 },
+      },
+    ],
+    materialAmount: {
+      type: Number,
+      default: 0,
     },
-    invoiceNumber: {
-      type: String,
-      default: "",
+    cashWithdrawnAmount: {
+      type: Number,
+      default: 0,
     },
-    cashPaymentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "GovCashPayment",
-      default: null,
+    adjustmentAmount: {
+      type: Number,
+      default: 0,
     },
     amount: {
       type: Number,
       required: true,
+      default: 0,
+    },
+    balanceBefore: {
+      type: Number,
+      default: 0,
     },
     balanceAfter: {
       type: Number,
+      required: true,
       default: 0,
+    },
+    teacherDetails: {
+      name: { type: String, default: "" },
+      mobile: { type: String, default: "" },
+      designation: { type: String, default: "" },
+      remarks: { type: String, default: "" },
     },
     remarks: {
       type: String,
       default: "",
     },
-    createdBy: {
+    processedBy: {
       type: String,
       default: "System",
+    },
+    isReversal: {
+      type: Boolean,
+      default: false,
+    },
+    reversalOfVoucherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GovTransaction",
+      default: null,
     },
     isDeleted: {
       type: Boolean,
@@ -80,6 +118,6 @@ const GovTransactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-GovTransactionSchema.index({ tenantId: 1, grantId: 1, date: 1 });
+GovTransactionSchema.index({ tenantId: 1, grantId: 1, date: -1 });
 
 module.exports = mongoose.model("GovTransaction", GovTransactionSchema);
