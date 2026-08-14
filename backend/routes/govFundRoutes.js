@@ -15,6 +15,7 @@ const {
   reverseGovTransaction,
   manualAdjustFund,
   getGovDashboardStats,
+  getVoucherPdf,
 } = require("../controllers/govFundController");
 
 // Protect all routes with JWT authentication
@@ -32,6 +33,7 @@ router.put("/funds/:id/activate", activateGovFund);
 router.post("/utilize", processFundUtilization);
 router.get("/ledger", getFundLedger);
 router.get("/ledger/:fundId", getFundLedger);
+router.get("/vouchers/:id/pdf", getVoucherPdf);
 router.post("/ledger/:id/reverse", reverseGovTransaction);
 router.post("/funds/:fundId/adjust", manualAdjustFund);
 router.get("/dashboard-stats", getGovDashboardStats);

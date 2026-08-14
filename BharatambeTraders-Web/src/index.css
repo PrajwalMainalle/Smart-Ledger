@@ -357,12 +357,16 @@ body, body * {
 
 @media print {
   @page {
-    margin: 8mm 10mm;
-    size: auto;
+    margin: 5mm 8mm;
+    size: portrait;
   }
   body, html {
     background-color: #ffffff !important;
     color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
@@ -371,6 +375,62 @@ body, body * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+  }
+
+  /* Hide all background application content (#root, sidebar, POS screen) when printing voucher modal */
+  body:has(.printable-voucher-modal-overlay) > *:not(.printable-voucher-modal-overlay) {
+    display: none !important;
+  }
+
+  .printable-voucher-modal-overlay {
+    position: static !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+  }
+
+  .printable-voucher-modal-container {
+    position: static !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+  }
+
+  /* Printable Voucher rules */
+  .printable-voucher {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .printable-voucher h1 {
+    color: #0f172a !important;
+  }
+  .printable-voucher p, .printable-voucher span, .printable-voucher td, .printable-voucher th {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Table Header formatting in print */

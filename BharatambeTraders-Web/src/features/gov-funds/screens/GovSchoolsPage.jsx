@@ -22,6 +22,7 @@ import {
   FaCheckCircle,
   FaPrint,
   FaExchangeAlt,
+  FaDownload,
 } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import GovFundVoucherModal from "../components/GovFundVoucherModal";
@@ -232,10 +233,16 @@ const GovSchoolsPage = () => {
   );
 
   // Overall KPI Aggregations
-  const totalApprovedAll = funds.reduce((acc, f) => acc + (f.approvedBudget || 0), 0);
-  const totalMaterialUtilizedAll = funds.reduce((acc, f) => acc + (f.materialUtilized || 0), 0);
-  const totalCashWithdrawnAll = funds.reduce((acc, f) => acc + (f.cashWithdrawn || 0), 0);
-  const totalRemainingAll = funds.reduce((acc, f) => acc + (f.remainingBalance !== undefined ? f.remainingBalance : (f.approvedBudget - f.materialUtilized - f.cashWithdrawn)), 0);
+  const totalApprovedAll = funds.reduce((acc, f) => acc + Number(f.approvedBudget || 0), 0);
+  const totalMaterialUtilizedAll = funds.reduce((acc, f) => acc + Number(f.materialUtilized || 0), 0);
+  const totalCashWithdrawnAll = funds.reduce((acc, f) => acc + Number(f.cashWithdrawn || 0), 0);
+  const totalRemainingAll = funds.reduce((acc, f) => {
+    const approved = Number(f.approvedBudget || 0);
+    const mat = Number(f.materialUtilized || 0);
+    const cash = Number(f.cashWithdrawn || 0);
+    const rem = f.remainingBalance !== undefined && !isNaN(f.remainingBalance) ? Number(f.remainingBalance) : (approved - mat - cash);
+    return acc + (isNaN(rem) ? 0 : rem);
+  }, 0);
 
   return (
     <div className="p-4 md:p-6 space-y-6 text-slate-100 min-h-screen">
@@ -248,7 +255,7 @@ const GovSchoolsPage = () => {
             <FaLandmark className="text-2xl" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-black text-slate-100 tracking-tight flex items-center gap-2">
               Government School Fund Management
             </h1>
             <p className="text-xs text-slate-400 font-medium">
@@ -266,7 +273,7 @@ const GovSchoolsPage = () => {
           </button>
           <button
             onClick={() => handleOpenSchoolModal()}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 transition-colors"
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-100 rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 transition-colors"
           >
             <FaSchool /> + Add Government School
           </button>
@@ -280,7 +287,7 @@ const GovSchoolsPage = () => {
             <span className="text-xs font-bold uppercase tracking-wider">Total Approved Budget</span>
             <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><FaLandmark /></div>
           </div>
-          <p className="text-2xl font-black text-white font-mono">₹{totalApprovedAll.toLocaleString("en-IN")}</p>
+          <p className="text-2xl font-black text-slate-100 font-mono">₹{totalApprovedAll.toLocaleString("en-IN")}</p>
           <p className="text-[11px] text-slate-500 mt-1 font-medium">{funds.length} Fund Accounts Registered</p>
         </div>
 
@@ -327,7 +334,7 @@ const GovSchoolsPage = () => {
             />
           </div>
           <div className="text-xs text-slate-400 font-medium">
-            Showing <strong className="text-white">{filteredSchools.length}</strong> Government Schools
+            Showing <strong className="text-slate-100">{filteredSchools.length}</strong> Government Schools
           </div>
         </div>
 
@@ -356,7 +363,7 @@ const GovSchoolsPage = () => {
                 return (
                   <tr key={school._id} className="hover:bg-slate-850/50 transition-colors">
                     <td className="p-4">
-                      <p className="font-bold text-white text-sm flex items-center gap-2">
+                      <p className="font-bold text-slate-100 text-sm flex items-center gap-2">
                         <FaSchool className="text-amber-400" /> {school.schoolName}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">{schoolFunds.length} Active Fund Accounts</p>
@@ -367,7 +374,7 @@ const GovSchoolsPage = () => {
                         <FaPhone className="text-[10px]" /> {school.contactNumber || "N/A"}
                       </p>
                     </td>
-                    <td className="p-4 text-right font-mono font-bold text-white">₹{approved.toLocaleString()}</td>
+                    <td className="p-4 text-right font-mono font-bold text-slate-100">₹{approved.toLocaleString()}</td>
                     <td className="p-4 text-right font-mono font-bold text-blue-400">₹{matUtil.toLocaleString()}</td>
                     <td className="p-4 text-right font-mono font-bold text-purple-400">₹{cashUtil.toLocaleString()}</td>
                     <td className="p-4 text-right font-mono font-black text-emerald-400 text-sm">₹{remaining.toLocaleString()}</td>
@@ -624,7 +631,7 @@ const GovSchoolsPage = () => {
                       {(schoolDetailsData.funds || []).map((f) => (
                         <div key={f._id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="font-bold text-white text-xs">{f.fundNumber} | {f.grantName}</span>
+                            <span className="font-bold text-slate-100 text-xs">{f.fundNumber} | {f.grantName}</span>
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               f.status === "Fund Active" ? "bg-emerald-950 text-emerald-400 border border-emerald-800" :
                               f.status === "Partially Utilized" ? "bg-amber-950 text-amber-400 border border-amber-800" :
@@ -700,7 +707,7 @@ const GovSchoolsPage = () => {
                                 {log.teacherDetails?.name || "N/A"}
                                 {log.teacherDetails?.designation && <span className="text-slate-500 block text-[10px]">{log.teacherDetails.designation}</span>}
                               </td>
-                              <td className="p-3 text-right font-mono font-bold text-white">₹{(log.amount || 0).toFixed(2)}</td>
+                              <td className="p-3 text-right font-mono font-bold text-slate-100">₹{(log.amount || 0).toFixed(2)}</td>
                               <td className="p-3 text-right font-mono font-bold text-emerald-400">₹{(log.balanceAfter || 0).toFixed(2)}</td>
                               <td className="p-3 text-center">
                                 <div className="flex items-center justify-center gap-1.5">
@@ -710,6 +717,24 @@ const GovSchoolsPage = () => {
                                     title="Print / View Voucher"
                                   >
                                     <FaPrint />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      let token = localStorage.getItem("bt_token") || localStorage.getItem("token") || "";
+                                      if (!token) {
+                                        try {
+                                          const userStr = localStorage.getItem("bt_user") || localStorage.getItem("user");
+                                          if (userStr) token = JSON.parse(userStr)?.token || "";
+                                        } catch (e) {}
+                                      }
+
+                                      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+                                      window.open(`${baseUrl}/gov-funds/vouchers/${log._id}/pdf?token=${encodeURIComponent(token)}&t=${Date.now()}`, "_blank");
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-900 rounded"
+                                    title="Download Voucher PDF"
+                                  >
+                                    <FaDownload />
                                   </button>
                                   {!log.isReversal && log.type !== "Reversal" && (
                                     <button

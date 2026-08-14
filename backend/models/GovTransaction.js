@@ -114,6 +114,10 @@ const GovTransactionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    pdfUrl: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

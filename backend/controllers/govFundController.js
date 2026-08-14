@@ -1,8 +1,11 @@
+const path = require("path");
+const fs = require("fs");
 const GovSchool = require("../models/GovSchool");
 const GovGrant = require("../models/GovGrant");
 const GovTransaction = require("../models/GovTransaction");
 const Invoice = require("../models/Invoice");
 const Product = require("../models/Product");
+const { generateGovVoucherPDF } = require("../utils/govVoucherPdfGenerator");
 
 // Helper to calculate total spent and remaining amount for a school
 const getSchoolFundStats = async (tenantId, schoolId, grantedAmount) => {
@@ -464,6 +467,24 @@ const processFundUtilization = async (req, res) => {
       processedBy: req.user?.name || req.user?.email || "Staff",
     });
 
+    // Generate and save physical Voucher PDF
+    try {
+      const merchantInfo = {
+        ...(req.user?.profile || {}),
+        shopName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
+        firmName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
+        address: req.user?.profile?.businessAddress || "Main Market Road, Basavakalyan",
+        mobileNumber: req.user?.mobileNumber || "9741166742",
+        phone: req.user?.mobileNumber || "9741166742",
+        gstNumber: req.user?.profile?.gstNumber || "",
+      };
+      const pdfUrl = await generateGovVoucherPDF(ledgerEntry, merchantInfo);
+      ledgerEntry.pdfUrl = pdfUrl;
+      await ledgerEntry.save();
+    } catch (pdfErr) {
+      console.error("Voucher PDF Generation error:", pdfErr);
+    }
+
     res.status(201).json({
       message: "Fund utilization recorded successfully",
       voucher: ledgerEntry,
@@ -708,6 +729,56 @@ const getGovDashboardStats = async (req, res) => {
   }
 };
 
+// GET PDF for a Voucher (Stream / Download PDF file)
+const getVoucherPdf = async (req, res) => {
+  try {
+    const tenantId = req.user._id;
+    const { id } = req.params;
+
+    const voucher = await GovTransaction.findOne({ _id: id, tenantId, isDeleted: { $ne: true } })
+      .populate("schoolId", "schoolName headmasterName contactNumber")
+      .populate("grantId", "fundNumber invoiceNumber approvedBudget");
+
+    if (!voucher) {
+      return res.status(404).json({ message: "Voucher not found" });
+    }
+
+    const merchantInfo = {
+      ...(req.user?.profile || {}),
+      shopName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
+      firmName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
+      address: req.user?.profile?.businessAddress || "Main Market Road, Basavakalyan",
+      mobileNumber: req.user?.mobileNumber || "9741166742",
+      phone: req.user?.mobileNumber || "9741166742",
+      gstNumber: req.user?.profile?.gstNumber || "",
+    };
+
+    if (!voucher.pdfUrl) {
+      const pdfUrl = await generateGovVoucherPDF(voucher, merchantInfo);
+      voucher.pdfUrl = pdfUrl;
+      await voucher.save();
+    }
+
+    const filePath = path.join(__dirname, "..", voucher.pdfUrl);
+    if (fs.existsSync(filePath)) {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="voucher-${voucher.voucherNumber || id}.pdf"`);
+      res.sendFile(filePath);
+    } else {
+      const pdfUrl = await generateGovVoucherPDF(voucher, merchantInfo);
+      voucher.pdfUrl = pdfUrl;
+      await voucher.save();
+      const newPath = path.join(__dirname, "..", pdfUrl);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="voucher-${voucher.voucherNumber || id}.pdf"`);
+      res.sendFile(newPath);
+    }
+  } catch (error) {
+    console.error("Error streaming voucher PDF:", error);
+    res.status(500).json({ message: "Failed to stream voucher PDF" });
+  }
+};
+
 module.exports = {
   getSchools,
   createSchool,
@@ -723,4 +794,5 @@ module.exports = {
   reverseGovTransaction,
   manualAdjustFund,
   getGovDashboardStats,
+  getVoucherPdf,
 };
