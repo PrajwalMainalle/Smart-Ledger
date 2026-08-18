@@ -24,6 +24,7 @@ function CustomerList() {
     phone: "",
     customerType: "Retail",
     priceCategory: "retail",
+    creditReminderDays: "",
   });
 
   // Outstanding Ledger & Collection payment states
@@ -71,6 +72,7 @@ function CustomerList() {
       phone: formData.phone,
       customerType: formData.customerType,
       priceCategory: formData.priceCategory,
+      creditReminderDays: formData.creditReminderDays,
     };
 
     dispatch(addCustomer(newCust)).then((res) => {
@@ -91,6 +93,7 @@ function CustomerList() {
       phone: cust.phone,
       customerType: cust.customerType,
       priceCategory: cust.priceCategory,
+      creditReminderDays: cust.creditReminderDays !== undefined && cust.creditReminderDays !== null ? cust.creditReminderDays : "",
     });
     setShowEditModal(true);
   };
@@ -109,6 +112,7 @@ function CustomerList() {
       phone: formData.phone,
       customerType: formData.customerType,
       priceCategory: formData.priceCategory,
+      creditReminderDays: formData.creditReminderDays,
     };
 
     dispatch(updateCustomer(updatedCust)).then((res) => {
@@ -197,6 +201,7 @@ function CustomerList() {
       phone: "",
       customerType: "Retail",
       priceCategory: "retail",
+      creditReminderDays: "",
     });
     setCurrentCustomer(null);
   };
@@ -289,6 +294,7 @@ function CustomerList() {
                   <th className="py-3 px-2">Phone Number</th>
                   <th className="py-3 px-2">Customer Type</th>
                   <th className="py-3 px-2">Assigned Pricing Category</th>
+                  <th className="py-3 px-2">Credit Term Limit</th>
                   <th className="py-3 px-2 text-right">Outstanding Balance</th>
                   <th className="py-3 px-2">Date Added</th>
                   <th className="py-3 px-4 text-center">Actions</th>
@@ -309,6 +315,15 @@ function CustomerList() {
                         </span>
                       </td>
                       <td className="py-4 px-2 text-orange-400 font-bold capitalize">{cust.priceCategory} Price</td>
+                      <td className="py-4 px-2 font-mono text-xs">
+                        {cust.creditReminderDays && cust.creditReminderDays > 0 ? (
+                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-bold">
+                            {cust.creditReminderDays} Days
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 text-[11px] font-sans italic">Store Default</span>
+                        )}
+                      </td>
                       <td className="py-4 px-2 text-right">
                         <span className={`font-bold font-mono text-xs ${cust.outstandingBalance > 0 ? "text-rose-450 font-extrabold" : "text-emerald-450"}`}>
                           ₹{(cust.outstandingBalance || 0).toFixed(2)}
@@ -346,7 +361,7 @@ function CustomerList() {
 
                 {filteredCustomers.length === 0 && !loading && (
                   <tr>
-                    <td colSpan="6" className="py-12 text-center text-slate-500 text-sm">No customers match active query filters.</td>
+                    <td colSpan="8" className="py-12 text-center text-slate-500 text-sm">No customers match active query filters.</td>
                   </tr>
                 )}
               </tbody>
@@ -428,6 +443,20 @@ function CustomerList() {
                     <option value="distributor">distributor price</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-semibold">Credit Reminder Alert (Days)</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="365"
+                  value={formData.creditReminderDays}
+                  onChange={(e) => setFormData({ ...formData, creditReminderDays: e.target.value })}
+                  placeholder="e.g. 15 (Leave empty to use store default)"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                />
+                <p className="text-[10px] text-slate-500">Custom overdue limit for this customer. Overrides global store setting if set.</p>
               </div>
 
               {formData.customerType === "Other" && (
@@ -527,6 +556,20 @@ function CustomerList() {
                     <option value="distributor">distributor price</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-semibold">Credit Reminder Alert (Days)</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="365"
+                  value={formData.creditReminderDays}
+                  onChange={(e) => setFormData({ ...formData, creditReminderDays: e.target.value })}
+                  placeholder="e.g. 15 (Leave empty to use store default)"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-orange-500 font-mono"
+                />
+                <p className="text-[10px] text-slate-500">Custom overdue limit for this customer. Overrides global store setting if set.</p>
               </div>
 
               <div className="pt-4 flex gap-3 border-t border-slate-900">

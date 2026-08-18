@@ -1096,40 +1096,60 @@ const recordCollection = async (req, res) => {
   }
 };
 
-// @desc    Get credit invoices overdue by more than 20 days
+// @desc    Get credit invoices overdue by customer custom days or global default reminder days
 // @route   GET /api/billing/credit-reminders
 // @access  Private
 const getCreditReminders = async (req, res) => {
   try {
     const tenantId = req.user._id;
-    const thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() - 20);
+    const defaultReminderDays = req.user?.creditReminderDays || 20;
 
-    const overdueInvoices = await Invoice.find({
+    // Fetch all unpaid/partially paid credit invoices for tenant
+    const creditInvoices = await Invoice.find({
       tenantId,
       paymentMethod: "Credit",
       outstandingAmount: { $gt: 0 },
       status: { $ne: "Refunded" },
       isQuotation: { $ne: true },
-      date: { $lte: thresholdDate },
     }).sort({ date: 1 }); // Oldest first
 
-    const reminders = overdueInvoices.map(inv => {
-      const daysElapsed = Math.floor((Date.now() - new Date(inv.date)) / (1000 * 60 * 60 * 24));
-      return {
-        _id: inv._id,
-        invoiceId: inv.invoiceId,
-        customerName: inv.customerName,
-        customerPhone: inv.customerPhone,
-        total: inv.total,
-        amountPaid: inv.amountPaid,
-        outstandingAmount: inv.outstandingAmount,
-        date: inv.date,
-        daysElapsed,
-      };
+    // Fetch customers to map per-customer custom creditReminderDays
+    const customers = await Customer.find({ tenantId }).select("phone name creditReminderDays").lean();
+    const customerMap = {};
+    customers.forEach((c) => {
+      if (c.phone) customerMap[c.phone] = c;
     });
 
-    res.json(reminders);
+    const overdueReminders = [];
+
+    creditInvoices.forEach((inv) => {
+      const cust = customerMap[inv.customerPhone];
+      // Use customer's specific creditReminderDays if set, otherwise store default
+      const targetReminderDays =
+        cust && cust.creditReminderDays && cust.creditReminderDays > 0
+          ? cust.creditReminderDays
+          : defaultReminderDays;
+
+      const daysElapsed = Math.floor((Date.now() - new Date(inv.date)) / (1000 * 60 * 60 * 24));
+
+      if (daysElapsed >= targetReminderDays) {
+        overdueReminders.push({
+          _id: inv._id,
+          invoiceId: inv.invoiceId,
+          customerName: inv.customerName,
+          customerPhone: inv.customerPhone,
+          total: inv.total,
+          amountPaid: inv.amountPaid,
+          outstandingAmount: inv.outstandingAmount,
+          date: inv.date,
+          daysElapsed,
+          targetReminderDays,
+          isCustomCustomerLimit: !!(cust && cust.creditReminderDays && cust.creditReminderDays > 0),
+        });
+      }
+    });
+
+    res.json(overdueReminders);
   } catch (error) {
     console.error("Error in getCreditReminders:", error);
     res.status(500).json({ message: "Server error fetching credit reminders", error: error.message });

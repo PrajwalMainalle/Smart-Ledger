@@ -70,9 +70,21 @@ function POS() {
 
   // Credit Outstanding & Return Exchange states
   const [amountPaidToday, setAmountPaidToday] = useState(0);
+  const [creditReminderDays, setCreditReminderDays] = useState(20);
   const [returnedItems, setReturnedItems] = useState([]);
   const [cashAmount, setCashAmount] = useState(0);
   const [upiAmount, setUpiAmount] = useState(0);
+
+  useEffect(() => {
+    const foundCust = customers.find((c) => c.phone === customerPhone);
+    if (foundCust && foundCust.creditReminderDays && foundCust.creditReminderDays > 0) {
+      setCreditReminderDays(foundCust.creditReminderDays);
+    } else if (user?.creditReminderDays) {
+      setCreditReminderDays(user.creditReminderDays);
+    } else {
+      setCreditReminderDays(20);
+    }
+  }, [customerPhone, customers, user]);
 
   // Edit payment method states for receipt modal
   const [editMethod, setEditMethod] = useState("");
@@ -441,6 +453,7 @@ function POS() {
         items: checkoutItems,
         isGstBilling: true,
         amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+        creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
         returnedItems: returnedItems,
         cashAmount: paymentMethod === "Split" ? cashAmount : 0,
         upiAmount: paymentMethod === "Split" ? upiAmount : 0,
@@ -513,6 +526,7 @@ function POS() {
             items: checkoutItems,
             isGstBilling,
             amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+            creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
             returnedItems: returnedItems,
             cashAmount: paymentMethod === "Split" ? cashAmount : 0,
             upiAmount: paymentMethod === "Split" ? upiAmount : 0,
@@ -532,6 +546,7 @@ function POS() {
           items: checkoutItems,
           isGstBilling,
           amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+          creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
           returnedItems: returnedItems,
           cashAmount: paymentMethod === "Split" ? cashAmount : 0,
           upiAmount: paymentMethod === "Split" ? upiAmount : 0,
@@ -1601,16 +1616,45 @@ function POS() {
         )}
 
         {paymentMethod === "Credit" && (
-          <div className="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-900 text-xs">
-            <span className="text-slate-450 font-bold">Amount Paid Today (₹):</span>
-            <input 
-              type="number"
-              min="0"
-              max={grandTotal}
-              value={amountPaidToday}
-              onChange={(e) => setAmountPaidToday(parseFloat(e.target.value) || 0)}
-              className="w-24 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right font-semibold font-mono text-slate-205 focus:outline-none focus:border-orange-500"
-            />
+          <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-900 text-xs space-y-3 text-left">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 font-bold">Amount Paid Today (₹):</span>
+              <input 
+                type="number"
+                min="0"
+                max={grandTotal}
+                value={amountPaidToday}
+                onChange={(e) => setAmountPaidToday(parseFloat(e.target.value) || 0)}
+                className="w-24 bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-right font-semibold font-mono text-slate-100 focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-2.5 border-t border-slate-800/80">
+              <div>
+                <span className="text-slate-300 font-bold block">Credit Due / Reminder (Days):</span>
+                <span className="text-[10px] text-slate-500">Days before overdue alert triggers for this bill</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input 
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={creditReminderDays}
+                  onChange={(e) => setCreditReminderDays(parseInt(e.target.value, 10) || 1)}
+                  className="w-20 bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-center font-bold font-mono text-orange-400 focus:outline-none focus:border-orange-500"
+                />
+                <span className="text-[11px] text-slate-400 font-bold">Days</span>
+              </div>
+            </div>
+
+            {creditReminderDays > 0 && (
+              <div className="bg-orange-500/10 border border-orange-500/20 p-2 rounded-lg text-[10px] text-orange-300 flex items-center justify-between font-mono">
+                <span>📅 Overdue Alert Date:</span>
+                <strong>
+                  {new Date(Date.now() + creditReminderDays * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}
+                </strong>
+              </div>
+            )}
           </div>
         )}
 

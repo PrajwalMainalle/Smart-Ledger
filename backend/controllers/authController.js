@@ -51,6 +51,8 @@ const registerUser = async (req, res) => {
         mobileNumber: user.mobileNumber,
         token: generateToken(user._id),
         profile: user.profile,
+        gstBillingRule: user.gstBillingRule || "warn",
+        creditReminderDays: user.creditReminderDays || 20,
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -84,6 +86,8 @@ const loginUser = async (req, res) => {
         mobileNumber: user.mobileNumber,
         token: generateToken(user._id),
         profile: user.profile,
+        gstBillingRule: user.gstBillingRule || "warn",
+        creditReminderDays: user.creditReminderDays || 20,
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -109,7 +113,8 @@ const getUserProfile = async (req, res) => {
         email: user.email,
         mobileNumber: user.mobileNumber,
         profile: user.profile,
-        gstBillingRule: user.gstBillingRule,
+        gstBillingRule: user.gstBillingRule || "warn",
+        creditReminderDays: user.creditReminderDays || 20,
       });
     } else {
       res.status(404).json({ message: "User not found" });
@@ -132,6 +137,10 @@ const updateUserProfile = async (req, res) => {
       user.ownerName = req.body.ownerName || user.ownerName;
       if (req.body.gstBillingRule !== undefined) {
         user.gstBillingRule = req.body.gstBillingRule;
+      }
+      if (req.body.creditReminderDays !== undefined) {
+        const parsedDays = parseInt(req.body.creditReminderDays, 10);
+        user.creditReminderDays = !isNaN(parsedDays) && parsedDays >= 1 ? parsedDays : 20;
       }
 
       // Update profile sub-fields
@@ -168,7 +177,8 @@ const updateUserProfile = async (req, res) => {
         email: updatedUser.email,
         mobileNumber: updatedUser.mobileNumber,
         profile: updatedUser.profile,
-        gstBillingRule: updatedUser.gstBillingRule,
+        gstBillingRule: updatedUser.gstBillingRule || "warn",
+        creditReminderDays: updatedUser.creditReminderDays || 20,
       });
     } else {
       res.status(404).json({ message: "User not found" });

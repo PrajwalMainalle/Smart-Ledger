@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import axiosInstance from "../../../app/api/axiosInstance";
 import { 
   FaFileInvoiceDollar, 
@@ -9,15 +10,24 @@ import {
   FaExclamationTriangle, 
   FaPlus,
   FaFileInvoice,
-  FaSpinner
+  FaSpinner,
+  FaCalendarAlt,
+  FaChartLine,
+  FaFilter
 } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+
+  const [graphFilter, setGraphFilter] = useState("7days"); // "7days" | "30days" | "lastMonth" | "thisYear" | "lastYear" | "custom"
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [hoveredPoint, setHoveredPoint] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -57,24 +67,135 @@ function Dashboard() {
 
   const { kpis, recentInvoices, lowStockProducts, paymentBreakdown, topSellingProducts } = data;
 
-  // Generate SVG Chart Data points (last 6 daily sales logs)
-  const chartSales = [...(data.reports?.dailySales || [])].slice(0, 6).reverse();
-  const maxTotal = Math.max(...chartSales.map(day => day?.sales || 0), 1000);
-  const svgWidth = 500;
-  const svgHeight = 200;
-  const padding = 30;
+  // Generate filtered chart points based on selected period
+  const getFilteredChartData = () => {
+    if (!data?.reports) return { pointsData: [], totalPeriodSales: 0, periodTitle: "Sales Trend" };
 
-  const points = chartSales.map((day, idx) => {
-    const x = padding + (idx * (svgWidth - padding * 2)) / (Math.max(chartSales.length - 1, 1));
-    const y = svgHeight - padding - ((day?.sales || 0) * (svgHeight - padding * 2)) / maxTotal;
-    const label = day?.date ? day.date.slice(5) : "";
-    return { x, y, label, total: day?.sales || 0 }; // MM-DD label
+    const rawDaily = data.reports.dailySales || [];
+    const rawMonthly = data.reports.monthlySales || [];
+
+    const dailyMap = {};
+    rawDaily.forEach((d) => { dailyMap[d.date] = d.sales; });
+
+    const monthlyMap = {};
+    rawMonthly.forEach((m) => { monthlyMap[m.month] = m.sales; });
+
+    const now = new Date();
+    let pointsData = [];
+    let periodTitle = "";
+
+    if (graphFilter === "7days") {
+      periodTitle = "Last 7 Days";
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        const label = `${d.getDate()} ${d.toLocaleString("default", { month: "short" })}`;
+        pointsData.push({
+          label,
+          fullDate: dateStr,
+          sales: dailyMap[dateStr] || 0,
+        });
+      }
+    } else if (graphFilter === "30days") {
+      periodTitle = "Last 30 Days";
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        const label = `${d.getDate()}/${d.getMonth() + 1}`;
+        pointsData.push({
+          label,
+          fullDate: dateStr,
+          sales: dailyMap[dateStr] || 0,
+        });
+      }
+    } else if (graphFilter === "lastMonth") {
+      periodTitle = "Last Month";
+      const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const totalDays = lastDayPrevMonth.getDate();
+
+      for (let day = 1; day <= totalDays; day++) {
+        const d = new Date(firstDayPrevMonth.getFullYear(), firstDayPrevMonth.getMonth(), day);
+        const dateStr = d.toISOString().split("T")[0];
+        const label = `${day} ${d.toLocaleString("default", { month: "short" })}`;
+        pointsData.push({
+          label,
+          fullDate: dateStr,
+          sales: dailyMap[dateStr] || 0,
+        });
+      }
+    } else if (graphFilter === "thisYear") {
+      periodTitle = `This Year (${now.getFullYear()})`;
+      const currentYear = now.getFullYear();
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (let m = 0; m < 12; m++) {
+        const monthStr = `${currentYear}-${String(m + 1).padStart(2, "0")}`;
+        pointsData.push({
+          label: monthNames[m],
+          fullDate: monthStr,
+          sales: monthlyMap[monthStr] || 0,
+        });
+      }
+    } else if (graphFilter === "lastYear") {
+      const lastYr = now.getFullYear() - 1;
+      periodTitle = `Last Year (${lastYr})`;
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (let m = 0; m < 12; m++) {
+        const monthStr = `${lastYr}-${String(m + 1).padStart(2, "0")}`;
+        pointsData.push({
+          label: monthNames[m],
+          fullDate: monthStr,
+          sales: monthlyMap[monthStr] || 0,
+        });
+      }
+    } else if (graphFilter === "custom") {
+      periodTitle = customStartDate && customEndDate ? `${customStartDate} to ${customEndDate}` : "Custom Date Range";
+      if (customStartDate && customEndDate) {
+        const start = new Date(customStartDate);
+        const end = new Date(customEndDate);
+        if (start <= end) {
+          const curr = new Date(start);
+          let count = 0;
+          while (curr <= end && count < 366) {
+            const dateStr = curr.toISOString().split("T")[0];
+            const label = `${curr.getDate()}/${curr.getMonth() + 1}`;
+            pointsData.push({
+              label,
+              fullDate: dateStr,
+              sales: dailyMap[dateStr] || 0,
+            });
+            curr.setDate(curr.getDate() + 1);
+            count++;
+          }
+        }
+      }
+    }
+
+    const totalPeriodSales = pointsData.reduce((acc, curr) => acc + curr.sales, 0);
+
+    return { pointsData, totalPeriodSales, periodTitle };
+  };
+
+  const { pointsData, totalPeriodSales, periodTitle } = getFilteredChartData();
+  const maxTotal = Math.max(...pointsData.map((d) => d.sales), 1000);
+  const svgWidth = 600;
+  const svgHeight = 200;
+  const padding = 35;
+
+  const points = pointsData.map((day, idx) => {
+    const x = padding + (idx * (svgWidth - padding * 2)) / Math.max(pointsData.length - 1, 1);
+    const y = svgHeight - padding - (day.sales * (svgHeight - padding * 2)) / maxTotal;
+    return { ...day, x, y };
   });
 
   const svgLinePath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   const svgAreaPath = points.length > 0 
     ? `${svgLinePath} L ${points[points.length - 1].x} ${svgHeight - padding} L ${points[0].x} ${svgHeight - padding} Z` 
     : "";
+
+  const labelStride = Math.max(1, Math.ceil(pointsData.length / 10));
 
   return (
     <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 relative">
@@ -96,9 +217,11 @@ function Dashboard() {
 
         {/* Overdue Credit Warning Banner */}
         {(() => {
+          const defaultReminderDays = data.creditReminderDays || user?.creditReminderDays || 20;
           const overdueCredits = data.reports?.pendingCreditInvoices?.filter(inv => {
             const daysElapsed = Math.floor((Date.now() - new Date(inv.date)) / (1000 * 60 * 60 * 24));
-            return daysElapsed >= 20;
+            const threshold = inv.targetReminderDays || defaultReminderDays;
+            return daysElapsed >= threshold;
           }) || [];
 
           if (overdueCredits.length === 0) return null;
@@ -112,7 +235,7 @@ function Dashboard() {
                 <div>
                   <h4 className="font-bold text-slate-100 text-sm md:text-base">Pending Credit Payments Attention Required!</h4>
                   <p className="text-xs text-slate-400 mt-1">
-                    There {overdueCredits.length === 1 ? "is 1 customer credit invoice" : `are ${overdueCredits.length} customer credit invoices`} that {overdueCredits.length === 1 ? "has" : "have"} been outstanding for more than 20 days.
+                    There {overdueCredits.length === 1 ? "is 1 customer credit invoice" : `are ${overdueCredits.length} customer credit invoices`} that {overdueCredits.length === 1 ? "has" : "have"} exceeded their credit reminder payment terms.
                   </p>
                 </div>
               </div>
@@ -187,31 +310,76 @@ function Dashboard() {
 
         {/* Visual Charts & Payment breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Revenue Curve Chart */}
-          <div className="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl lg:col-span-2 space-y-4">
-            <div className="flex justify-between items-center">
+                 {/* Revenue Curve Chart */}
+          <div className="bg-slate-900/40 border border-slate-900 p-6 rounded-2xl lg:col-span-2 space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800/80 pb-4">
               <div>
-                <h4 className="text-lg font-bold text-slate-100">Daily Sales Trend</h4>
-                <p className="text-xs text-slate-500">Sales velocity over the last active days</p>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-lg font-extrabold text-slate-100 flex items-center gap-2">
+                    <FaChartLine className="text-orange-500" /> Sales Trend Analytics
+                  </h4>
+                  <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Live Stream
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Sales velocity &amp; revenue trend for <strong className="text-slate-300 font-semibold">{periodTitle}</strong>
+                </p>
               </div>
-              <span className="px-2.5 py-1 text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-300 rounded-md">Live Stream</span>
+
+              {/* Date Filter Selector */}
+              <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+                <div className="relative flex-1 sm:flex-initial">
+                  <select
+                    value={graphFilter}
+                    onChange={(e) => setGraphFilter(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-orange-500 shadow-sm cursor-pointer hover:bg-slate-900 transition"
+                  >
+                    <option value="7days">Last 7 Days</option>
+                    <option value="30days">Last 30 Days</option>
+                    <option value="lastMonth">Last Month</option>
+                    <option value="thisYear">This Year (Monthly)</option>
+                    <option value="lastYear">Last Year (Monthly)</option>
+                    <option value="custom">Custom Date Range</option>
+                  </select>
+                </div>
+
+                {graphFilter === "custom" && (
+                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                    <input 
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="bg-transparent text-slate-200 text-xs font-mono px-2 py-1 focus:outline-none"
+                    />
+                    <span className="text-slate-600 text-xs font-bold">to</span>
+                    <input 
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="bg-transparent text-slate-200 text-xs font-mono px-2 py-1 focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            {chartSales.length > 1 ? (
+
+
+            {pointsData.length > 0 ? (
               <div className="w-full overflow-x-auto">
-                <div className="min-w-[450px] py-2">
+                <div className="min-w-[500px] py-2">
                   <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto overflow-visible">
                     <defs>
                       <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.4" />
+                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.45" />
                         <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
                       </linearGradient>
                     </defs>
 
                     {/* Grid lines */}
                     <line x1={padding} y1={padding} x2={svgWidth - padding} y2={padding} stroke="#1e293b" strokeDasharray="3" />
-                    <line x1={padding} y1={(svgHeight) / 2} x2={svgWidth - padding} y2={(svgHeight) / 2} stroke="#1e293b" strokeDasharray="3" />
+                    <line x1={padding} y1={svgHeight / 2} x2={svgWidth - padding} y2={svgHeight / 2} stroke="#1e293b" strokeDasharray="3" />
                     <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#334155" strokeWidth="1.5" />
 
                     {/* Area fill */}
@@ -221,36 +389,47 @@ function Dashboard() {
                     {svgLinePath && <path d={svgLinePath} fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
 
                     {/* Points and Tooltips */}
-                    {points.map((p, idx) => (
-                      <g key={idx}>
-                        <circle 
-                          cx={p.x} 
-                          cy={p.y} 
-                          r="5" 
-                          fill="#1e1b4b" 
-                          stroke="#f97316" 
-                          strokeWidth="2.5" 
-                          className="hover:scale-125 transition-transform cursor-pointer" 
-                          style={{ transformOrigin: `${p.x}px ${p.y}px` }}
-                        />
-                        
-                        {/* Tooltip value */}
-                        <text x={p.x} y={p.y - 12} fill="#cbd5e1" fontSize="10" textAnchor="middle" fontWeight="bold">
-                          ₹{Math.round(p.total)}
-                        </text>
-                        
-                        {/* Bottom labels */}
-                        <text x={p.x} y={svgHeight - 10} fill="#64748b" fontSize="10" textAnchor="middle">
-                          {p.label}
-                        </text>
-                      </g>
-                    ))}
+                    {points.map((p, idx) => {
+                      const showLabel = idx === 0 || idx === points.length - 1 || idx % labelStride === 0;
+                      const isHovered = hoveredPoint?.fullDate === p.fullDate;
+                      return (
+                        <g key={idx} className="group">
+                          <circle 
+                            cx={p.x} 
+                            cy={p.y} 
+                            r={isHovered ? "6.5" : "4.5"} 
+                            fill="#0f172a" 
+                            stroke="#f97316" 
+                            strokeWidth={isHovered ? "3.5" : "2.5"} 
+                            className="transition-all cursor-pointer" 
+                            style={{ transformOrigin: `${p.x}px ${p.y}px` }}
+                            onMouseEnter={() => setHoveredPoint(p)}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                          />
+                          
+                          {/* Tooltip value */}
+                          {(points.length <= 10 || isHovered) && p.sales > 0 && (
+                            <text x={p.x} y={p.y - 12} fill={isHovered ? "#fb923c" : "#cbd5e1"} fontSize={isHovered ? "11" : "9.5"} textAnchor="middle" fontWeight="bold">
+                              ₹{Math.round(p.sales)}
+                            </text>
+                          )}
+                          
+                          {/* Bottom labels */}
+                          {showLabel && (
+                            <text x={p.x} y={svgHeight - 10} fill="#64748b" fontSize="9" textAnchor="middle">
+                              {p.label}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
                   </svg>
                 </div>
               </div>
             ) : (
-              <div className="h-48 flex items-center justify-center border border-dashed border-slate-800 rounded-xl">
-                <p className="text-slate-500 text-sm">Add more invoices to see daily sales trends.</p>
+              <div className="h-48 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl space-y-2">
+                <FaCalendarAlt className="text-2xl text-slate-700" />
+                <p className="text-slate-500 text-sm">Select dates or add invoices to visualize sales trends.</p>
               </div>
             )}
           </div>

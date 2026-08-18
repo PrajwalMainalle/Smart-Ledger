@@ -154,6 +154,8 @@ const authSlice = createSlice({
         state.loading = false;
         if (state.user) {
           state.user.profile = action.payload.profile;
+          state.user.gstBillingRule = action.payload.gstBillingRule;
+          state.user.creditReminderDays = action.payload.creditReminderDays;
         }
       })
       .addCase(getProfile.rejected, (state, action) => {

@@ -40,6 +40,10 @@ const CustomerSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    creditReminderDays: {
+      type: Number,
+      default: null,
+    },
   },
   { timestamps: true }
 );

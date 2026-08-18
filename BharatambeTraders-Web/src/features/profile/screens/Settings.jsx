@@ -101,6 +101,7 @@ function Settings() {
     pincode: "",
     logo: "",
     gstBillingRule: "warn",
+    creditReminderDays: 20,
   });
 
   const [logoPreview, setLogoPreview] = useState("");
@@ -125,6 +126,7 @@ function Settings() {
         pincode: profile.pincode || "",
         logo: profile.logo || "",
         gstBillingRule: user.gstBillingRule || "warn",
+        creditReminderDays: user.creditReminderDays !== undefined ? user.creditReminderDays : 20,
       });
       setLogoPreview(profile.logo || "");
     }
@@ -338,7 +340,7 @@ function Settings() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-slate-400 font-semibold">GST Billing Rules (On Low Stock)</label>
                   <select 
@@ -350,6 +352,25 @@ function Settings() {
                     <option value="warn">Show Warning (Allow Billing)</option>
                     <option value="prevent">Prevent GST Billing</option>
                   </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Credit Reminder Alert (Days)</label>
+                  <div className="relative">
+                    <input 
+                      type="number"
+                      name="creditReminderDays"
+                      min="1"
+                      max="365"
+                      value={formData.creditReminderDays}
+                      onChange={handleChange}
+                      placeholder="20"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Days before pending credit invoices trigger overdue alerts on Dashboard and Header notifications.
+                  </p>
                 </div>
               </div>
 

@@ -52,6 +52,10 @@ const UserSchema = new mongoose.Schema(
       enum: ["prevent", "warn"],
       default: "warn",
     },
+    creditReminderDays: {
+      type: Number,
+      default: 20,
+    },
   },
   { timestamps: true }
 );

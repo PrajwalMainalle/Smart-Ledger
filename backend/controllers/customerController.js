@@ -18,7 +18,7 @@ const getCustomers = async (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  const { name, phone, customerType, priceCategory } = req.body;
+  const { name, phone, customerType, priceCategory, creditReminderDays } = req.body;
 
   if (!name || !phone) {
     return res.status(400).json({ message: "Please provide customer name and phone number" });
@@ -31,12 +31,19 @@ const createCustomer = async (req, res) => {
       return res.status(400).json({ message: `A customer with phone number '${phone}' already exists` });
     }
 
+    let parsedDays = null;
+    if (creditReminderDays !== undefined && creditReminderDays !== "" && creditReminderDays !== null) {
+      const num = parseInt(creditReminderDays, 10);
+      if (!isNaN(num) && num >= 1) parsedDays = num;
+    }
+
     const customer = await Customer.create({
       tenantId: req.user._id,
       name,
       phone,
       customerType: customerType || "Retail",
       priceCategory: priceCategory || "retail",
+      creditReminderDays: parsedDays,
     });
 
     res.status(201).json(customer);
@@ -50,7 +57,7 @@ const createCustomer = async (req, res) => {
 // @route   PUT /api/customers/:id
 // @access  Private
 const updateCustomer = async (req, res) => {
-  const { name, phone, customerType, priceCategory } = req.body;
+  const { name, phone, customerType, priceCategory, creditReminderDays } = req.body;
 
   try {
     const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.user._id });
@@ -75,6 +82,15 @@ const updateCustomer = async (req, res) => {
     customer.phone = phone !== undefined ? phone : customer.phone;
     customer.customerType = customerType !== undefined ? customerType : customer.customerType;
     customer.priceCategory = priceCategory !== undefined ? priceCategory : customer.priceCategory;
+
+    if (creditReminderDays !== undefined) {
+      if (creditReminderDays === "" || creditReminderDays === null) {
+        customer.creditReminderDays = null;
+      } else {
+        const num = parseInt(creditReminderDays, 10);
+        customer.creditReminderDays = !isNaN(num) && num >= 1 ? num : null;
+      }
+    }
 
     const updatedCustomer = await customer.save();
     res.json(updatedCustomer);

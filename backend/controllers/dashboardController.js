@@ -3,6 +3,7 @@ const Product = require("../models/Product");
 const Customer = require("../models/Customer");
 const CustomerLedger = require("../models/CustomerLedger");
 const DamagedStock = require("../models/DamagedStock");
+const User = require("../models/User");
 
 // @desc    Get dashboard KPIs and charts analytics
 // @route   GET /api/dashboard/summary
@@ -10,6 +11,8 @@ const DamagedStock = require("../models/DamagedStock");
 const getDashboardSummary = async (req, res) => {
   try {
     const tenantId = req.user._id;
+    const tenantUser = await User.findById(tenantId).select("creditReminderDays").lean();
+    const creditReminderDays = tenantUser?.creditReminderDays || 20;
 
     // Fetch all invoices for tenant (excluding quotations)
     const invoices = await Invoice.find({ tenantId, isQuotation: { $ne: true } }).sort({ date: -1 }).lean();
@@ -92,7 +95,7 @@ const getDashboardSummary = async (req, res) => {
       dailyMap[dateStr].sales += getInvRevenue(inv);
       dailyMap[dateStr].count += 1;
     });
-    const dailySales = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+    const dailySales = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date));
 
     // Monthly Sales Report
     const monthlyMap = {};
@@ -192,13 +195,26 @@ const getDashboardSummary = async (req, res) => {
 
     // Fetch Credit / Debtors, Collections, Returns & Damaged Stock Reports
     const creditCustomers = await Customer.find({ tenantId, outstandingBalance: { $gt: 0 } }).sort({ outstandingBalance: -1 }).lean();
-    const pendingCreditInvoices = await Invoice.find({ 
+    const rawPendingCreditInvoices = await Invoice.find({ 
       tenantId, 
       paymentMethod: "Credit", 
       outstandingAmount: { $gt: 0 }, 
       status: "Paid", 
       isQuotation: { $ne: true } 
     }).sort({ date: -1 }).lean();
+
+    const allCustomersList = await Customer.find({ tenantId }).select("phone creditReminderDays").lean();
+    const custPhoneMap = {};
+    allCustomersList.forEach(c => { if (c.phone) custPhoneMap[c.phone] = c; });
+
+    const pendingCreditInvoices = rawPendingCreditInvoices.map(inv => {
+      const cust = custPhoneMap[inv.customerPhone];
+      const targetDays = (cust && cust.creditReminderDays && cust.creditReminderDays > 0) ? cust.creditReminderDays : creditReminderDays;
+      return {
+        ...inv,
+        targetReminderDays: targetDays,
+      };
+    });
     
     const paymentsCollected = await CustomerLedger.find({ tenantId, type: "Payment" })
       .populate("customerId", "name phone")
@@ -217,6 +233,7 @@ const getDashboardSummary = async (req, res) => {
       .lean();
 
     res.json({
+      creditReminderDays,
       kpis: {
         totalSales,
         todaySales,

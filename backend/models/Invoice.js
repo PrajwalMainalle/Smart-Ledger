@@ -251,6 +251,10 @@ const InvoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0.0,
     },
+    creditReminderDays: {
+      type: Number,
+      default: null,
+    },
     isReturnExchange: {
       type: Boolean,
       default: false,

@@ -269,7 +269,7 @@ const Headers = ({ onMenuClick }) => {
                             {rem.invoiceId}
                           </span>
                           <span className="text-[9px] bg-rose-500/10 text-rose-450 px-1.5 py-0.5 rounded font-bold">
-                            {rem.daysElapsed} days overdue
+                            {rem.daysElapsed} days overdue {rem.targetReminderDays ? `(Limit: ${rem.targetReminderDays}d)` : ""}
                           </span>
                         </div>
                       </div>
