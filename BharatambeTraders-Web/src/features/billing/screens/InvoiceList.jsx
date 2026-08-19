@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
-import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload, FaWhatsapp } from "react-icons/fa";
+import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload, FaWhatsapp, FaEdit } from "react-icons/fa";
 import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod } from "../billingSlice";
 import { fetchProducts } from "../../inventory/inventorySlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
@@ -464,6 +464,15 @@ Thank you for your business! 🙏
                           >
                             Receipt
                           </button>
+                          {!inv.isLocked && !inv.isGovInvoice && inv.status !== "Refunded" && (
+                            <button 
+                              onClick={() => handleEditInvoice(inv)}
+                              className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded border border-amber-500/20 font-bold text-xs transition flex items-center gap-1"
+                              title="Edit bill items, quantities or prices in POS"
+                            >
+                              <FaEdit className="text-[11px]" /> Edit
+                            </button>
+                          )}
                           <a
                             href={getWhatsAppLink(inv)}
                             target="_blank"
@@ -754,6 +763,18 @@ Thank you for your business! 🙏
                 >
                   <FaWhatsapp className="text-base text-white" /> WhatsApp Bill
                 </a>
+                {!selectedInvoice.isLocked && !selectedInvoice.isGovInvoice && selectedInvoice.status !== "Refunded" && (
+                  <button
+                    onClick={() => {
+                      const invToEdit = selectedInvoice;
+                      setSelectedInvoice(null);
+                      handleEditInvoice(invToEdit);
+                    }}
+                    className="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 rounded-lg font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
+                  >
+                    <FaEdit /> Edit Bill / Modify Items
+                  </button>
+                )}
               </div>
 
               {/* Payment Method Quick Change Option */}

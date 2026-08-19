@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { MdDeleteOutline, MdClear } from "react-icons/md";
-import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload, FaCalendarAlt } from "react-icons/fa";
+import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload, FaCalendarAlt, FaEdit } from "react-icons/fa";
 import { 
   addToCart, 
   removeFromCart, 
@@ -603,87 +603,84 @@ function POS() {
     });
   };
 
-  const handleEditCurrentBill = async () => {
-    if (!receiptData) return;
+  const handleEditBillInPOS = (invoiceToEdit) => {
+    if (!invoiceToEdit) return;
 
-    if (!window.confirm("Are you sure you want to cancel this generated invoice and load items back to the cart to edit them?")) {
-      return;
+    const restoredCart = invoiceToEdit.items.map((item) => {
+      if (item.isManualItem) {
+        return {
+          id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          productId: null,
+          name: item.name,
+          price: item.price,
+          originalPrice: item.price,
+          prices: { retail: item.price },
+          priceCategoryUsed: "manual",
+          qty: item.qty,
+          gstRate: item.gstRate || 0,
+          sku: "MANUAL",
+          maxStock: 999999,
+          isManualItem: true,
+          excludeFromRevenue: !!item.excludeFromRevenue,
+        };
+      } else {
+        const prod = products.find((p) => p._id === item.productId);
+        const currentStock = prod ? prod.stock : 0;
+        return {
+          id: item.productId,
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          originalPrice: prod ? prod.price : item.price,
+          prices: prod ? prod.prices : {},
+          priceCategoryUsed: item.priceCategoryUsed || "retail",
+          qty: item.qty,
+          gstRate: item.gstRate || 0,
+          sku: item.sku,
+          maxStock: currentStock + item.qty,
+          isManualItem: false,
+        };
+      }
+    });
+
+    dispatch(
+      restoreCartAndBillingState({
+        cart: restoredCart,
+        customerName: invoiceToEdit.customerName,
+        customerPhone: invoiceToEdit.customerPhone,
+        customerType: invoiceToEdit.customerType || "Retail",
+        priceCategory: invoiceToEdit.priceCategory || "retail",
+        discount: invoiceToEdit.discountPercent || 0,
+        paymentMethod: invoiceToEdit.paymentMethod || "Cash",
+      })
+    );
+
+    setDiscountValue(invoiceToEdit.discountPercent || 0);
+    setDiscountType("percent");
+    setIsGstBilling(invoiceToEdit.isGstBilling !== false);
+    setIsQuotation(invoiceToEdit.isQuotation || false);
+    if (invoiceToEdit.date) {
+      setCustomInvoiceDate(new Date(invoiceToEdit.date).toISOString().split("T")[0]);
+    }
+    setEditingInvoiceId(invoiceToEdit._id);
+    setEditingInvoiceNumber(invoiceToEdit.invoiceId);
+    setCustomerSearch(invoiceToEdit.customerName === "Walk-in Customer" ? "" : invoiceToEdit.customerName);
+
+    if (invoiceToEdit.paymentMethod === "Credit") {
+      setAmountPaidToday(invoiceToEdit.amountPaid || 0);
+    } else if (invoiceToEdit.paymentMethod === "Split") {
+      setCashAmount(invoiceToEdit.cashAmount || 0);
+      setUpiAmount(invoiceToEdit.upiAmount || 0);
     }
 
-    try {
-      await axiosInstance.delete(`/billing/${receiptData._id}`);
+    setShowCheckoutModal(false);
+    setReceiptData(null);
+    setQuotationReceiptData(null);
+  };
 
-      const restoredCart = receiptData.items.map(item => {
-        if (item.isManualItem) {
-          return {
-            id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            productId: null,
-            name: item.name,
-            price: item.price,
-            originalPrice: item.price,
-            prices: { retail: item.price },
-            priceCategoryUsed: "manual",
-            qty: item.qty,
-            gstRate: item.gstRate || 0,
-            sku: "MANUAL",
-            maxStock: 999999,
-            isManualItem: true
-          };
-        } else {
-          const prod = products.find(p => p._id === item.productId);
-          const currentStock = prod ? prod.stock : 0;
-          return {
-            id: item.productId,
-            productId: item.productId,
-            name: item.name,
-            price: item.price,
-            originalPrice: prod ? prod.price : item.price,
-            prices: prod ? prod.prices : {},
-            priceCategoryUsed: item.priceCategoryUsed || "retail",
-            qty: item.qty,
-            gstRate: item.gstRate || 0,
-            sku: item.sku,
-            maxStock: currentStock + item.qty,
-            isManualItem: false
-          };
-        }
-      });
-
-      dispatch(restoreCartAndBillingState({
-        cart: restoredCart,
-        customerName: receiptData.customerName,
-        customerPhone: receiptData.customerPhone,
-        customerType: receiptData.customerType || "Retail",
-        priceCategory: receiptData.priceCategory || "retail",
-        discount: receiptData.discountPercent || 0,
-        paymentMethod: receiptData.paymentMethod || "Cash"
-      }));
-
-      setDiscountValue(receiptData.discountPercent || 0);
-      setDiscountType("percent");
-      setIsGstBilling(receiptData.isGstBilling !== false);
-      setIsQuotation(receiptData.isQuotation || false);
-      if (receiptData.date) {
-        setCustomInvoiceDate(new Date(receiptData.date).toISOString().split("T")[0]);
-      }
-      if (receiptData.paymentMethod === "Credit") {
-        setAmountPaidToday(receiptData.amountPaid || 0);
-      } else if (receiptData.paymentMethod === "Split") {
-        setCashAmount(receiptData.cashAmount || 0);
-        setUpiAmount(receiptData.upiAmount || 0);
-      }
-      
-      setCustomerSearch(receiptData.customerName === "Walk-in Customer" ? "" : receiptData.customerName);
-
-      dispatch(fetchProducts());
-
-      setShowCheckoutModal(false);
-      setReceiptData(null);
-
-      alert("Invoice cancelled and items restored to cart. You can now modify and checkout again.");
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Failed to edit bill items");
+  const handleEditCurrentBill = () => {
+    if (receiptData) {
+      handleEditBillInPOS(receiptData);
     }
   };
 
@@ -879,9 +876,10 @@ function POS() {
       {checkoutLoading && <LoadingOverlay message="Processing invoice transaction..." />}
 
       {editingInvoiceId && (
-        <div className="absolute top-0 inset-x-0 bg-amber-500/20 border-b border-amber-500/35 px-4 py-3 flex items-center justify-between text-xs text-amber-250 font-bold z-40 backdrop-blur-md">
-          <span className="flex items-center gap-1.5">
-            ⚠️ You are editing Invoice: <span className="font-mono underline">{editingInvoiceNumber}</span>. Saving checkout will modify this bill directly.
+        <div className="absolute top-0 inset-x-0 bg-gradient-to-r from-amber-600/30 via-orange-600/30 to-amber-600/30 border-b border-amber-500/40 px-4 py-2.5 flex items-center justify-between text-xs text-amber-200 font-bold z-40 backdrop-blur-md shadow-lg">
+          <span className="flex items-center gap-2">
+            <span className="px-2 py-0.5 bg-amber-500 text-slate-950 rounded font-black text-[10px] uppercase tracking-wider">EDIT MODE</span>
+            Editing Bill: <span className="font-mono text-white underline font-extrabold">{editingInvoiceNumber}</span>. Add/remove items, change quantities or pricing, then click <strong>"Save & Update Bill"</strong>.
           </span>
           <button
             type="button"
@@ -890,9 +888,9 @@ function POS() {
               setEditingInvoiceNumber("");
               dispatch(clearCart());
             }}
-            className="text-amber-400 hover:text-amber-200 uppercase font-mono tracking-wider hover:underline"
+            className="px-3 py-1 bg-slate-900/80 hover:bg-rose-600/80 text-rose-300 hover:text-white border border-rose-500/30 rounded-lg text-xs font-semibold transition"
           >
-            Cancel Edit
+            Cancel Edit & Clear Cart
           </button>
         </div>
       )}
@@ -1765,7 +1763,14 @@ function POS() {
             }
           `}
         >
-          {(checkoutLoading || govCheckoutLoading) ? <FaSpinner className="animate-spin" /> : <><FaCheckCircle /> Proceed to Checkout</>}
+          {(checkoutLoading || govCheckoutLoading) ? (
+            <FaSpinner className="animate-spin" />
+          ) : (
+            <>
+              <FaCheckCircle />
+              {editingInvoiceId ? `💾 Save & Update Bill (${editingInvoiceNumber})` : "Proceed to Checkout"}
+            </>
+          )}
         </button>
 
       </div>
@@ -1823,16 +1828,26 @@ function POS() {
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => {
-                      setShowCheckoutModal(false);
-                      setReceiptData(null);
-                      setQuotationReceiptData(null);
-                    }}
-                    className="text-slate-400 hover:text-slate-200"
-                  >
-                    <FaTimes size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditBillInPOS(currentActiveReceipt)}
+                      className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                      title="Unlock and edit bill items, quantities or pricing in POS cart"
+                    >
+                      <FaEdit size={13} /> Edit Bill / Modify Items
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowCheckoutModal(false);
+                        setReceiptData(null);
+                        setQuotationReceiptData(null);
+                      }}
+                      className="text-slate-400 hover:text-slate-200"
+                    >
+                      <FaTimes size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Split Content Body */}
@@ -2060,6 +2075,13 @@ function POS() {
                     >
                       <FaDownload /> Download {currentActiveReceipt.isQuotation ? "Quotation PDF" : "Tax Invoice PDF"}
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => handleEditBillInPOS(currentActiveReceipt)}
+                      className="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
+                    >
+                      <FaEdit /> Edit Bill / Modify Items
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
