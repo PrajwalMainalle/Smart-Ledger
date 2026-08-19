@@ -537,9 +537,24 @@ Thank you for your business! 🙏
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
             
             <div className="bg-slate-950 px-6 py-4 flex items-center justify-between border-b border-slate-900">
-              <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                <FaFileInvoice className="text-orange-500" /> {selectedInvoice.status === "Quotation" ? "Quotation / Estimate Details" : "Invoice Details"}
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                  <FaFileInvoice className="text-orange-500" /> {selectedInvoice.status === "Quotation" ? "Quotation / Estimate Details" : "Invoice Details"} ({selectedInvoice.invoiceId})
+                </h3>
+                {!selectedInvoice.isLocked && !selectedInvoice.isGovInvoice && selectedInvoice.status !== "Refunded" && (
+                  <button
+                    onClick={() => {
+                      const invToEdit = selectedInvoice;
+                      setSelectedInvoice(null);
+                      handleEditInvoice(invToEdit);
+                    }}
+                    className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded border border-amber-500/30 font-bold text-xs transition flex items-center gap-1"
+                    title="Edit this invoice in POS"
+                  >
+                    <FaEdit size={11} /> Edit Invoice
+                  </button>
+                )}
+              </div>
               <button 
                 onClick={() => setSelectedInvoice(null)}
                 className="text-slate-400 hover:text-slate-200"

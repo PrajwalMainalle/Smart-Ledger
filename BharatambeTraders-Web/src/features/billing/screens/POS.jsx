@@ -205,11 +205,12 @@ function POS() {
             isManualItem: true
           };
         } else {
-          const prod = products.find(p => p._id === item.productId);
+          const itemProdId = (item.productId?._id || item.productId || item.id)?.toString();
+          const prod = products.find(p => p._id?.toString() === itemProdId);
           const currentStock = prod ? prod.stock : 0;
           return {
-            id: item.productId,
-            productId: item.productId,
+            id: itemProdId || item.productId,
+            productId: itemProdId || item.productId,
             name: item.name,
             price: item.price,
             originalPrice: prod ? prod.price : item.price,
@@ -624,11 +625,12 @@ function POS() {
           excludeFromRevenue: !!item.excludeFromRevenue,
         };
       } else {
-        const prod = products.find((p) => p._id === item.productId);
+        const itemProdId = (item.productId?._id || item.productId || item.id)?.toString();
+        const prod = products.find((p) => p._id?.toString() === itemProdId);
         const currentStock = prod ? prod.stock : 0;
         return {
-          id: item.productId,
-          productId: item.productId,
+          id: itemProdId || item.productId,
+          productId: itemProdId || item.productId,
           name: item.name,
           price: item.price,
           originalPrice: prod ? prod.price : item.price,

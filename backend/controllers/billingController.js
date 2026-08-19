@@ -1511,9 +1511,12 @@ const updateInvoice = async (req, res) => {
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
+    let revenueCgst = 0;
+    let revenueSgst = 0;
+    let revenueIgst = 0;
+    let isInterstate = false;
 
-    if (isGst && gstAmount > 0) {
-      let isInterstate = false;
+    if (isGst) {
       const finalCustomerPhone = customerPhone !== undefined ? customerPhone : invoice.customerPhone;
       if (finalCustomerPhone && finalCustomerPhone !== "N/A") {
         const customer = await Customer.findOne({ tenantId, phone: finalCustomerPhone });
@@ -1527,11 +1530,23 @@ const updateInvoice = async (req, res) => {
           }
         }
       }
-      if (isInterstate) {
-        igst = gstAmount;
-      } else {
-        cgst = gstAmount / 2;
-        sgst = gstAmount / 2;
+
+      if (gstAmount > 0) {
+        if (isInterstate) {
+          igst = gstAmount;
+        } else {
+          cgst = gstAmount / 2;
+          sgst = gstAmount / 2;
+        }
+      }
+
+      if (revenueGstAmount > 0) {
+        if (isInterstate) {
+          revenueIgst = revenueGstAmount;
+        } else {
+          revenueCgst = revenueGstAmount / 2;
+          revenueSgst = revenueGstAmount / 2;
+        }
       }
     }
 
