@@ -140,7 +140,7 @@ function InvoiceList() {
   // Handle Edit/Exchange Action
   const handleEditInvoice = (inv) => {
     if (window.confirm(`Are you sure you want to edit Invoice ${inv.invoiceId}?\nThis will load its items into the POS screen, where you can modify items and save the updated bill.`)) {
-      navigate("/billing", { state: { editInvoice: inv } });
+      navigate("/pos", { state: { editInvoice: inv } });
     }
   };
 
