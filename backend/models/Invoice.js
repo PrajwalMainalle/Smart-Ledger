@@ -161,7 +161,7 @@ const InvoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "UPI", "Card", "Cheque", "Credit", "Split", "Exchange", "Government School Fund"],
+      enum: ["Cash", "UPI", "Card", "Cheque", "Credit", "Split", "Exchange", "Government School Fund", "N/A"],
       default: "Cash",
     },
     govSchoolId: {

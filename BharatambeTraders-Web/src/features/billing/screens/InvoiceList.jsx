@@ -252,7 +252,7 @@ Here is your bill details from *Bharatambe Traders*:
 
 🔖 *Invoice No:* ${inv.invoiceId || inv.id}
 📅 *Date:* ${new Date(inv.date || Date.now()).toLocaleDateString("en-IN")}
-💳 *Payment Mode:* ${inv.paymentMethod || "CASH"} (${statusStr})
+💳 *Payment Mode:* ${(inv.isQuotation || inv.status === "Quotation" || inv.paymentMethod === "N/A") ? "N/A (Quotation Estimate)" : `${inv.paymentMethod || "CASH"} (${statusStr})`}
 
 📋 *Items Summary:*
 ${itemsList}
@@ -401,7 +401,9 @@ Thank you for your business! 🙏
                         <div className="text-[10px] text-slate-500">{inv.customerPhone}</div>
                       </td>
                       <td className="py-4 px-2">
-                        {inv.paymentMethod === "Credit" ? (
+                        {inv.isQuotation || inv.status === "Quotation" || inv.paymentMethod === "N/A" ? (
+                          <span className="text-slate-500 font-mono text-xs font-semibold">-</span>
+                        ) : inv.paymentMethod === "Credit" ? (
                           <div className="flex flex-col gap-0.5 items-start">
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border
                               ${inv.creditSettled 

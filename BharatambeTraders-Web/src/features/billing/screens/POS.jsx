@@ -475,6 +475,7 @@ function POS() {
             discountType,
             discountValue,
             isQuotation: true, // 2. Quotation / Estimate
+            paymentMethod: "N/A",
             items: checkoutItems,
             isGstBilling: true,
             amountPaid: 0,
@@ -524,9 +525,10 @@ function POS() {
             discountType,
             discountValue,
             isQuotation,
+            paymentMethod: isQuotation ? "N/A" : paymentMethod,
             items: checkoutItems,
             isGstBilling,
-            amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+            amountPaid: isQuotation ? 0 : (paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal))),
             creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
             returnedItems: returnedItems,
             cashAmount: paymentMethod === "Split" ? cashAmount : 0,
@@ -544,9 +546,10 @@ function POS() {
           discountType,
           discountValue,
           isQuotation,
+          paymentMethod: isQuotation ? "N/A" : paymentMethod,
           items: checkoutItems,
           isGstBilling,
-          amountPaid: paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal)),
+          amountPaid: isQuotation ? 0 : (paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal))),
           creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
           returnedItems: returnedItems,
           cashAmount: paymentMethod === "Split" ? cashAmount : 0,
@@ -1401,32 +1404,39 @@ function POS() {
         {/* Payment mode choice */}
         <div className="space-y-2.5">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-450 block">Payment Method</span>
-          <div className="flex flex-wrap gap-1.5">
-            {(() => {
-              const baseMethods = ["Cash", "UPI", "Cheque", "Credit", "Split", "Government School Fund"];
-              const methods = (returnedItems.length > 0 || editingInvoiceId)
-                ? [...baseMethods, "Exchange"]
-                : baseMethods;
-              return methods.map((method) => {
-                const active = paymentMethod === method;
-                return (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => dispatch(setPaymentMethod(method))}
-                    className={`flex-1 min-w-[80px] py-2 px-1 rounded-lg text-[11px] font-bold border transition-all duration-150
-                      ${active 
-                        ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
-                        : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
-                      }
-                    `}
-                  >
-                    {method}
-                  </button>
-                );
-              });
-            })()}
-          </div>
+          {isQuotation ? (
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-400 font-medium">
+              <span className="text-amber-400 font-bold block mb-0.5">📋 Quotation / Estimate</span>
+              No payment method required for quotations.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {(() => {
+                const baseMethods = ["Cash", "UPI", "Cheque", "Credit", "Split", "Government School Fund"];
+                const methods = (returnedItems.length > 0 || editingInvoiceId)
+                  ? [...baseMethods, "Exchange"]
+                  : baseMethods;
+                return methods.map((method) => {
+                  const active = paymentMethod === method;
+                  return (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => dispatch(setPaymentMethod(method))}
+                      className={`flex-1 min-w-[80px] py-2 px-1 rounded-lg text-[11px] font-bold border transition-all duration-150
+                        ${active 
+                          ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
+                          : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
+                        }
+                      `}
+                    >
+                      {method}
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </div>
 
         {paymentMethod === "Government School Fund" && (

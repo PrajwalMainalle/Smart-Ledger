@@ -472,7 +472,7 @@ const createInvoice = async (req, res) => {
       revenueCgst,
       revenueSgst,
       revenueIgst,
-      paymentMethod: paymentMethod || "Cash",
+      paymentMethod: isQuotation ? "N/A" : (paymentMethod || "Cash"),
       govSchoolId: paymentMethod === "Government School Fund" ? govSchoolId : null,
       govDetails: paymentMethod === "Government School Fund" ? {
         schoolName: targetGovSchool?.schoolName || "",
@@ -709,6 +709,9 @@ const convertQuotationToSale = async (req, res) => {
     // 3. Update status & flags
     invoice.isQuotation = false;
     invoice.status = "Paid";
+    if (invoice.paymentMethod === "N/A") {
+      invoice.paymentMethod = "Cash";
+    }
 
     // 4. Regenerate & Save final PDF (optional cached copy)
     try {

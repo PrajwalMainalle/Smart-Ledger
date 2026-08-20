@@ -513,15 +513,19 @@ function Dashboard() {
                         <div className="text-[10px] text-slate-500">{inv.customerPhone}</div>
                       </td>
                       <td>
-                        <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-md uppercase border 
-                          ${inv.paymentMethod === "UPI" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : ""}
-                          ${inv.paymentMethod === "Cash" ? "bg-orange-500/10 border-orange-500/20 text-orange-400" : ""}
-                          ${inv.paymentMethod === "Card" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : ""}
-                          ${inv.paymentMethod === "Cheque" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : ""}
-                          ${inv.paymentMethod === "Credit" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : ""}
-                        `}>
-                          {inv.paymentMethod}
-                        </span>
+                        {inv.isQuotation || inv.status === "Quotation" || inv.paymentMethod === "N/A" ? (
+                          <span className="text-slate-500 font-mono text-xs font-semibold">-</span>
+                        ) : (
+                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-md uppercase border 
+                            ${inv.paymentMethod === "UPI" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : ""}
+                            ${inv.paymentMethod === "Cash" ? "bg-orange-500/10 border-orange-500/20 text-orange-400" : ""}
+                            ${inv.paymentMethod === "Card" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : ""}
+                            ${inv.paymentMethod === "Cheque" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : ""}
+                            ${inv.paymentMethod === "Credit" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : ""}
+                          `}>
+                            {inv.paymentMethod}
+                          </span>
+                        )}
                       </td>
                       <td className="text-right font-bold text-slate-100">₹{inv.total.toFixed(2)}</td>
                     </tr>
