@@ -345,6 +345,7 @@ Thank you for your business! 🙏
                 <option value="Cash">Cash</option>
                 <option value="UPI">UPI</option>
                 <option value="Card">Card</option>
+                <option value="Cheque">Cheque</option>
                 <option value="Credit">Credit</option>
                 <option value="Split">Split</option>
               </select>
@@ -421,6 +422,7 @@ Thank you for your business! 🙏
                             ${inv.paymentMethod === "UPI" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : ""}
                             ${inv.paymentMethod === "Cash" ? "bg-orange-500/10 border-orange-500/20 text-orange-400" : ""}
                             ${inv.paymentMethod === "Card" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : ""}
+                            ${inv.paymentMethod === "Cheque" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : ""}
                             ${inv.paymentMethod === "Split" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : ""}
                           `}>
                             {inv.paymentMethod}
@@ -797,7 +799,7 @@ Thank you for your business! 🙏
                 <div className="mt-2 p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2 text-xs text-left">
                   <span className="font-bold text-slate-400 block">Change Payment Method:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {["Cash", "UPI", "Card", "Credit", "Split"].map((method) => {
+                    {["Cash", "UPI", "Card", "Cheque", "Credit", "Split"].map((method) => {
                       const active = editMethod === method;
                       return (
                         <button
@@ -951,7 +953,7 @@ Thank you for your business! 🙏
               <div className="space-y-1.5">
                 <label className="text-slate-450 font-bold uppercase tracking-wider text-[10px]">Settlement Method</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {["Cash", "UPI", "Card"].map((method) => {
+                  {["Cash", "UPI", "Card", "Cheque"].map((method) => {
                     const active = settleForm.settlementMethod === method;
                     return (
                       <button

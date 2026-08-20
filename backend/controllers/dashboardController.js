@@ -58,7 +58,7 @@ const getDashboardSummary = async (req, res) => {
         }
         return acc;
       },
-      { Cash: 0, UPI: 0, Card: 0, Credit: 0 }
+      { Cash: 0, UPI: 0, Card: 0, Cheque: 0, Credit: 0 }
     );
 
     // 4. Top Selling Products

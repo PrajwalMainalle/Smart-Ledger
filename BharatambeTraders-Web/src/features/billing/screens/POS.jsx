@@ -1403,7 +1403,7 @@ function POS() {
           <span className="text-xs font-bold uppercase tracking-wider text-slate-450 block">Payment Method</span>
           <div className="flex flex-wrap gap-1.5">
             {(() => {
-              const baseMethods = ["Cash", "UPI", "Card", "Credit", "Split", "Government School Fund"];
+              const baseMethods = ["Cash", "UPI", "Cheque", "Credit", "Split", "Government School Fund"];
               const methods = (returnedItems.length > 0 || editingInvoiceId)
                 ? [...baseMethods, "Exchange"]
                 : baseMethods;

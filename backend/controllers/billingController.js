@@ -774,8 +774,8 @@ const settleInvoice = async (req, res) => {
       return res.status(400).json({ message: "Only Credit invoices can be settled" });
     }
 
-    if (!["Cash", "UPI", "Card"].includes(settlementMethod)) {
-      return res.status(400).json({ message: "Invalid settlement method. Must be Cash, UPI, or Card." });
+    if (!["Cash", "UPI", "Card", "Cheque"].includes(settlementMethod)) {
+      return res.status(400).json({ message: "Invalid settlement method. Must be Cash, UPI, Card, or Cheque." });
     }
 
     const payVal = parseFloat(amount);
@@ -1046,7 +1046,7 @@ const recordCollection = async (req, res) => {
         inv.outstandingAmount = 0;
         inv.creditSettled = true;
         inv.settlementDate = new Date();
-        inv.settlementMethod = ["Cash", "UPI", "Card"].includes(paymentMethod) ? paymentMethod : "Cash";
+        inv.settlementMethod = ["Cash", "UPI", "Card", "Cheque"].includes(paymentMethod) ? paymentMethod : "Cash";
         remainingPayment -= outstanding;
       } else {
         inv.amountPaid += remainingPayment;
@@ -1175,7 +1175,7 @@ const updateInvoicePaymentMethod = async (req, res) => {
     const oldPaymentMethod = invoice.paymentMethod;
 
     // Validate paymentMethod
-    const validMethods = ["Cash", "UPI", "Card", "Credit", "Split"];
+    const validMethods = ["Cash", "UPI", "Card", "Cheque", "Credit", "Split"];
     if (!validMethods.includes(paymentMethod)) {
       return res.status(400).json({ message: "Invalid payment method" });
     }
@@ -1191,7 +1191,7 @@ const updateInvoicePaymentMethod = async (req, res) => {
       newUpiAmount = parseFloat(upiAmount) || 0.0;
       newPaidAmount = newCashAmount + newUpiAmount;
     } else {
-      // Cash, UPI, Card are fully paid
+      // Cash, UPI, Card, Cheque are fully paid
       newPaidAmount = invoice.total;
     }
 
@@ -1208,7 +1208,7 @@ const updateInvoicePaymentMethod = async (req, res) => {
     if (paymentMethod !== "Credit" || newOutstandingAmount <= 0) {
       invoice.creditSettled = true;
       invoice.settlementDate = new Date();
-      invoice.settlementMethod = paymentMethod === "Split" ? "UPI" : (["Cash", "UPI", "Card"].includes(paymentMethod) ? paymentMethod : "Cash");
+      invoice.settlementMethod = paymentMethod === "Split" ? "UPI" : (["Cash", "UPI", "Card", "Cheque"].includes(paymentMethod) ? paymentMethod : "Cash");
     } else {
       // If it's credit and has outstanding, it's not settled
       invoice.creditSettled = false;

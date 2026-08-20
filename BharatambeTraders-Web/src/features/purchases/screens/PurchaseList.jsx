@@ -474,6 +474,7 @@ function PurchaseList() {
               <option value="Cash">Cash</option>
               <option value="UPI">UPI</option>
               <option value="Card">Card</option>
+              <option value="Cheque">Cheque</option>
               <option value="Credit">Credit/Outstanding</option>
             </select>
           </div>
@@ -782,6 +783,7 @@ function PurchaseList() {
                     <option value="Cash">Cash</option>
                     <option value="UPI">UPI</option>
                     <option value="Card">Card</option>
+                    <option value="Cheque">Cheque</option>
                     <option value="Credit">Credit/Outstanding</option>
                   </select>
                 </div>

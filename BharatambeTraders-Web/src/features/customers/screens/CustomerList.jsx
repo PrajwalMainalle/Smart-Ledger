@@ -673,6 +673,7 @@ function CustomerList() {
                         <option value="Cash">Cash</option>
                         <option value="UPI">UPI</option>
                         <option value="Card">Card</option>
+                        <option value="Cheque">Cheque</option>
                       </select>
                     </div>
                     <div>

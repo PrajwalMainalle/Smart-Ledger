@@ -76,6 +76,7 @@ const calculatePaymentBreakdown = (invoices) => {
     Cash: 0,
     UPI: 0,
     Card: 0,
+    Cheque: 0,
     Credit: 0,
     Exchange: 0,
     Other: 0
@@ -91,6 +92,8 @@ const calculatePaymentBreakdown = (invoices) => {
       breakdown.UPI += rev;
     } else if (method === "Card") {
       breakdown.Card += rev;
+    } else if (method === "Cheque") {
+      breakdown.Cheque += rev;
     } else if (method === "Exchange") {
       breakdown.Exchange += rev;
     } else if (method === "Split") {
@@ -111,6 +114,7 @@ const calculatePaymentBreakdown = (invoices) => {
         const settleMethod = inv.settlementMethod || "Cash";
         if (settleMethod === "UPI") breakdown.UPI += paidUpfront;
         else if (settleMethod === "Card") breakdown.Card += paidUpfront;
+        else if (settleMethod === "Cheque") breakdown.Cheque += paidUpfront;
         else breakdown.Cash += paidUpfront;
       }
     } else {

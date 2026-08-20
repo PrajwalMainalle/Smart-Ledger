@@ -139,7 +139,7 @@ const PurchaseSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "UPI", "Card", "Credit"],
+      enum: ["Cash", "UPI", "Card", "Cheque", "Credit"],
       default: "Cash",
     },
     status: {
