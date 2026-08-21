@@ -1138,6 +1138,7 @@ function POS() {
               </span>
             </div>
           </div>
+        </div>
               {/* Cart items list */}
         <div className="flex-1 flex flex-col min-h-[200px]">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-2 flex justify-between">
