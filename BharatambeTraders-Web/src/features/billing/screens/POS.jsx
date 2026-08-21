@@ -109,6 +109,38 @@ function POS() {
   const [govVoucherData, setGovVoucherData] = useState(null);
   const [govCheckoutLoading, setGovCheckoutLoading] = useState(false);
 
+  // Resizable Side Panel State
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem("pos_cart_panel_width");
+    return saved ? parseInt(saved, 10) : 384;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      const container = document.getElementById("pos-main-container");
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const newWidth = Math.max(340, Math.min(680, rect.right - e.clientX));
+      setPanelWidth(newWidth);
+      localStorage.setItem("pos_cart_panel_width", newWidth.toString());
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging) setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
   useEffect(() => {
     if (paymentMethod === "Government School Fund") {
       axiosInstance.get("/gov-funds/schools").then((res) => setGovSchoolsList(res.data)).catch(console.error);
@@ -876,7 +908,10 @@ function POS() {
   const logoSrc = profile.logo || logo;
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 bg-slate-950 text-slate-100 min-h-screen xl:min-h-0 xl:h-[calc(100vh-96px)] rounded-2xl border border-slate-900 overflow-hidden relative">
+    <div 
+      id="pos-main-container"
+      className="flex flex-col xl:flex-row bg-slate-950 text-slate-100 min-h-screen xl:min-h-0 xl:h-[calc(100vh-96px)] rounded-2xl border border-slate-900 overflow-hidden relative select-none"
+    >
       
       {checkoutLoading && <LoadingOverlay message="Processing invoice transaction..." />}
 
@@ -1036,14 +1071,38 @@ function POS() {
 
       </div>
 
+      {/* DRAGGABLE RESIZE DIVIDER (Desktop) */}
+      <div 
+        onMouseDown={() => setIsDragging(true)}
+        className={`hidden xl:flex w-2.5 bg-slate-900 hover:bg-orange-500/40 cursor-col-resize items-center justify-center transition-colors group select-none border-x border-slate-800/80 ${isDragging ? "bg-orange-500" : ""}`}
+        title="Click and drag to slide/resize Cart Panel width"
+      >
+        <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-white transition-colors"></div>
+      </div>
+
       {/* RIGHT: CART AND CHECKOUT LOGIC */}
-      <div className="w-full xl:w-96 bg-slate-900 border-t xl:border-t-0 xl:border-l border-slate-900 p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6">
+      <div 
+        style={{ width: window.innerWidth >= 1280 ? `${panelWidth}px` : "100%" }}
+        className="w-full bg-slate-900 border-t xl:border-t-0 border-slate-800 p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75"
+      >
         
         {/* Customer logging */}
         <div className="space-y-3 relative">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Customer Details</h3>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => {
+                  const next = panelWidth >= 500 ? 384 : 540;
+                  setPanelWidth(next);
+                  localStorage.setItem("pos_cart_panel_width", next.toString());
+                }}
+                className="text-[10px] bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 font-bold transition hidden xl:inline-block"
+                title="Toggle compact (384px) or wide (540px) cart panel view"
+              >
+                {panelWidth >= 500 ? "↔️ Compact" : "↔️ Expand"}
+              </button>
               <button 
                 type="button" 
                 onClick={() => setShowAddCustModal(true)}
@@ -1069,7 +1128,7 @@ function POS() {
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Search customers by name or phone..."
+              placeholder="Search registered customers by name/phone..."
               value={customerSearch}
               onChange={(e) => {
                 setCustomerSearch(e.target.value);
@@ -1120,22 +1179,63 @@ function POS() {
             })()}
           </div>
 
-          {/* Current selected customer details panel */}
-          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs shadow-sm">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-bold">Name:</span>
-              <span className="font-bold text-slate-100 text-xs truncate max-w-[200px]">{customerName || "Walk-in Customer"}</span>
+          {/* Current selected customer details panel - Direct Editable Inline Inputs */}
+          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2 text-xs shadow-sm">
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-400 font-bold min-w-[75px]">Name:</span>
+              <input 
+                type="text"
+                placeholder="Walk-in Customer"
+                value={customerName === "Walk-in Customer" ? "" : customerName}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  dispatch(setCustomerInfo({
+                    name: val.trim() === "" ? "Walk-in Customer" : val,
+                    phone: customerPhone,
+                    customerType,
+                    priceCategory
+                  }));
+                }}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 font-bold text-slate-100 text-xs focus:outline-none focus:border-orange-500 placeholder-slate-500 truncate"
+              />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-bold">Phone:</span>
-              <span className="font-mono font-bold text-slate-200">{customerPhone || "N/A"}</span>
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-400 font-bold min-w-[75px]">Phone:</span>
+              <input 
+                type="text"
+                placeholder="N/A"
+                value={customerPhone === "N/A" ? "" : customerPhone}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  dispatch(setCustomerInfo({
+                    name: customerName,
+                    phone: val.trim() === "" ? "N/A" : val,
+                    customerType,
+                    priceCategory
+                  }));
+                }}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 font-mono font-bold text-slate-100 text-xs focus:outline-none focus:border-orange-500 placeholder-slate-500"
+              />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-bold">Pricing Tier:</span>
-              <span className="font-bold text-orange-500 capitalize">
-                {priceCategory ? `${priceCategory} Price` : "Retail Price"}
-                <span className="text-[10px] text-slate-400 font-bold ml-1">({customerType || "Retail"})</span>
-              </span>
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-400 font-bold min-w-[75px]">Pricing Tier:</span>
+              <select
+                value={priceCategory || "retail"}
+                onChange={(e) => {
+                  const newTier = e.target.value;
+                  dispatch(setCustomerInfo({
+                    name: customerName,
+                    phone: customerPhone,
+                    customerType: newTier === "wholesale" ? "Wholesale" : newTier === "school" ? "School" : "Retail",
+                    priceCategory: newTier
+                  }));
+                }}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 font-bold text-orange-500 text-xs focus:outline-none focus:border-orange-500 cursor-pointer capitalize"
+              >
+                <option value="retail">Retail Price</option>
+                <option value="wholesale">Wholesale Price</option>
+                <option value="school">School Price</option>
+              </select>
             </div>
           </div>
         </div>
