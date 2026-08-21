@@ -1220,21 +1220,35 @@ function POS() {
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-400 font-bold min-w-[75px]">Pricing Tier:</span>
               <select
-                value={priceCategory || "retail"}
+                value={priceCategory ? priceCategory.toLowerCase() : "retail"}
                 onChange={(e) => {
                   const newTier = e.target.value;
+                  const typeMapping = {
+                    retail: "Retail",
+                    shop: "Shop",
+                    school: "School",
+                    wholesale: "Wholesale",
+                    dealer: "Dealer",
+                    distributor: "Distributor"
+                  };
                   dispatch(setCustomerInfo({
                     name: customerName,
                     phone: customerPhone,
-                    customerType: newTier === "wholesale" ? "Wholesale" : newTier === "school" ? "School" : "Retail",
+                    customerType: typeMapping[newTier] || (newTier ? newTier.charAt(0).toUpperCase() + newTier.slice(1) : "Retail"),
                     priceCategory: newTier
                   }));
                 }}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 font-bold text-orange-500 text-xs focus:outline-none focus:border-orange-500 cursor-pointer capitalize"
               >
                 <option value="retail">Retail Price</option>
-                <option value="wholesale">Wholesale Price</option>
+                <option value="shop">Shop Price</option>
                 <option value="school">School Price</option>
+                <option value="wholesale">Wholesale Price</option>
+                <option value="dealer">Dealer Price</option>
+                <option value="distributor">Distributor Price</option>
+                {priceCategory && !["retail", "shop", "school", "wholesale", "dealer", "distributor"].includes(priceCategory.toLowerCase()) && (
+                  <option value={priceCategory.toLowerCase()}>{priceCategory} Price</option>
+                )}
               </select>
             </div>
           </div>
