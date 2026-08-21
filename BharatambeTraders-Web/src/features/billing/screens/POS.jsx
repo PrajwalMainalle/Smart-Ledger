@@ -1000,16 +1000,16 @@ function POS() {
 
                 <div className="space-y-1">
                   <div className="flex justify-between items-start gap-1">
-                    <h4 className="font-bold text-slate-205 text-sm line-clamp-1 group-hover:text-orange-400 transition-colors notranslate" translate="no">{product.name}</h4>
-                    <span className="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-450 font-mono tracking-tight">{product.sku}</span>
+                    <h4 className="font-bold text-slate-100 text-sm line-clamp-1 group-hover:text-orange-500 transition-colors notranslate" translate="no">{product.name}</h4>
+                    <span className="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-mono font-bold tracking-tight border border-slate-700">{product.sku}</span>
                   </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">{product.description || "No description provided."}</p>
+                  <p className="text-[10px] text-slate-400 font-medium line-clamp-1">{product.description || "No description provided."}</p>
                 </div>
 
-                <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-900/80">
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-800">
                   <div>
-                    <span className="text-[10px] text-slate-550 block">Rate Cost</span>
-                    <span className="text-sm font-black text-white">₹{product.price.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Rate Cost</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">₹{product.price.toFixed(2)}</span>
                   </div>
                   
                   {outOfStock ? (
@@ -1017,8 +1017,8 @@ function POS() {
                   ) : remainingStock <= 0 ? (
                     <span className="text-xs font-bold text-amber-500">Limit Reached</span>
                   ) : (
-                    <div className="text-[10px] text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-                      Stock: <span className="font-bold text-slate-200">{remainingStock}</span>
+                    <div className="text-[10px] text-slate-300 font-bold bg-slate-900 px-2 py-1 rounded border border-slate-750">
+                      Stock: <span className="font-bold text-slate-100">{remainingStock}</span>
                     </div>
                   )}
                 </div>
@@ -1042,7 +1042,7 @@ function POS() {
         {/* Customer logging */}
         <div className="space-y-3 relative">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-450">Customer Details</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Customer Details</h3>
             <div className="flex gap-2">
               <button 
                 type="button" 
@@ -1058,7 +1058,7 @@ function POS() {
                     setCustomerSearch("");
                     dispatch(setCustomerInfo({ name: "Walk-in Customer", phone: "N/A", customerType: "Retail", priceCategory: "retail" }));
                   }}
-                  className="text-[10px] text-rose-500 hover:text-rose-455 font-bold"
+                  className="text-[10px] text-rose-500 hover:text-rose-400 font-bold"
                 >
                   Reset
                 </button>
@@ -1076,9 +1076,9 @@ function POS() {
                 setShowCustDropdown(true);
               }}
               onFocus={() => setShowCustDropdown(true)}
-              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-orange-500"
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 font-semibold placeholder-slate-400 focus:outline-none focus:border-orange-500"
             />
-            <IoSearch size={12} className="absolute left-3 top-3 text-slate-600" />
+            <IoSearch size={14} className="absolute left-3 top-2.5 text-slate-400" />
             
             {showCustDropdown && customerSearch.trim() !== "" && (() => {
               const matchedCustomers = customers.filter(c => {
@@ -1089,7 +1089,7 @@ function POS() {
               });
 
               return (
-                <div className="absolute left-0 right-0 mt-1 z-30 bg-slate-900 border border-slate-800 rounded-lg max-h-48 overflow-y-auto shadow-2xl divide-y divide-slate-850">
+                <div className="absolute left-0 right-0 mt-1 z-30 bg-slate-900 border border-slate-700 rounded-lg max-h-48 overflow-y-auto shadow-2xl divide-y divide-slate-800">
                   {matchedCustomers.map(cust => (
                     <div 
                       key={cust._id}
@@ -1103,17 +1103,17 @@ function POS() {
                         setCustomerSearch(cust.name);
                         setShowCustDropdown(false);
                       }}
-                      className="p-2 hover:bg-slate-800 cursor-pointer text-left text-xs text-slate-200"
+                      className="p-2.5 hover:bg-slate-800 cursor-pointer text-left text-xs text-slate-100"
                     >
-                      <div className="font-semibold">{cust.name}</div>
-                      <div className="text-[10px] text-slate-500 flex justify-between mt-0.5">
+                      <div className="font-bold text-slate-100">{cust.name}</div>
+                      <div className="text-[10px] text-slate-400 flex justify-between mt-0.5 font-medium">
                         <span>📞 {cust.phone}</span>
-                        <span className="text-orange-400 font-semibold">{cust.customerType} ({cust.priceCategory})</span>
+                        <span className="text-orange-500 font-bold">{cust.customerType} ({cust.priceCategory})</span>
                       </div>
                     </div>
                   ))}
                   {matchedCustomers.length === 0 && (
-                    <div className="p-2 text-center text-slate-500 text-xs">No customer profiles found.</div>
+                    <div className="p-2.5 text-center text-slate-400 text-xs font-medium">No customer profiles found.</div>
                   )}
                 </div>
               );
@@ -1121,53 +1121,51 @@ function POS() {
           </div>
 
           {/* Current selected customer details panel */}
-          <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-900 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Name:</span>
-              <span className="font-bold text-slate-205">{customerName || "Walk-in Customer"}</span>
+          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs shadow-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 font-bold">Name:</span>
+              <span className="font-bold text-slate-100 text-xs truncate max-w-[200px]">{customerName || "Walk-in Customer"}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Phone:</span>
-              <span className="font-mono text-slate-400">{customerPhone || "N/A"}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 font-bold">Phone:</span>
+              <span className="font-mono font-bold text-slate-200">{customerPhone || "N/A"}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Pricing Tier:</span>
-              <span className="font-bold text-orange-400 capitalize">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 font-bold">Pricing Tier:</span>
+              <span className="font-bold text-orange-500 capitalize">
                 {priceCategory ? `${priceCategory} Price` : "Retail Price"}
-                <span className="text-[10px] text-slate-500 font-normal ml-1">({customerType || "Retail"})</span>
+                <span className="text-[10px] text-slate-400 font-bold ml-1">({customerType || "Retail"})</span>
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Cart items list */}
+              {/* Cart items list */}
         <div className="flex-1 flex flex-col min-h-[200px]">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-450 border-b border-slate-800 pb-2 flex justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-2 flex justify-between">
             <span>Bill items</span>
-            <span className="text-slate-500 font-normal">({cart.length} unique)</span>
+            <span className="text-slate-400 font-bold">({cart.length} unique)</span>
           </h3>
 
-          <div className="flex-1 divide-y divide-slate-800/50 overflow-y-auto max-h-[250px] mt-2 pr-1 space-y-2">
+          <div className="flex-1 divide-y divide-slate-800/80 overflow-y-auto max-h-[250px] mt-2 pr-1 space-y-2">
             {cart.map((item) => {
               const exceedsStock = item.qty > item.maxStock;
               return (
-                <div key={item.id} className="py-2.5 flex flex-col justify-center text-xs gap-1.5 border-b border-slate-800/40">
+                <div key={item.id} className="py-2.5 flex flex-col justify-center text-xs gap-1.5 border-b border-slate-800">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-200 truncate notranslate text-left flex items-center gap-1.5" translate="no">
+                      <p className="font-bold text-slate-100 truncate notranslate text-left flex items-center gap-1.5" translate="no">
                         {item.name}
                         {item.isManualItem && (
-                          <span className="px-1.5 py-0.2 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded text-[8px] font-black uppercase tracking-wider">
+                          <span className="px-1.5 py-0.2 bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded text-[8px] font-black uppercase tracking-wider">
                             Manual
                           </span>
                         )}
                         {item.excludeFromRevenue && (
-                          <span className="px-1.5 py-0.2 bg-rose-500/10 text-rose-450 border border-rose-500/20 rounded text-[8px] font-black uppercase tracking-wider">
+                          <span className="px-1.5 py-0.2 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded text-[8px] font-black uppercase tracking-wider">
                             Non-Revenue
                           </span>
                         )}
                       </p>
-                      <div className="flex items-center gap-1 mt-0.5 text-[9px] text-slate-500">
+                      <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-semibold">
                         <span className="capitalize">{item.priceCategoryUsed || "retail"} Price: ₹</span>
                         <input
                           type="number"
@@ -1177,9 +1175,9 @@ function POS() {
                             const newPrice = parseFloat(e.target.value) || 0;
                             dispatch(updateCartItemPrice({ id: item.id, price: newPrice }));
                           }}
-                          className="w-16 h-5 bg-slate-950 border border-slate-700 rounded px-1 text-[10px] text-orange-400 font-bold focus:outline-none focus:border-orange-500 font-mono text-center"
+                          className="w-16 h-5 bg-slate-900 border border-slate-700 rounded px-1 text-[10px] text-orange-500 font-bold focus:outline-none focus:border-orange-500 font-mono text-center"
                         />
-                        <span>| GST: {item.gstRate}%</span>
+                        <span className="text-slate-400 font-bold">| GST: {item.gstRate}%</span>
                       </div>
                     </div>
 
@@ -1193,7 +1191,7 @@ function POS() {
                             dispatch(removeFromCart(item.id));
                           }
                         }}
-                        className="w-6 h-6 rounded bg-slate-950 border border-slate-850 hover:bg-slate-800 hover:text-orange-400 text-slate-300 flex items-center justify-center font-bold text-xs select-none transition"
+                        className="w-6 h-6 rounded bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-orange-500 text-slate-200 flex items-center justify-center font-bold text-xs select-none transition"
                         title="Decrease Quantity"
                       >
                         -
@@ -1223,8 +1221,8 @@ function POS() {
                             e.target.blur();
                           }
                         }}
-                        className={`w-12 h-6 text-center font-bold bg-slate-950 border rounded text-xs text-slate-100 focus:outline-none focus:border-orange-500
-                          ${exceedsStock ? "border-rose-500 text-rose-450 focus:border-rose-500" : "border-slate-850"}
+                        className={`w-12 h-6 text-center font-black bg-slate-900 border rounded text-xs text-slate-100 focus:outline-none focus:border-orange-500
+                          ${exceedsStock ? "border-rose-500 text-rose-500 focus:border-rose-500" : "border-slate-700"}
                         `}
                       />
                       <button 
@@ -1236,7 +1234,7 @@ function POS() {
                             alert(`Warning: Cannot increase quantity beyond available stock (${item.maxStock} units).`);
                           }
                         }}
-                        className="w-6 h-6 rounded bg-slate-950 border border-slate-850 hover:bg-slate-800 hover:text-orange-400 text-slate-300 flex items-center justify-center font-bold text-xs select-none transition"
+                        className="w-6 h-6 rounded bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-orange-500 text-slate-200 flex items-center justify-center font-bold text-xs select-none transition"
                         title="Increase Quantity"
                       >
                         +
@@ -1244,10 +1242,10 @@ function POS() {
                     </div>
 
                     <div className="text-right pl-1 min-w-[70px]">
-                      <p className="font-bold text-slate-200 font-mono">₹{(item.price * item.qty).toFixed(2)}</p>
+                      <p className="font-black text-slate-100 font-mono text-xs">₹{(item.price * item.qty).toFixed(2)}</p>
                       <button 
                         onClick={() => dispatch(removeFromCart(item.id))}
-                        className="text-slate-600 hover:text-red-400 transition-colors mt-0.5"
+                        className="text-slate-400 hover:text-rose-500 transition-colors mt-0.5"
                         title="Remove item"
                       >
                         <MdDeleteOutline size={16} />
@@ -1256,7 +1254,7 @@ function POS() {
                   </div>
 
                   {exceedsStock && (
-                    <div className="text-[10px] text-rose-500 font-bold bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/25 flex items-center justify-between">
+                    <div className="text-[10px] text-rose-500 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30 flex items-center justify-between">
                       <span>⚠️ Exceeds stock</span>
                       <span>Max available: {item.maxStock}</span>
                     </div>
@@ -1266,14 +1264,14 @@ function POS() {
             })}
 
             {returnedItems.length > 0 && (
-              <div className="mt-4 space-y-2 pt-2 border-t border-slate-900">
+              <div className="mt-4 space-y-2 pt-2 border-t border-slate-800">
                 <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block text-left">Returned Items Adjustment</span>
                 {returnedItems.map((item, idx) => (
-                  <div key={`ret_${idx}`} className="bg-rose-955/10 bg-slate-900/40 border border-rose-900/20 rounded-xl p-3 space-y-2 text-left">
+                  <div key={`ret_${idx}`} className="bg-slate-900 border border-rose-500/30 rounded-xl p-3 space-y-2 text-left">
                     <div className="flex justify-between items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-rose-300 truncate notranslate" translate="no">{item.name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono truncate">Invoice: {item.originalInvoiceId} {item.isDefective ? "(Defective)" : "(Reusable)"}</p>
+                        <p className="text-xs font-bold text-rose-400 truncate notranslate" translate="no">{item.name}</p>
+                        <p className="text-[10px] text-slate-400 font-mono font-bold truncate">Invoice: {item.originalInvoiceId} {item.isDefective ? "(Defective)" : "(Reusable)"}</p>
                       </div>
                       <button 
                         onClick={() => {
@@ -1286,8 +1284,8 @@ function POS() {
                       </button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-mono">Qty: {item.qty} @ ₹{item.price.toFixed(2)}</span>
-                      <span className="font-bold text-rose-450 font-mono">-₹{(item.price * item.qty).toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-300 font-mono font-semibold">Qty: {item.qty} @ ₹{item.price.toFixed(2)}</span>
+                      <span className="font-black text-rose-500 font-mono">-₹{(item.price * item.qty).toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
@@ -1295,40 +1293,40 @@ function POS() {
             )}
 
             {cart.length === 0 && returnedItems.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center py-12 text-slate-600">
-                <FaCalculator className="text-3xl mb-2" />
-                <p className="text-xs">Cart is empty.</p>
-                <p className="text-[10px] text-slate-700">Click products on left to build bill.</p>
+              <div className="h-full flex flex-col items-center justify-center py-12 text-slate-400">
+                <FaCalculator className="text-3xl mb-2 text-slate-500" />
+                <p className="text-xs font-bold">Cart is empty.</p>
+                <p className="text-[10px] text-slate-400 font-medium">Click products on left to build bill.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Calculations breakdown */}
-        <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-900/60 text-xs">
+        <div className="space-y-3 bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs shadow-sm">
           
-          <div className="flex justify-between">
-            <span className="text-slate-500">Cart Subtotal</span>
-            <span className="font-semibold text-slate-300 font-mono">₹{subtotal.toFixed(2)}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 font-bold">Cart Subtotal</span>
+            <span className="font-black text-slate-100 font-mono text-xs">₹{subtotal.toFixed(2)}</span>
           </div>
 
           {returnedItems.length > 0 && (
-            <div className="flex justify-between text-rose-400 font-semibold border-b border-slate-900 pb-1">
+            <div className="flex justify-between text-rose-500 font-bold border-b border-slate-800 pb-1">
               <span>Returns Deduct (with Tax)</span>
-              <span className="font-mono">-₹{returnedTotalWithTax.toFixed(2)}</span>
+              <span className="font-mono font-black">-₹{returnedTotalWithTax.toFixed(2)}</span>
             </div>
           )}
 
           {/* Dynamic manual discount settings */}
-          <div className="space-y-2 py-1 border-t border-b border-slate-900/80 my-1">
+          <div className="space-y-2 py-1 border-t border-b border-slate-800 my-1">
             <div className="flex justify-between items-center">
-              <span className="text-slate-500">Discount type:</span>
+              <span className="text-slate-400 font-bold">Discount type:</span>
               <div className="flex gap-2">
                 <button 
                   type="button"
                   onClick={() => { setDiscountType("percent"); setDiscountValue(0); }}
                   className={`px-2 py-0.5 rounded text-[10px] font-bold border transition
-                    ${discountType === "percent" ? "bg-orange-500 text-white border-transparent" : "bg-slate-900 border-slate-800 text-slate-400"}
+                    ${discountType === "percent" ? "bg-orange-500 text-white border-transparent shadow-sm" : "bg-slate-900 border-slate-700 text-slate-300 hover:text-slate-100"}
                   `}
                 >
                   % Percent
@@ -1337,7 +1335,7 @@ function POS() {
                   type="button"
                   onClick={() => { setDiscountType("fixed"); setDiscountValue(0); }}
                   className={`px-2 py-0.5 rounded text-[10px] font-bold border transition
-                    ${discountType === "fixed" ? "bg-orange-500 text-white border-transparent" : "bg-slate-900 border-slate-800 text-slate-400"}
+                    ${discountType === "fixed" ? "bg-orange-500 text-white border-transparent shadow-sm" : "bg-slate-900 border-slate-700 text-slate-300 hover:text-slate-100"}
                   `}
                 >
                   ₹ Fixed
@@ -1346,67 +1344,67 @@ function POS() {
             </div>
             
             <div className="flex justify-between items-center">
-              <span className="text-slate-500">Enter Discount Value:</span>
+              <span className="text-slate-400 font-bold">Enter Discount Value:</span>
               <input 
                 type="number"
                 min="0"
                 max={discountType === "percent" ? "100" : subtotal}
                 value={discountValue}
                 onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-                className="w-20 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-right font-semibold font-mono text-slate-205 focus:outline-none focus:border-orange-500"
+                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-right font-black font-mono text-slate-100 focus:outline-none focus:border-orange-500"
               />
             </div>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-slate-500">Discount Amount</span>
-            <span className="font-semibold text-rose-400 font-mono">-₹{discountAmt.toFixed(2)}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 font-bold">Discount Amount</span>
+            <span className="font-black text-rose-500 font-mono">-₹{discountAmt.toFixed(2)}</span>
           </div>
 
           {!isInclusiveGst && (
             <>
-              <div className="flex justify-between">
-                <span className="text-slate-500">CGST (Central Tax)</span>
-                <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold">CGST (Central Tax)</span>
+                <span className="font-bold text-slate-200 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">SGST (State Tax)</span>
-                <span className="font-semibold text-slate-450 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold">SGST (State Tax)</span>
+                <span className="font-bold text-slate-200 font-mono">₹{(gstAmt / 2).toFixed(2)}</span>
               </div>
             </>
           )}
 
           {isInclusiveGst && (
-            <div className="flex justify-between text-[11px] text-emerald-450 font-bold">
+            <div className="flex justify-between text-[11px] text-emerald-500 font-bold items-center">
               <span>GST (Included in Prices)</span>
-              <span className="font-mono">₹{gstAmt.toFixed(2)}</span>
+              <span className="font-mono font-black">₹{gstAmt.toFixed(2)}</span>
             </div>
           )}
 
           {Math.abs(roundOff) >= 0.01 && (
-            <div className="flex justify-between text-xs text-slate-400 font-medium">
+            <div className="flex justify-between text-xs text-slate-400 font-bold items-center">
               <span>Round Off</span>
               <span className="font-mono">{roundOff > 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
           )}
 
-          <div className="h-px bg-slate-800/80 my-2"></div>
+          <div className="h-px bg-slate-800 my-2"></div>
 
-          <div className="flex justify-between items-end">
-            <span className="text-sm font-bold text-slate-200">
-              Grand Total {isInclusiveGst && <span className="text-[10px] text-slate-500 font-normal block">(Inclusive of all taxes)</span>}
+          <div className="flex justify-between items-end pt-1">
+            <span className="text-sm font-extrabold text-slate-100">
+              Grand Total {isInclusiveGst && <span className="text-[10px] text-slate-400 font-bold block">(Inclusive of all taxes)</span>}
             </span>
-            <span className="text-base font-black text-orange-500 font-mono">₹{grandTotal.toFixed(2)}</span>
+            <span className="text-lg font-black text-orange-500 font-mono">₹{grandTotal.toFixed(2)}</span>
           </div>
 
         </div>
 
         {/* Payment mode choice */}
         <div className="space-y-2.5">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-450 block">Payment Method</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-200 block">Payment Method</span>
           {isQuotation ? (
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-400 font-medium">
-              <span className="text-amber-400 font-bold block mb-0.5">📋 Quotation / Estimate</span>
+            <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 font-semibold shadow-sm">
+              <span className="text-amber-400 font-extrabold block mb-0.5">📋 Quotation / Estimate Mode</span>
               No payment method required for quotations.
             </div>
           ) : (
@@ -1425,8 +1423,8 @@ function POS() {
                       onClick={() => dispatch(setPaymentMethod(method))}
                       className={`flex-1 min-w-[80px] py-2 px-1 rounded-lg text-[11px] font-bold border transition-all duration-150
                         ${active 
-                          ? "bg-slate-950 border-orange-500 text-orange-400 font-extrabold shadow" 
-                          : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200"
+                          ? "bg-slate-900 border-orange-500 text-orange-500 font-black shadow-md" 
+                          : "bg-slate-900 border-slate-700 text-slate-300 hover:text-slate-100 hover:border-slate-600"
                         }
                       `}
                     >
@@ -1704,16 +1702,16 @@ function POS() {
         )}
 
         {/* Invoice Date Adjustment */}
-        <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-900 text-xs space-y-1.5 text-left">
+        <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-xs space-y-1.5 text-left shadow-sm">
           <div className="flex justify-between items-center">
-            <label htmlFor="invoiceDate" className="text-slate-350 font-bold flex items-center gap-1.5 cursor-pointer">
+            <label htmlFor="invoiceDate" className="text-slate-200 font-bold flex items-center gap-1.5 cursor-pointer">
               <FaCalendarAlt className="text-orange-500" /> Invoice Date (DD/MM/YYYY):
             </label>
             {customInvoiceDate !== new Date().toISOString().split("T")[0] && (
               <button
                 type="button"
                 onClick={() => setCustomInvoiceDate(new Date().toISOString().split("T")[0])}
-                className="text-[10px] text-orange-400 hover:underline font-semibold"
+                className="text-[10px] text-orange-500 hover:underline font-bold"
               >
                 Reset Today
               </button>
@@ -1724,7 +1722,7 @@ function POS() {
             id="invoiceDate"
             value={customInvoiceDate}
             onChange={(e) => setCustomInvoiceDate(e.target.value)}
-            className="w-full bg-slate-955 border border-slate-800 rounded px-2.5 py-1.5 text-slate-100 font-mono text-xs focus:outline-none focus:border-orange-500 bg-slate-950 cursor-pointer"
+            className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono font-bold text-xs focus:outline-none focus:border-orange-500 cursor-pointer"
           />
         </div>
 
@@ -1735,9 +1733,9 @@ function POS() {
             id="isGstBilling"
             checked={isGstBilling}
             onChange={(e) => setIsGstBilling(e.target.checked)}
-            className="w-4 h-4 rounded text-orange-500 bg-slate-950 border-slate-800 focus:ring-orange-500 focus:ring-2 cursor-pointer"
+            className="w-4 h-4 rounded text-orange-500 bg-slate-900 border-slate-700 focus:ring-orange-500 focus:ring-2 cursor-pointer"
           />
-          <label htmlFor="isGstBilling" className="text-xs font-semibold text-slate-350 cursor-pointer">
+          <label htmlFor="isGstBilling" className="text-xs font-bold text-slate-200 cursor-pointer">
             Enable GST Calculation (CGST/SGST)
           </label>
         </div>
@@ -1749,9 +1747,9 @@ function POS() {
             id="isQuotation"
             checked={isQuotation}
             onChange={(e) => setIsQuotation(e.target.checked)}
-            className="w-4 h-4 rounded text-orange-500 bg-slate-950 border-slate-800 focus:ring-orange-500 focus:ring-2 cursor-pointer"
+            className="w-4 h-4 rounded text-orange-500 bg-slate-900 border-slate-700 focus:ring-orange-500 focus:ring-2 cursor-pointer"
           />
-          <label htmlFor="isQuotation" className="text-xs font-semibold text-slate-350 cursor-pointer">
+          <label htmlFor="isQuotation" className="text-xs font-bold text-slate-200 cursor-pointer">
             Generate as Quotation / Estimate
           </label>
         </div>

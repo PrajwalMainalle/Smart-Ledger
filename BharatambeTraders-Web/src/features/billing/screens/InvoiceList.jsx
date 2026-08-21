@@ -3,8 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
-import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload, FaWhatsapp, FaEdit } from "react-icons/fa";
-import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod } from "../billingSlice";
+import { FaFileInvoice, FaPrint, FaTimes, FaUndo, FaCheckCircle, FaExclamationCircle, FaSpinner, FaDownload, FaWhatsapp, FaEdit, FaTrashAlt } from "react-icons/fa";
+import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateInvoicePaymentMethod, deleteInvoice } from "../billingSlice";
 import { fetchProducts } from "../../inventory/inventorySlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import logo from "../../../assets/SLLogo.png";
@@ -24,7 +24,22 @@ function InvoiceList() {
 
   // Settlement dialog states
   const [showSettleModal, setShowSettleModal] = useState(false);
-  const [settleForm, setSettleForm] = useState({ invoiceId: "", invoiceCode: "", settlementMethod: "Cash", settlementDate: "" });
+  const [settleForm, setSettleForm] = useState({
+    invoiceId: "",
+    invoiceCode: "",
+    settlementMethod: "Cash",
+    settlementDate: new Date().toISOString().split('T')[0],
+    totalAmount: 0,
+    alreadyPaid: 0,
+    outstandingAmount: 0,
+    amount: 0
+  });
+
+  // Edit payment method inside modal
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState(false);
+  const [newPaymentMethod, setNewPaymentMethod] = useState("Cash");
+  const [splitCashAmount, setSplitCashAmount] = useState(0);
+  const [splitUpiAmount, setSplitUpiAmount] = useState(0);
 
   // PDF Page Size & Orientation settings
   const [pageSize, setPageSize] = useState("auto");
@@ -132,6 +147,24 @@ function InvoiceList() {
         // Update selected modal if active
         if (selectedInvoice && (selectedInvoice._id === invId || selectedInvoice.id === inv.invoiceId)) {
           setSelectedInvoice(prev => ({ ...prev, status: "Refunded" }));
+        }
+      });
+    }
+  };
+
+  // Handle Delete Invoice Action (Permanent removal from DB)
+  const handleDeleteInvoice = (inv) => {
+    const invId = inv._id;
+    if (window.confirm(`Are you sure you want to permanently DELETE bill "${inv.invoiceId}"?\n\nThis action will:\n• Delete the bill from the database\n• Restock all items back to inventory\n• Revert customer balance and ledger\n\nThis cannot be undone.`)) {
+      dispatch(deleteInvoice(invId)).then((res) => {
+        if (!res.error) {
+          alert(`Bill ${inv.invoiceId} deleted successfully from database.`);
+          dispatch(fetchProducts());
+          if (selectedInvoice && (selectedInvoice._id === invId || selectedInvoice.id === inv.invoiceId)) {
+            setSelectedInvoice(null);
+          }
+        } else {
+          alert(res.payload || "Failed to delete invoice.");
         }
       });
     }
@@ -517,6 +550,13 @@ Thank you for your business! 🙏
                               <FaUndo className="text-[10px]" />
                             </button>
                           )}
+                          <button 
+                            onClick={() => handleDeleteInvoice(inv)}
+                            className="p-2 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded border border-rose-500/20 font-semibold text-xs transition flex items-center justify-center"
+                            title="Permanently Delete Bill from Database"
+                          >
+                            <FaTrashAlt className="text-sm" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -908,6 +948,15 @@ Thank you for your business! 🙏
                   Convert to Tax Invoice (Sale)
                 </button>
               )}
+
+              <div className="pt-2 border-t border-slate-900">
+                <button
+                  onClick={() => handleDeleteInvoice(selectedInvoice)}
+                  className="w-full py-2 bg-rose-950/40 hover:bg-rose-600 border border-rose-800/40 text-rose-300 hover:text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  <FaTrashAlt /> Delete Bill Permanently from DB
+                </button>
+              </div>
             </div>
 
           </div>

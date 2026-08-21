@@ -135,6 +135,21 @@ export const updateInvoicePaymentMethod = createAsyncThunk(
   }
 );
 
+export const deleteInvoice = createAsyncThunk(
+  "billing/deleteInvoice",
+  async (invoiceId, { rejectWithValue }) => {
+    try {
+      const id = invoiceId._id || invoiceId;
+      const response = await axiosInstance.delete(`/billing/${id}`);
+      return { id, message: response.data.message };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to delete invoice"
+      );
+    }
+  }
+);
+
 const billingSlice = createSlice({
   name: "billing",
   initialState: {
@@ -425,6 +440,22 @@ const billingSlice = createSlice({
         }
       })
       .addCase(settleInvoice.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Delete Invoice
+      .addCase(deleteInvoice.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteInvoice.fulfilled, (state, action) => {
+        state.loading = false;
+        const deletedId = action.payload.id;
+        state.invoices = state.invoices.filter(
+          (inv) => inv._id !== deletedId && inv.id !== deletedId
+        );
+      })
+      .addCase(deleteInvoice.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
