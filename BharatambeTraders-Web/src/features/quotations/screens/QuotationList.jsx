@@ -701,7 +701,7 @@ function QuotationList() {
       {/* EXACT PRINTABLE CASH BILL / ESTIMATE DOCUMENT MODAL */}
       {selectedPrintQuote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/80 backdrop-blur-sm overflow-y-auto printable-modal-container">
-          <div className="bg-white text-slate-900 w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden my-4 p-6 relative flex flex-col">
+          <div className="bg-white text-slate-900 w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden my-4 p-6 relative flex flex-col printable-modal-card">
             {/* Non-printable Controls */}
             <div className="no-print flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
               <div className="flex items-center gap-2">
@@ -727,7 +727,7 @@ function QuotationList() {
             </div>
 
             {/* PRINT DOCUMENT WRAPPER (MATCHING USER SCREENSHOT EXACTLY) */}
-            <div className="quotation-print-document font-sans text-black border border-slate-400 p-4 bg-white">
+            <div className="quotation-print-document font-sans text-black border border-black p-4 bg-white">
               {/* TOP HEADER BAR (Light Green) */}
               <div className="bg-[#e2ecc8] px-3 py-1.5 flex items-center justify-between border border-black mb-1">
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
@@ -744,63 +744,63 @@ function QuotationList() {
 
               {/* MAIN GREEN BANNER */}
               <div className="bg-[#4b6c16] text-white text-center py-2 px-2 border-x border-b border-black mb-1">
-                <h1 className="text-2xl font-black tracking-widest uppercase leading-none">
+                <h1 className="text-2xl font-black tracking-widest uppercase leading-none text-white">
                   {selectedPrintQuote.firmName || defaultShopName}
                 </h1>
-                <p className="text-[10px] font-bold tracking-widest uppercase mt-1">WHOLE SALER'S</p>
+                <p className="text-[10px] font-bold tracking-widest uppercase mt-1 text-white">WHOLE SALER'S</p>
               </div>
 
               {/* ADDRESS & CATEGORY SUB-BAR */}
-              <div className="bg-[#e2ecc8] text-center py-1.5 px-3 border border-black text-[9px] font-bold text-black uppercase space-y-0.5 mb-3">
-                <div>{selectedPrintQuote.firmAddress || defaultAddress}</div>
-                <div className="text-[8px] font-semibold text-slate-800">
+              <div className="bg-[#e2ecc8] text-center py-1.5 px-3 border border-black text-[9px] font-bold text-black uppercase space-y-0.5 mb-2">
+                <div className="text-black">{selectedPrintQuote.firmAddress || defaultAddress}</div>
+                <div className="text-[8px] font-semibold text-black">
                   {selectedPrintQuote.firmSubtext || defaultSubtext}
                 </div>
               </div>
 
               {/* DOCUMENT TITLE */}
-              <div className="text-center my-2">
+              <div className="text-center my-1.5">
                 <h2 className="text-lg font-black tracking-wider uppercase text-black">
                   {selectedPrintQuote.docType || "CASH BILL"}
                 </h2>
               </div>
 
               {/* META INFO ROW */}
-              <div className="flex items-start justify-between text-[11px] font-bold uppercase mb-2 border-b border-black pb-2">
-                <div className="space-y-1">
+              <div className="flex items-start justify-between text-[11px] font-bold uppercase mb-2 border-b border-black pb-1.5 text-black">
+                <div className="space-y-0.5">
                   <div>
                     <span className="text-black">NO: </span>
-                    <span className="font-mono">{selectedPrintQuote.quoteNumber || selectedPrintQuote.id}</span>
+                    <span className="font-mono text-black">{selectedPrintQuote.quoteNumber || selectedPrintQuote.id}</span>
                   </div>
                   <div>
                     <span className="text-black">NAME: </span>
-                    <span>{selectedPrintQuote.customerName}</span>
+                    <span className="text-black">{selectedPrintQuote.customerName}</span>
                   </div>
                 </div>
 
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-0.5">
                   <div>
                     <span className="text-black">DATE: </span>
-                    <span>{new Date(selectedPrintQuote.date).toLocaleDateString("en-GB")}</span>
+                    <span className="text-black">{new Date(selectedPrintQuote.date).toLocaleDateString("en-GB")}</span>
                   </div>
                   {selectedPrintQuote.customerPhone && (
                     <div>
                       <span className="text-black">PHONE: </span>
-                      <span>{selectedPrintQuote.customerPhone}</span>
+                      <span className="text-black">{selectedPrintQuote.customerPhone}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* ITEMS TABLE */}
-              <table className="w-full border-collapse border border-black text-[10px] text-black">
+              <table className="w-full border-collapse border border-black text-[10px] text-black bg-white">
                 <thead>
-                  <tr className="bg-slate-100 uppercase font-black border-b border-black">
-                    <th className="border border-black py-1.5 px-2 text-center w-12">S.No</th>
-                    <th className="border border-black py-1.5 px-3 text-left">PARTICULARS</th>
-                    <th className="border border-black py-1.5 px-2 text-center w-16">QTY</th>
-                    <th className="border border-black py-1.5 px-2 text-right w-24">RATE</th>
-                    <th className="border border-black py-1.5 px-2 text-right w-28">AMOUNT</th>
+                  <tr className="bg-[#f1f5f9] uppercase font-black border-b border-black text-black">
+                    <th className="border border-black py-1.5 px-2 text-center w-12 bg-[#f1f5f9] text-black">S.No</th>
+                    <th className="border border-black py-1.5 px-3 text-left bg-[#f1f5f9] text-black">PARTICULARS</th>
+                    <th className="border border-black py-1.5 px-2 text-center w-16 bg-[#f1f5f9] text-black">QTY</th>
+                    <th className="border border-black py-1.5 px-2 text-right w-24 bg-[#f1f5f9] text-black">RATE</th>
+                    <th className="border border-black py-1.5 px-2 text-right w-28 bg-[#f1f5f9] text-black">AMOUNT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -809,14 +809,14 @@ function QuotationList() {
                     const qty = parseInt(item.qty) || 0;
                     const amt = price * qty;
                     return (
-                      <tr key={idx} className="border-b border-slate-300">
-                        <td className="border border-black py-1 px-2 text-center font-bold">{idx + 1}</td>
-                        <td className="border border-black py-1 px-3 uppercase font-semibold">{item.name}</td>
-                        <td className="border border-black py-1 px-2 text-center font-mono font-bold">{qty}</td>
-                        <td className="border border-black py-1 px-2 text-right font-mono font-semibold">
+                      <tr key={idx} className="border-b border-black text-black bg-white">
+                        <td className="border border-black py-1 px-2 text-center font-bold text-black">{idx + 1}</td>
+                        <td className="border border-black py-1 px-3 uppercase font-semibold text-black">{item.name}</td>
+                        <td className="border border-black py-1 px-2 text-center font-mono font-bold text-black">{qty}</td>
+                        <td className="border border-black py-1 px-2 text-right font-mono font-semibold text-black">
                           ₹{price.toFixed(2)}
                         </td>
-                        <td className="border border-black py-1 px-2 text-right font-mono font-bold">
+                        <td className="border border-black py-1 px-2 text-right font-mono font-bold text-black">
                           ₹{amt.toFixed(2)}
                         </td>
                       </tr>
@@ -824,27 +824,27 @@ function QuotationList() {
                   })}
 
                   {/* TOTAL ROW */}
-                  <tr className="font-black bg-slate-100 uppercase border-t-2 border-black">
-                    <td colSpan="2" className="border border-black py-1.5 px-3 text-right">
+                  <tr className="font-black bg-[#f1f5f9] uppercase border-t-2 border-black text-black">
+                    <td colSpan="2" className="border border-black py-1.5 px-3 text-right bg-[#f1f5f9] text-black font-black">
                       Total
                     </td>
-                    <td className="border border-black py-1.5 px-2 text-center font-mono">
+                    <td className="border border-black py-1.5 px-2 text-center font-mono bg-[#f1f5f9] text-black font-black">
                       {calculateTotals(selectedPrintQuote).totalQty}
                     </td>
-                    <td className="border border-black py-1.5 px-2"></td>
-                    <td className="border border-black py-1.5 px-2 text-right font-mono text-xs">
+                    <td className="border border-black py-1.5 px-2 bg-[#f1f5f9]"></td>
+                    <td className="border border-black py-1.5 px-2 text-right font-mono text-xs bg-[#f1f5f9] text-black font-black">
                       ₹{calculateTotals(selectedPrintQuote).subtotal.toFixed(2)}
                     </td>
                   </tr>
 
                   {/* BOTTOM SUMMARY GRID (BANK, SCAN & PAY, GRAND TOTAL) */}
                   <tr>
-                    <td colSpan="3" className="border border-black p-2 align-top bg-slate-50">
-                      <div className="font-bold text-[9px] uppercase border-b border-slate-400 pb-1 mb-1">
+                    <td colSpan="3" className="border border-black p-2 align-top bg-white text-black">
+                      <div className="font-bold text-[9px] uppercase border-b border-black pb-1 mb-1 text-black">
                         BANK ACCOUNT DETAILS:
                       </div>
                       {selectedPrintQuote.bankName || selectedPrintQuote.bankAccountNo || selectedPrintQuote.bankIfsc || selectedPrintQuote.bankAccountName ? (
-                        <div className="text-[8px] space-y-0.5 font-semibold leading-tight">
+                        <div className="text-[8px] space-y-0.5 font-semibold leading-tight text-black">
                           {selectedPrintQuote.bankAccountName && (
                             <div>Account Name: {selectedPrintQuote.bankAccountName}</div>
                           )}
@@ -861,8 +861,8 @@ function QuotationList() {
                       ) : null}
                     </td>
 
-                    <td colSpan="1" className="border border-black p-2 align-top text-center bg-slate-50">
-                      <div className="font-bold text-[8px] uppercase mb-1">SCAN & PAY (UPI)</div>
+                    <td colSpan="1" className="border border-black p-2 align-top text-center bg-white text-black">
+                      <div className="font-bold text-[8px] uppercase mb-1 text-black">SCAN & PAY (UPI)</div>
                       {selectedPrintQuote.upiId ? (
                         <div className="flex flex-col items-center justify-center">
                           {/* Generated UPI QR Box graphic */}
@@ -877,16 +877,16 @@ function QuotationList() {
                               className="w-full h-full object-contain"
                             />
                           </div>
-                          <div className="text-[7px] font-bold mt-1">
+                          <div className="text-[7px] font-bold mt-1 text-black">
                             UPI ID: {selectedPrintQuote.upiId}
                           </div>
-                          <div className="text-[6px] text-slate-600">GPay/PhonePe/Paytm</div>
+                          <div className="text-[6px] text-black">GPay/PhonePe/Paytm</div>
                         </div>
                       ) : null}
                     </td>
 
-                    <td colSpan="1" className="border border-black p-2 align-middle text-right bg-slate-100">
-                      <div className="font-black text-[9px] uppercase text-slate-800">
+                    <td colSpan="1" className="border border-black p-2 align-middle text-right bg-[#f1f5f9] text-black">
+                      <div className="font-black text-[9px] uppercase text-black">
                         {selectedPrintQuote.docType === "CASH BILL" ? "GRAND TOTAL (INCL. TAX)" : "GRAND TOTAL (EST.)"}
                       </div>
                       <div className="font-mono font-black text-sm text-black mt-1">
@@ -901,11 +901,11 @@ function QuotationList() {
               </table>
 
               {/* FOOTER SIGNATURE & THANK YOU */}
-              <div className="flex items-end justify-between mt-8 pt-2 text-[10px] font-bold text-black">
-                <div>Thanku visit again</div>
-                <div className="text-right">
+              <div className="flex items-end justify-between mt-6 pt-2 text-[10px] font-bold text-black">
+                <div className="text-black">Thanku visit again</div>
+                <div className="text-right text-black">
                   <div className="border-t border-black w-36 ml-auto mb-1"></div>
-                  <div>Authorized signature</div>
+                  <div className="text-black">Authorized signature</div>
                 </div>
               </div>
             </div>
@@ -916,36 +916,83 @@ function QuotationList() {
       {/* PRINT CSS STYLES FOR EXACT PRINT OUT */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm;
+          }
+
+          body, html {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           body * {
             visibility: hidden;
           }
+
           .printable-modal-container,
           .printable-modal-container * {
-            visibility: visible;
+            visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
+
           .printable-modal-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            background: white !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
+            overflow: visible !important;
+            display: block !important;
           }
+
+          .printable-modal-card {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+          }
+
           .no-print {
             display: none !important;
           }
+
           .quotation-print-document {
-            border: 1px solid #000 !important;
+            border: 1px solid #000000 !important;
             box-shadow: none !important;
             margin: 0 !important;
-            padding: 15px !important;
+            padding: 10px !important;
             width: 100% !important;
+            box-sizing: border-box !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
-          @page {
-            size: A4 portrait;
-            margin: 10mm;
+
+          .quotation-print-document table th,
+          .quotation-print-document table td,
+          .quotation-print-document div,
+          .quotation-print-document tr {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
