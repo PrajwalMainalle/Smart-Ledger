@@ -1,66 +1,71 @@
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import publicRoutes from "./PublicRoutes";
-
 import MainLayout from "../layouts/MainLayout";
-import DashboardPage from "../features/dashboard/screens/Dashboard";
-import POSPage from "../features/billing/screens/POS";
-import InvoiceListPage from "../features/billing/screens/InvoiceList";
-import ProductListPage from "../features/inventory/screens/ProductList";
-import ReportsPage from "../features/reports/screens/Reports";
-import SettingsPage from "../features/profile/screens/Settings";
-import CustomerListPage from "../features/customers/screens/CustomerList";
-import PurchaseListPage from "../features/purchases/screens/PurchaseList";
-import RequestBookPage from "../features/requests/screens/RequestBook";
 import ProtectedRoute from "./ProtectedRoute";
-import GstDashboard from "../features/gst/screens/GstDashboard";
-import GstSales from "../features/gst/screens/GstSales";
-import GstPurchases from "../features/gst/screens/GstPurchases";
-import GstSummary from "../features/gst/screens/GstSummary";
-import GstInventory from "../features/gst/screens/GstInventory";
-import GstCAReports from "../features/gst/screens/GstCAReports";
-import QuotationListPage from "../features/quotations/screens/QuotationList";
-import GovSchoolsPage from "../features/gov-funds/screens/GovSchoolsPage";
+import LoadingOverlay from "../components/LoadingOverlay";
+
+// Lazy-loaded page features for route code-splitting
+const DashboardPage = lazy(() => import("../features/dashboard/screens/Dashboard"));
+const POSPage = lazy(() => import("../features/billing/screens/POS"));
+const InvoiceListPage = lazy(() => import("../features/billing/screens/InvoiceList"));
+const ProductListPage = lazy(() => import("../features/inventory/screens/ProductList"));
+const ReportsPage = lazy(() => import("../features/reports/screens/Reports"));
+const SettingsPage = lazy(() => import("../features/profile/screens/Settings"));
+const CustomerListPage = lazy(() => import("../features/customers/screens/CustomerList"));
+const PurchaseListPage = lazy(() => import("../features/purchases/screens/PurchaseList"));
+const RequestBookPage = lazy(() => import("../features/requests/screens/RequestBook"));
+const QuotationListPage = lazy(() => import("../features/quotations/screens/QuotationList"));
+const GovSchoolsPage = lazy(() => import("../features/gov-funds/screens/GovSchoolsPage"));
+const GstDashboard = lazy(() => import("../features/gst/screens/GstDashboard"));
+const GstSales = lazy(() => import("../features/gst/screens/GstSales"));
+const GstPurchases = lazy(() => import("../features/gst/screens/GstPurchases"));
+const GstSummary = lazy(() => import("../features/gst/screens/GstSummary"));
+const GstInventory = lazy(() => import("../features/gst/screens/GstInventory"));
+const GstCAReports = lazy(() => import("../features/gst/screens/GstCAReports"));
 
 const AppRoutes = () => {
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<LoadingOverlay message="Loading portal view..." />}>
+        <Routes>
 
-        {/* Public Routes */}
-        {publicRoutes.map(({ path, element }, index) => (
-          <Route key={index} path={path} element={element} />
-        ))}
+          {/* Public Routes */}
+          {publicRoutes.map(({ path, element }, index) => (
+            <Route key={index} path={path} element={element} />
+          ))}
 
-        {/* Layout Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            <Route path="/home" element={<DashboardPage />} />
-            <Route path="/pos" element={<POSPage />} />
-            <Route path="/billing" element={<POSPage />} />
-            <Route path="/invoices" element={<InvoiceListPage />} />
-            <Route path="/inventory" element={<ProductListPage />} />
-            <Route path="/request-book" element={<RequestBookPage />} />
-            <Route path="/customers" element={<CustomerListPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/purchases" element={<PurchaseListPage />} />
-            <Route path="/quotations" element={<QuotationListPage />} />
-            <Route path="/gst/dashboard" element={<GstDashboard />} />
-            <Route path="/gst/sales" element={<GstSales />} />
-            <Route path="/gst/purchases" element={<GstPurchases />} />
-            <Route path="/gst/summary" element={<GstSummary />} />
-            <Route path="/gst/inventory" element={<GstInventory />} />
-            <Route path="/gst/ca-reports" element={<GstCAReports />} />
+          {/* Layout Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              <Route path="/home" element={<DashboardPage />} />
+              <Route path="/pos" element={<POSPage />} />
+              <Route path="/billing" element={<POSPage />} />
+              <Route path="/invoices" element={<InvoiceListPage />} />
+              <Route path="/inventory" element={<ProductListPage />} />
+              <Route path="/request-book" element={<RequestBookPage />} />
+              <Route path="/customers" element={<CustomerListPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/purchases" element={<PurchaseListPage />} />
+              <Route path="/quotations" element={<QuotationListPage />} />
+              <Route path="/gst/dashboard" element={<GstDashboard />} />
+              <Route path="/gst/sales" element={<GstSales />} />
+              <Route path="/gst/purchases" element={<GstPurchases />} />
+              <Route path="/gst/summary" element={<GstSummary />} />
+              <Route path="/gst/inventory" element={<GstInventory />} />
+              <Route path="/gst/ca-reports" element={<GstCAReports />} />
 
-            {/* Government Schools Panel Route */}
-            <Route path="/gov-schools" element={<GovSchoolsPage />} />
+              {/* Government Schools Panel Route */}
+              <Route path="/gov-schools" element={<GovSchoolsPage />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
 
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };

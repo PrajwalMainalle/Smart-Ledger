@@ -910,7 +910,7 @@ function POS() {
   return (
     <div 
       id="pos-main-container"
-      className="flex flex-col xl:flex-row bg-slate-950 text-slate-100 min-h-screen xl:min-h-0 xl:h-[calc(100vh-96px)] rounded-2xl border border-slate-900 overflow-hidden relative select-none"
+      className="flex flex-col xl:flex-row bg-slate-950 text-slate-100 h-full min-h-[600px] xl:h-[calc(100vh-110px)] rounded-2xl border border-slate-900 overflow-hidden relative select-none"
     >
       
       {checkoutLoading && <LoadingOverlay message="Processing invoice transaction..." />}
@@ -2348,7 +2348,7 @@ function POS() {
                 <label className="text-slate-400 font-semibold">Customer Name *</label>
                 <input 
                   type="text" required
-                  placeholder="e.g. Acme Corp"
+                  placeholder="e.g. John Doe"
                   value={newCustForm.name}
                   onChange={(e) => setNewCustForm({ ...newCustForm, name: e.target.value })}
                   className="w-full bg-slate-955 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-orange-500 bg-slate-950"
@@ -2359,7 +2359,7 @@ function POS() {
                 <label className="text-slate-400 font-semibold">Phone Number *</label>
                 <input 
                   type="text" required
-                  placeholder="10 digit number"
+                  placeholder="e.g. 9000000000"
                   value={newCustForm.phone}
                   onChange={(e) => setNewCustForm({ ...newCustForm, phone: e.target.value })}
                   className="w-full bg-slate-955 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-orange-500 bg-slate-950"

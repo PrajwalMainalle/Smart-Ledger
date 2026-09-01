@@ -876,7 +876,7 @@ Thank you for choosing *Bharatambe Traders*! 🙏`;
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Ramesh"
+                    placeholder="e.g. John Doe"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"
@@ -889,7 +889,7 @@ Thank you for choosing *Bharatambe Traders*! 🙏`;
                   </label>
                   <input
                     type="tel"
-                    placeholder="e.g. 9876543210"
+                    placeholder="e.g. 9000000000"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-850 hover:border-slate-800 focus:border-orange-500 text-slate-200 px-4.5 py-2.5 rounded-xl text-xs focus:outline-none transition"

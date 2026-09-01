@@ -19,17 +19,17 @@ const MainLayout = () => {
       />
 
       {/* Right section */}
-      <div className="flex flex-col flex-1 print:block print:w-full">
+      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden print:block print:w-full">
         {/* Header */}
         <Headers onMenuClick={() => setMobileOpen(true)} />
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-4 print:p-0 print:m-0 print:overflow-visible print:w-full">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 print:p-0 print:m-0 print:overflow-visible print:w-full">
           <Outlet />
         </main>
 
         {/* Bottom Navigation - Mobile only */}
-      <div className="mt-12 md:hidden print:hidden"><BottomNav /></div>
+        <div className="md:hidden print:hidden"><BottomNav /></div>
       </div>
       
     </div>

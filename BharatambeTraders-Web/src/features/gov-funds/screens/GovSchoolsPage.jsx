@@ -225,31 +225,41 @@ const GovSchoolsPage = () => {
     }
   };
 
-  const filteredSchools = schools.filter(
-    (s) =>
-      s.schoolName?.toLowerCase().includes(search.toLowerCase()) ||
-      s.headmasterName?.toLowerCase().includes(search.toLowerCase()) ||
-      s.contactNumber?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSchools = React.useMemo(() => {
+    return schools.filter(
+      (s) =>
+        s.schoolName?.toLowerCase().includes(search.toLowerCase()) ||
+        s.headmasterName?.toLowerCase().includes(search.toLowerCase()) ||
+        s.contactNumber?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [schools, search]);
 
   // Overall KPI Aggregations
-  const totalApprovedAll = funds.reduce((acc, f) => acc + Number(f.approvedBudget || 0), 0);
-  const totalMaterialUtilizedAll = funds.reduce((acc, f) => acc + Number(f.materialUtilized || 0), 0);
-  const totalCashWithdrawnAll = funds.reduce((acc, f) => acc + Number(f.cashWithdrawn || 0), 0);
-  const totalRemainingAll = funds.reduce((acc, f) => {
-    const approved = Number(f.approvedBudget || 0);
-    const mat = Number(f.materialUtilized || 0);
-    const cash = Number(f.cashWithdrawn || 0);
-    const rem = f.remainingBalance !== undefined && !isNaN(f.remainingBalance) ? Number(f.remainingBalance) : (approved - mat - cash);
-    return acc + (isNaN(rem) ? 0 : rem);
-  }, 0);
+  const { totalApprovedAll, totalMaterialUtilizedAll, totalCashWithdrawnAll, totalRemainingAll } = React.useMemo(() => {
+    const approved = funds.reduce((acc, f) => acc + Number(f.approvedBudget || 0), 0);
+    const matUtilized = funds.reduce((acc, f) => acc + Number(f.materialUtilized || 0), 0);
+    const cashWithdrawn = funds.reduce((acc, f) => acc + Number(f.cashWithdrawn || 0), 0);
+    const remaining = funds.reduce((acc, f) => {
+      const appr = Number(f.approvedBudget || 0);
+      const mat = Number(f.materialUtilized || 0);
+      const cash = Number(f.cashWithdrawn || 0);
+      const rem = f.remainingBalance !== undefined && !isNaN(f.remainingBalance) ? Number(f.remainingBalance) : (appr - mat - cash);
+      return acc + (isNaN(rem) ? 0 : rem);
+    }, 0);
+    return {
+      totalApprovedAll: approved,
+      totalMaterialUtilizedAll: matUtilized,
+      totalCashWithdrawnAll: cashWithdrawn,
+      totalRemainingAll: remaining,
+    };
+  }, [funds]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 text-slate-100 min-h-screen">
+    <div className="space-y-6 text-slate-100">
       {loading && <LoadingOverlay message="Loading Government School Funds..." />}
 
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 p-5 md:p-6 rounded-2xl border border-slate-800 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
             <FaLandmark className="text-2xl" />
@@ -269,13 +279,13 @@ const GovSchoolsPage = () => {
             onClick={() => handleOpenFundModal()}
             className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95"
           >
-            <FaPlus /> + Create Fund Account
+            <FaPlus /> Create Fund Account
           </button>
           <button
             onClick={() => handleOpenSchoolModal()}
             className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-100 rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 transition-colors"
           >
-            <FaSchool /> + Add Government School
+            <FaSchool /> Add Government School
           </button>
         </div>
       </div>
@@ -457,7 +467,7 @@ const GovSchoolsPage = () => {
                   required
                   value={schoolFormData.headmasterName}
                   onChange={(e) => setSchoolFormData({ ...schoolFormData, headmasterName: e.target.value })}
-                  placeholder="e.g. Ramesh Patil"
+                  placeholder="e.g. John Doe"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -468,7 +478,7 @@ const GovSchoolsPage = () => {
                   required
                   value={schoolFormData.contactNumber}
                   onChange={(e) => setSchoolFormData({ ...schoolFormData, contactNumber: e.target.value })}
-                  placeholder="e.g. 9449458521"
+                  placeholder="e.g. 9000000000"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>

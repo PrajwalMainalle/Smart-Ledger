@@ -99,18 +99,23 @@ function GstInventory() {
     );
   }
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.sku.toLowerCase().includes(search.toLowerCase()) || 
-    p.hsnCode.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = React.useMemo(() => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(search.toLowerCase()) || 
+      p.sku.toLowerCase().includes(search.toLowerCase()) || 
+      p.hsnCode.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [products, search]);
 
-  const totalGstStock = products.reduce((sum, p) => sum + p.gstStock, 0);
-  const totalNonGstStock = products.reduce((sum, p) => sum + p.nonGstStock, 0);
-  const cumulativeStockValuation = products.reduce((sum, p) => sum + (p.totalStock * p.purchasePrice), 0);
+  const { totalGstStock, totalNonGstStock, cumulativeStockValuation } = React.useMemo(() => {
+    const gstStockSum = products.reduce((sum, p) => sum + p.gstStock, 0);
+    const nonGstStockSum = products.reduce((sum, p) => sum + p.nonGstStock, 0);
+    const valuation = products.reduce((sum, p) => sum + (p.totalStock * p.purchasePrice), 0);
+    return { totalGstStock: gstStockSum, totalNonGstStock: nonGstStockSum, cumulativeStockValuation: valuation };
+  }, [products]);
 
   return (
-    <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
+    <div className="w-full space-y-6 text-slate-100 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
       {/* Printable Header (Visible only when printing) */}
       <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">

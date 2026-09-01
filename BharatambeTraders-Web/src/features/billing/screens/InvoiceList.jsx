@@ -105,37 +105,42 @@ function InvoiceList() {
   const averageTicket = activeInvoices.length > 0 ? totalRevenue / activeInvoices.length : 0;
 
   // Credit metrics
-  const creditInvoices = invoices.filter(inv => inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status !== "Refunded");
-  const creditCount = creditInvoices.length;
-  const totalCreditAmt = creditInvoices.reduce((acc, curr) => acc + (curr.outstandingAmount !== undefined ? curr.outstandingAmount : curr.total), 0);
+  const { creditInvoices, creditCount, totalCreditAmt } = React.useMemo(() => {
+    const credInvoices = invoices.filter(inv => inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status !== "Refunded");
+    const credCount = credInvoices.length;
+    const credAmt = credInvoices.reduce((acc, curr) => acc + (curr.outstandingAmount !== undefined ? curr.outstandingAmount : curr.total), 0);
+    return { creditInvoices: credInvoices, creditCount: credCount, totalCreditAmt: credAmt };
+  }, [invoices]);
 
   // Filtered List
-  const filteredInvoices = invoices.filter((inv) => {
-    if (!inv) return false;
-    const invoiceId = inv.invoiceId || "";
-    const customerName = inv.customerName || "";
-    const customerPhone = inv.customerPhone || "";
+  const filteredInvoices = React.useMemo(() => {
+    return invoices.filter((inv) => {
+      if (!inv) return false;
+      const invoiceId = inv.invoiceId || "";
+      const customerName = inv.customerName || "";
+      const customerPhone = inv.customerPhone || "";
 
-    const matchesSearch = 
-      invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customerPhone.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesPayment = paymentFilter === "All" || inv.paymentMethod === paymentFilter;
-    
-    let matchesStatus = false;
-    if (statusFilter === "All") {
-      matchesStatus = true;
-    } else if (statusFilter === "Unpaid") {
-      matchesStatus = inv.paymentMethod === "Credit" && !inv.creditSettled;
-    } else if (statusFilter === "Paid") {
-      matchesStatus = inv.status === "Paid" && !(inv.paymentMethod === "Credit" && !inv.creditSettled);
-    } else {
-      matchesStatus = inv.status === statusFilter;
-    }
+      const matchesSearch = 
+        invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerPhone.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesPayment = paymentFilter === "All" || inv.paymentMethod === paymentFilter;
+      
+      let matchesStatus = false;
+      if (statusFilter === "All") {
+        matchesStatus = true;
+      } else if (statusFilter === "Unpaid") {
+        matchesStatus = inv.paymentMethod === "Credit" && !inv.creditSettled;
+      } else if (statusFilter === "Paid") {
+        matchesStatus = inv.status === "Paid" && !(inv.paymentMethod === "Credit" && !inv.creditSettled);
+      } else {
+        matchesStatus = inv.status === statusFilter;
+      }
 
-    return matchesSearch && matchesPayment && matchesStatus;
-  });
+      return matchesSearch && matchesPayment && matchesStatus;
+    });
+  }, [invoices, searchTerm, paymentFilter, statusFilter]);
 
   // Handle Refund Action
   const handleRefund = (inv) => {
@@ -312,7 +317,7 @@ Thank you for your business! 🙏
   const logoSrc = profile.logo || logo;
 
   return (
-    <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900">
+    <div className="w-full space-y-6 text-slate-100">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}

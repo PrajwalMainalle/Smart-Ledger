@@ -163,7 +163,7 @@ function Settings() {
   };
 
   return (
-    <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900">
+    <div className="w-full space-y-6 text-slate-100">
       {loading && <LoadingOverlay message="Updating system configuration..." />}
       <div className="max-w-4xl mx-auto space-y-6">
         
@@ -323,7 +323,7 @@ function Settings() {
                     name="mobileNumber"
                     value={formData.mobileNumber}
                     onChange={handleChange}
-                    placeholder="e.g. 6361037157"
+                    placeholder="e.g. 9000000000"
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500"
                   />
                 </div>

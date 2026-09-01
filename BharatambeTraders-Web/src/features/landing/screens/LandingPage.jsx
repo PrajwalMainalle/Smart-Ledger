@@ -272,7 +272,7 @@ function LandingPage() {
                       required
                       value={registerData.ownerName}
                       onChange={handleRegisterChange}
-                      placeholder="e.g. Prajwal Mainalle"
+                      placeholder="e.g. John Doe"
                       className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-655 focus:outline-none focus:border-orange-500"
                     />
                     <FaUser size={14} className="absolute left-3.5 top-3 text-slate-655" />
@@ -304,7 +304,7 @@ function LandingPage() {
                       required
                       value={registerData.mobileNumber}
                       onChange={handleRegisterChange}
-                      placeholder="6361037157"
+                      placeholder="e.g. 9000000000"
                       className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-655 focus:outline-none focus:border-orange-500"
                     />
                     <FaPhoneAlt size={14} className="absolute left-3.5 top-3 text-slate-655" />

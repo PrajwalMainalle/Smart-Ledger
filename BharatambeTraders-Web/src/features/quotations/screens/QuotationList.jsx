@@ -295,7 +295,7 @@ function QuotationList() {
   };
 
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
         <div className="flex items-center gap-3">
@@ -466,7 +466,7 @@ function QuotationList() {
             <label className="block text-slate-400 font-semibold mb-1">Customer / Billed To Name *</label>
             <input
               type="text"
-              placeholder="Enter customer shop or school name..."
+              placeholder="e.g. John Doe"
               value={formData.customerName}
               onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:border-orange-500 font-semibold"
@@ -477,7 +477,7 @@ function QuotationList() {
             <label className="block text-slate-400 font-semibold mb-1">Customer Phone (Optional)</label>
             <input
               type="text"
-              placeholder="e.g. 9845757296"
+              placeholder="e.g. 9000000000"
               value={formData.customerPhone}
               onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:border-orange-500"

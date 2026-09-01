@@ -89,7 +89,7 @@ function GstSummary() {
   const netTotal = data.totalSales - data.totalPurchases;
 
   return (
-    <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
+    <div className="w-full space-y-6 text-slate-100 print:bg-white print:text-black print:border-none print:p-0 print:m-0">
       
       {/* Printable Header (Visible only when printing) */}
       <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">

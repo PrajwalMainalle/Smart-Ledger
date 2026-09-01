@@ -48,24 +48,26 @@ function ProductList() {
 
   // Calculations for KPI banners
   const totalProducts = products.length;
-  const totalStockCount = products.reduce((acc, curr) => acc + (curr.stock || 0), 0);
-  const totalInventoryValue = products.reduce((acc, curr) => acc + ((curr.price || 0) * (curr.stock || 0)), 0);
-  const outOfStockCount = products.filter(p => (p.stock || 0) === 0).length;
+  const totalStockCount = React.useMemo(() => products.reduce((acc, curr) => acc + (curr.stock || 0), 0), [products]);
+  const totalInventoryValue = React.useMemo(() => products.reduce((acc, curr) => acc + ((curr.price || 0) * (curr.stock || 0)), 0), [products]);
+  const outOfStockCount = React.useMemo(() => products.filter(p => (p.stock || 0) === 0).length, [products]);
 
   // Filtered products list
-  const filteredProducts = products.filter((prod) => {
-    if (!prod) return false;
-    const matchesCategory = categoryFilter === "All" || prod.category === categoryFilter;
-    const name = prod.name || "";
-    const sku = prod.sku || "";
-    const desc = prod.description || "";
-    const matchesSearch = 
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      desc.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesCategory && matchesSearch;
-  });
+  const filteredProducts = React.useMemo(() => {
+    return products.filter((prod) => {
+      if (!prod) return false;
+      const matchesCategory = categoryFilter === "All" || prod.category === categoryFilter;
+      const name = prod.name || "";
+      const sku = prod.sku || "";
+      const desc = prod.description || "";
+      const matchesSearch = 
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        desc.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, categoryFilter, searchTerm]);
 
   // Helper to compile prices for saving
   const compilePricesForSubmit = () => {
@@ -230,7 +232,7 @@ function ProductList() {
   };
 
   return (
-    <div className="w-full bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 rounded-2xl border border-slate-900">
+    <div className="w-full space-y-6 text-slate-100">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
