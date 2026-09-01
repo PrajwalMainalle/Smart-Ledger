@@ -46,6 +46,8 @@ const UserSchema = new mongoose.Schema(
       businessDescription: { type: String, default: "" },
       state: { type: String, default: "" },
       pincode: { type: String, default: "" },
+      gstUpiId: { type: String, default: "" },
+      nonGstUpiId: { type: String, default: "" },
     },
     gstBillingRule: {
       type: String,

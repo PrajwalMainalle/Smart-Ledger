@@ -228,6 +228,10 @@ const InvoiceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    upiIdUsed: {
+      type: String,
+      default: "",
+    },
     pdfUrl: {
       type: String,
       default: "",

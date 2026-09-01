@@ -484,6 +484,7 @@ const createInvoice = async (req, res) => {
       status: isQuotation ? "Quotation" : "Paid",
       isQuotation: isQuotation || false,
       isGstBilling: isGstBilling !== undefined ? isGstBilling : true,
+      upiIdUsed: isGst ? (tenantUser?.profile?.gstUpiId || "") : (tenantUser?.profile?.nonGstUpiId || ""),
       pdfUrl: relativePdfPath,
       amountPaid: paidAmount,
       outstandingAmount: outstandingAmount,

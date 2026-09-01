@@ -224,19 +224,38 @@ const drawTableHeaders = (doc, startY) => {
   doc.text("AMOUNT", col5X + 2, startY + 6, { width: col6X - col5X - 6, align: "right" });
 };
 
+const resolveInvoiceUpiId = (invoice, tenant) => {
+  if (invoice && invoice.upiIdUsed && invoice.upiIdUsed.trim() !== "") {
+    return invoice.upiIdUsed.trim();
+  }
+  const isGst = invoice?.isGstBilling !== false;
+  const configuredUpi = isGst ? tenant?.profile?.gstUpiId : tenant?.profile?.nonGstUpiId;
+  if (configuredUpi && configuredUpi.trim() !== "") {
+    return configuredUpi.trim();
+  }
+  if (invoice && invoice.upiIdUsed === undefined) {
+    return isGst ? "9845757296@cnrb" : "6361037157@ybl";
+  }
+  return "";
+};
+
 const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
   return new Promise(async (resolve, reject) => {
     try {
       const hasGst = invoice.isGstBilling !== false;
+      const upiVpa = resolveInvoiceUpiId(invoice, tenant);
+      const merchantName = encodeURIComponent(tenant?.profile?.shopName || tenant?.businessName || "Store Merchant");
       let qrBuffer = null;
-      try {
-        const upiVpa = hasGst ? "9845757296@cnrb" : "6361037157@ybl";
-        const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
-        const upiString = `upi://pay?pa=${upiVpa}&pn=Bharatambe%20Traders&cu=INR&am=${qrAmount.toFixed(2)}`;
-        // High-DPI 800px buffer, margin 3 quiet-zone, Error Correction 'H' for crystal clear scanning on A5 paper
-        qrBuffer = await QRCode.toBuffer(upiString, { width: 800, margin: 3, errorCorrectionLevel: "H" });
-      } catch (qrErr) {
-        console.error("Failed to generate QR Code for invoice PDF:", qrErr);
+
+      if (upiVpa) {
+        try {
+          const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
+          const upiString = `upi://pay?pa=${upiVpa}&pn=${merchantName}&cu=INR&am=${qrAmount.toFixed(2)}`;
+          // High-DPI 800px buffer, margin 3 quiet-zone, Error Correction 'H' for crystal clear scanning on A5 paper
+          qrBuffer = await QRCode.toBuffer(upiString, { width: 800, margin: 3, errorCorrectionLevel: "H" });
+        } catch (qrErr) {
+          console.error("Failed to generate QR Code for invoice PDF:", qrErr);
+        }
       }
 
       let pdfPageSize = "A4";
@@ -442,11 +461,11 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         } catch (imgErr) {}
       }
 
-      const upiIdStr = hasGst ? "9845757296@cnrb" : "6361037157@ybl";
+      const upiIdStr = upiVpa || "UPI QR Unconfigured";
       const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
       doc.fillColor("#0f172a").font(fontRegular).fontSize(7.5);
-      doc.text(`UPI ID: ${upiIdStr}`, rightCardX + 72, y + 28, { width: cardWidth - 80 });
-      doc.fillColor(primaryColor).font(fontBold).fontSize(12).text(`${currencySymbol} ${qrAmount.toFixed(2)}`, rightCardX + 72, y + 44, { width: cardWidth - 80 });
+      doc.text(`UPI ID: ${upiIdStr}`, rightCardX + (qrBuffer ? 72 : 10), y + 28, { width: cardWidth - (qrBuffer ? 80 : 20) });
+      doc.fillColor(primaryColor).font(fontBold).fontSize(12).text(`${currencySymbol} ${qrAmount.toFixed(2)}`, rightCardX + (qrBuffer ? 72 : 10), y + 44, { width: cardWidth - (qrBuffer ? 80 : 20) });
 
       y += footerCardHeight + 25;
 

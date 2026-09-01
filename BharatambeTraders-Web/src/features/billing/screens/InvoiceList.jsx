@@ -778,9 +778,28 @@ Thank you for your business! 🙏
                         </div>
 
                         <div className="footer-card text-center">
-                          <div className="footer-card-title">SCAN & PAY (UPI)</div>
+                          <div className="footer-card-title">SCAN &amp; PAY (UPI)</div>
                           <div className="footer-card-body">
-                            <div className="text-[7.5px] mt-1">UPI ID: {selectedInvoice.isGstBilling !== false ? "9845757296@cnrb" : "6361037157@ybl"}</div>
+                            {(() => {
+                              let resolvedUpi = "";
+                              if (selectedInvoice && selectedInvoice.upiIdUsed && selectedInvoice.upiIdUsed.trim() !== "") {
+                                resolvedUpi = selectedInvoice.upiIdUsed.trim();
+                              } else {
+                                const isGst = selectedInvoice?.isGstBilling !== false;
+                                const configuredUpi = isGst ? profile?.gstUpiId : profile?.nonGstUpiId;
+                                if (configuredUpi && configuredUpi.trim() !== "") {
+                                  resolvedUpi = configuredUpi.trim();
+                                } else if (selectedInvoice && selectedInvoice.upiIdUsed === undefined) {
+                                  resolvedUpi = isGst ? "9845757296@cnrb" : "6361037157@ybl";
+                                }
+                              }
+                              
+                              if (!resolvedUpi || resolvedUpi === "") {
+                                return <div className="text-[7.5px] mt-1 text-slate-500 italic">UPI Payment QR Unconfigured</div>;
+                              }
+                              
+                              return <div className="text-[7.5px] mt-1">UPI ID: {resolvedUpi}</div>;
+                            })()}
                             <div className="font-bold text-xs text-[#034b54] mt-1 font-mono">₹{selectedInvoice.total.toFixed(2)}</div>
                           </div>
                         </div>

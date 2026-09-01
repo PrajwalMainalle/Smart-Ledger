@@ -154,19 +154,26 @@ const updateUserProfile = async (req, res) => {
         pincode,
         mobileNumber,
         email,
+        gstUpiId,
+        nonGstUpiId,
       } = req.body;
 
+      const currentProfile = user.profile || {};
       user.profile = {
-        shopName: shopName !== undefined ? shopName : user.profile.shopName,
-        gstNumber: gstNumber !== undefined ? gstNumber : user.profile.gstNumber,
-        businessAddress: businessAddress !== undefined ? businessAddress : user.profile.businessAddress,
-        logo: logo !== undefined ? logo : user.profile.logo,
-        businessDescription: businessDescription !== undefined ? businessDescription : user.profile.businessDescription,
-        state: state !== undefined ? state : user.profile.state,
-        pincode: pincode !== undefined ? pincode : user.profile.pincode,
-        mobileNumber: mobileNumber !== undefined ? mobileNumber : (user.profile.mobileNumber || user.mobileNumber),
-        email: email !== undefined ? email : (user.profile.email || user.email),
+        shopName: shopName !== undefined ? shopName : (currentProfile.shopName || ""),
+        gstNumber: gstNumber !== undefined ? gstNumber : (currentProfile.gstNumber || ""),
+        businessAddress: businessAddress !== undefined ? businessAddress : (currentProfile.businessAddress || ""),
+        logo: logo !== undefined ? logo : (currentProfile.logo || ""),
+        businessDescription: businessDescription !== undefined ? businessDescription : (currentProfile.businessDescription || ""),
+        state: state !== undefined ? state : (currentProfile.state || ""),
+        pincode: pincode !== undefined ? pincode : (currentProfile.pincode || ""),
+        mobileNumber: mobileNumber !== undefined ? mobileNumber : (currentProfile.mobileNumber || user.mobileNumber || ""),
+        email: email !== undefined ? email : (currentProfile.email || user.email || ""),
+        gstUpiId: gstUpiId !== undefined ? gstUpiId : (currentProfile.gstUpiId || ""),
+        nonGstUpiId: nonGstUpiId !== undefined ? nonGstUpiId : (currentProfile.nonGstUpiId || ""),
       };
+
+      user.markModified("profile");
 
       const updatedUser = await user.save();
 
