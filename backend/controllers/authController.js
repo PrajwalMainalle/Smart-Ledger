@@ -153,9 +153,12 @@ const updateUserProfile = async (req, res) => {
         state,
         pincode,
         mobileNumber,
-        email,
         gstUpiId,
         nonGstUpiId,
+        bankName,
+        accountNumber,
+        ifscCode,
+        accountHolderName,
       } = req.body;
 
       const currentProfile = user.profile || {};
@@ -171,6 +174,10 @@ const updateUserProfile = async (req, res) => {
         email: email !== undefined ? email : (currentProfile.email || user.email || ""),
         gstUpiId: gstUpiId !== undefined ? gstUpiId : (currentProfile.gstUpiId || ""),
         nonGstUpiId: nonGstUpiId !== undefined ? nonGstUpiId : (currentProfile.nonGstUpiId || ""),
+        bankName: bankName !== undefined ? bankName : (currentProfile.bankName || ""),
+        accountNumber: accountNumber !== undefined ? accountNumber : (currentProfile.accountNumber || ""),
+        ifscCode: ifscCode !== undefined ? ifscCode : (currentProfile.ifscCode || ""),
+        accountHolderName: accountHolderName !== undefined ? accountHolderName : (currentProfile.accountHolderName || ""),
       };
 
       user.markModified("profile");

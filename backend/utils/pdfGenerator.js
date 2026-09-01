@@ -233,9 +233,6 @@ const resolveInvoiceUpiId = (invoice, tenant) => {
   if (configuredUpi && configuredUpi.trim() !== "") {
     return configuredUpi.trim();
   }
-  if (invoice && invoice.upiIdUsed === undefined) {
-    return isGst ? "9845757296@cnrb" : "6361037157@ybl";
-  }
   return "";
 };
 
@@ -430,25 +427,34 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const footerCardHeight = 82;
       const cardWidth = Math.round((printWidth - 15) / 2);
 
-      // Left Box: BANK ACCOUNT DETAILS
+      // Left Box: BANK ACCOUNT DETAILS (Only for GST Tax Invoices)
       const leftCardX = margin;
       doc.roundedRect(leftCardX, y, cardWidth, footerCardHeight, 6).lineWidth(0.75).stroke(borderColor);
       doc.fillColor(primaryColor).font(fontBold).fontSize(8.5).text("BANK ACCOUNT DETAILS", leftCardX + 12, y + 8);
       
       doc.fillColor("#0f172a").font(fontRegular).fontSize(7.5);
       const profile = tenant.profile || {};
-      const shopNameStr = (profile.shopName || tenant.businessName || "BHARATAMBE TRADERS").toUpperCase();
-      doc.font(fontBold).text("Account Name: ", leftCardX + 12, y + 23);
-      doc.font(fontRegular).text(shopNameStr, leftCardX + 80, y + 23, { width: cardWidth - 90 });
 
-      doc.font(fontBold).text("Bank Name: ", leftCardX + 12, y + 36);
-      doc.font(fontRegular).text("Canara Bank", leftCardX + 80, y + 36);
+      if (hasGst) {
+        const accountHolder = (profile.accountHolderName || profile.shopName || tenant.businessName || "").toUpperCase();
+        const bankNameStr = profile.bankName || "";
+        const accountNumberStr = profile.accountNumber || "";
+        const ifscCodeStr = profile.ifscCode || "";
 
-      doc.font(fontBold).text("A/C No: ", leftCardX + 12, y + 49);
-      doc.font(fontRegular).text("120033287950", leftCardX + 80, y + 49);
+        doc.font(fontBold).text("Account Name: ", leftCardX + 12, y + 23);
+        doc.font(fontRegular).text(accountHolder || "N/A", leftCardX + 80, y + 23, { width: cardWidth - 90 });
 
-      doc.font(fontBold).text("IFSC Code: ", leftCardX + 12, y + 62);
-      doc.font(fontRegular).text("CNRB0010700", leftCardX + 80, y + 62);
+        doc.font(fontBold).text("Bank Name: ", leftCardX + 12, y + 36);
+        doc.font(fontRegular).text(bankNameStr || "N/A", leftCardX + 80, y + 36);
+
+        doc.font(fontBold).text("A/C No: ", leftCardX + 12, y + 49);
+        doc.font(fontRegular).text(accountNumberStr || "N/A", leftCardX + 80, y + 49);
+
+        doc.font(fontBold).text("IFSC Code: ", leftCardX + 12, y + 62);
+        doc.font(fontRegular).text(ifscCodeStr || "N/A", leftCardX + 80, y + 62);
+      } else {
+        doc.font(fontRegular).fontSize(8).fillColor("#94a3b8").text("N/A (Non-GST Estimate Bill)", leftCardX + 12, y + 36);
+      }
 
       // Right Box: SCAN & PAY (UPI)
       const rightCardX = margin + cardWidth + 15;

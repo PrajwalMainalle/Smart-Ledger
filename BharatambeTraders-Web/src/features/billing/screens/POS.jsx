@@ -1877,26 +1877,61 @@ function POS() {
           </div>
         )}
 
+        {/* Mandatory Pre-Checkout UPI Configuration Warning */}
+        {(() => {
+          const isUpiMissing = !isQuotation && (isGstBilling 
+            ? (!profile?.gstUpiId || profile.gstUpiId.trim() === "")
+            : (!profile?.nonGstUpiId || profile.nonGstUpiId.trim() === ""));
+          
+          if (!isUpiMissing) return null;
+
+          return (
+            <div className="text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl p-2.5 flex items-center gap-2">
+              <FaExclamationTriangle className="text-red-400 flex-shrink-0 text-sm" />
+              <span>
+                {isGstBilling 
+                  ? "GST Billing UPI ID is not configured. Please add your GST UPI ID in Settings before proceeding."
+                  : "Non-GST Billing UPI ID is not configured. Please add your Non-GST UPI ID in Settings before proceeding."
+                }
+              </span>
+            </div>
+          );
+        })()}
+
         {/* Checkout Button */}
-        <button
-          onClick={handleCheckout}
-          disabled={cart.length === 0 || checkoutLoading || govCheckoutLoading || cart.some(item => item.qty > item.maxStock || item.qty <= 0)}
-          className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform transform active:scale-98 text-xs
-            ${(cart.length === 0 || cart.some(item => item.qty > item.maxStock || item.qty <= 0))
-              ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
-              : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-            }
-          `}
-        >
-          {(checkoutLoading || govCheckoutLoading) ? (
-            <FaSpinner className="animate-spin" />
-          ) : (
-            <>
-              <FaCheckCircle />
-              {editingInvoiceId ? `💾 Save & Update Bill (${editingInvoiceNumber})` : "Proceed to Checkout"}
-            </>
-          )}
-        </button>
+        {(() => {
+          const isUpiMissing = !isQuotation && (isGstBilling 
+            ? (!profile?.gstUpiId || profile.gstUpiId.trim() === "")
+            : (!profile?.nonGstUpiId || profile.nonGstUpiId.trim() === ""));
+          
+          const isCheckoutDisabled = cart.length === 0 || 
+            checkoutLoading || 
+            govCheckoutLoading || 
+            isUpiMissing || 
+            cart.some(item => item.qty > item.maxStock || item.qty <= 0);
+
+          return (
+            <button
+              onClick={handleCheckout}
+              disabled={isCheckoutDisabled}
+              className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform transform active:scale-98 text-xs
+                ${isCheckoutDisabled
+                  ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                }
+              `}
+            >
+              {(checkoutLoading || govCheckoutLoading) ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                <>
+                  <FaCheckCircle />
+                  {editingInvoiceId ? `💾 Save & Update Bill (${editingInvoiceNumber})` : "Proceed to Checkout"}
+                </>
+              )}
+            </button>
+          );
+        })()}
 
       </div>
 
@@ -2133,10 +2168,16 @@ function POS() {
                             <div className="footer-card">
                               <div className="footer-card-title">BANK ACCOUNT DETAILS</div>
                               <div className="footer-card-body">
-                                <div><strong>Account Name:</strong> {shopName.toUpperCase()}</div>
-                                <div><strong>Bank Name:</strong> CANARA BANK</div>
-                                <div><strong>A/C No:</strong> 120033287950</div>
-                                <div><strong>IFSC Code:</strong> CNRB0010700</div>
+                                {currentActiveReceipt.isGstBilling !== false ? (
+                                  <>
+                                    <div><strong>Account Name:</strong> {(profile?.accountHolderName || shopName || "").toUpperCase() || "N/A"}</div>
+                                    <div><strong>Bank Name:</strong> {profile?.bankName || "N/A"}</div>
+                                    <div><strong>A/C No:</strong> {profile?.accountNumber || "N/A"}</div>
+                                    <div><strong>IFSC Code:</strong> {profile?.ifscCode || "N/A"}</div>
+                                  </>
+                                ) : (
+                                  <div className="text-[7.5px] text-slate-400 italic mt-2">N/A (Non-GST Estimate Bill)</div>
+                                )}
                               </div>
                             </div>
 
@@ -2152,8 +2193,6 @@ function POS() {
                                     const configuredUpi = isGst ? profile?.gstUpiId : profile?.nonGstUpiId;
                                     if (configuredUpi && configuredUpi.trim() !== "") {
                                       resolvedUpi = configuredUpi.trim();
-                                    } else if (currentActiveReceipt && currentActiveReceipt.upiIdUsed === undefined) {
-                                      resolvedUpi = isGst ? "9845757296@cnrb" : "6361037157@ybl";
                                     }
                                   }
                                   

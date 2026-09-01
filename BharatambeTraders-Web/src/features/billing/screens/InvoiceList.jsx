@@ -770,10 +770,16 @@ Thank you for your business! 🙏
                         <div className="footer-card">
                           <div className="footer-card-title">BANK ACCOUNT DETAILS</div>
                           <div className="footer-card-body">
-                            <div><strong>Account Name:</strong> {shopName.toUpperCase()}</div>
-                            <div><strong>Bank Name:</strong> CANARA BANK</div>
-                            <div><strong>A/C No:</strong> 120033287950</div>
-                            <div><strong>IFSC Code:</strong> CNRB0010700</div>
+                            {selectedInvoice.isGstBilling !== false ? (
+                              <>
+                                <div><strong>Account Name:</strong> {(profile?.accountHolderName || shopName || "").toUpperCase() || "N/A"}</div>
+                                <div><strong>Bank Name:</strong> {profile?.bankName || "N/A"}</div>
+                                <div><strong>A/C No:</strong> {profile?.accountNumber || "N/A"}</div>
+                                <div><strong>IFSC Code:</strong> {profile?.ifscCode || "N/A"}</div>
+                              </>
+                            ) : (
+                              <div className="text-[7.5px] text-slate-400 italic mt-2">N/A (Non-GST Estimate Bill)</div>
+                            )}
                           </div>
                         </div>
 
@@ -789,8 +795,6 @@ Thank you for your business! 🙏
                                 const configuredUpi = isGst ? profile?.gstUpiId : profile?.nonGstUpiId;
                                 if (configuredUpi && configuredUpi.trim() !== "") {
                                   resolvedUpi = configuredUpi.trim();
-                                } else if (selectedInvoice && selectedInvoice.upiIdUsed === undefined) {
-                                  resolvedUpi = isGst ? "9845757296@cnrb" : "6361037157@ybl";
                                 }
                               }
                               

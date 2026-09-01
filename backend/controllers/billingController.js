@@ -113,6 +113,18 @@ const createInvoice = async (req, res) => {
     const tenantGst = tenantUser?.profile?.gstNumber || "";
     const tenantState = tenantUser?.profile?.state || "";
 
+    // Mandatory Server-Side UPI Validation: Block invoice creation if required UPI handle is missing
+    const activeUpiId = isGst 
+      ? (tenantUser?.profile?.gstUpiId || "").trim() 
+      : (tenantUser?.profile?.nonGstUpiId || "").trim();
+
+    if (!activeUpiId && !isQuotation) {
+      const upiTypeLabel = isGst ? "GST Billing UPI ID" : "Non-GST Billing UPI ID";
+      return res.status(400).json({ 
+        message: `${upiTypeLabel} is not configured in your Settings profile. Please add your ${upiTypeLabel} in Settings before proceeding.` 
+      });
+    }
+
     for (const cartItem of items) {
       if (cartItem.isManualItem) {
         continue;

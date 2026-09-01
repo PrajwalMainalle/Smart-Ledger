@@ -48,6 +48,10 @@ const UserSchema = new mongoose.Schema(
       pincode: { type: String, default: "" },
       gstUpiId: { type: String, default: "" },
       nonGstUpiId: { type: String, default: "" },
+      bankName: { type: String, default: "" },
+      accountNumber: { type: String, default: "" },
+      ifscCode: { type: String, default: "" },
+      accountHolderName: { type: String, default: "" },
     },
     gstBillingRule: {
       type: String,

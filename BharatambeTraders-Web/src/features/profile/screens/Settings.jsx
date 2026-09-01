@@ -104,6 +104,10 @@ function Settings() {
     creditReminderDays: 20,
     gstUpiId: "",
     nonGstUpiId: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    accountHolderName: "",
   });
 
   const [logoPreview, setLogoPreview] = useState("");
@@ -131,6 +135,10 @@ function Settings() {
         creditReminderDays: user.creditReminderDays !== undefined ? user.creditReminderDays : 20,
         gstUpiId: profile.gstUpiId || "",
         nonGstUpiId: profile.nonGstUpiId || "",
+        bankName: profile.bankName || "",
+        accountNumber: profile.accountNumber || "",
+        ifscCode: profile.ifscCode || "",
+        accountHolderName: profile.accountHolderName || "",
       });
       setLogoPreview(profile.logo || "");
     }
@@ -374,6 +382,62 @@ function Settings() {
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500 font-mono"
                     />
                     <p className="text-[10px] text-slate-500">Used for generating payment QR codes on Non-GST Estimate Receipts.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Merchant Bank Account Details */}
+              <div className="border-t border-slate-800/80 pt-4 mt-2">
+                <h4 className="text-orange-400 font-bold uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                  <FaDatabase /> Merchant Bank Account Details (Print Receipts &amp; PDFs)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-slate-400 font-semibold">Account Holder Name</label>
+                    <input 
+                      type="text" 
+                      name="accountHolderName"
+                      value={formData.accountHolderName}
+                      onChange={handleChange}
+                      placeholder="e.g. John Doe / Firm Name"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-slate-400 font-semibold">Bank Name</label>
+                    <input 
+                      type="text" 
+                      name="bankName"
+                      value={formData.bankName}
+                      onChange={handleChange}
+                      placeholder="e.g. State Bank of India"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-slate-400 font-semibold">Account Number</label>
+                    <input 
+                      type="text" 
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={handleChange}
+                      placeholder="e.g. 123456789012"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-slate-400 font-semibold">IFSC Code</label>
+                    <input 
+                      type="text" 
+                      name="ifscCode"
+                      value={formData.ifscCode}
+                      onChange={handleChange}
+                      placeholder="e.g. SBIN0001234"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500 font-mono uppercase"
+                    />
                   </div>
                 </div>
               </div>
