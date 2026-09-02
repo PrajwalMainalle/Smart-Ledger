@@ -109,7 +109,7 @@ const Headers = ({ onMenuClick }) => {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  const shopName = user?.profile?.shopName || user?.businessName || "SmartLedger";
+  const shopName = user?.profile?.shopName || user?.businessName || "Bharatambe Traders";
   const logoSrc = user?.profile?.logo || defaultLogo;
   const ownerName = user?.ownerName || "Merchant Owner";
 
@@ -318,10 +318,20 @@ const Headers = ({ onMenuClick }) => {
         </div>
         <div className="h-8 w-px bg-slate-800 hidden sm:block"></div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-slate-850 flex items-center justify-center border border-slate-800 overflow-hidden">
-            <img src={logoSrc} alt="Logo" className="w-full h-full object-cover" />
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center border border-slate-700/60 overflow-hidden text-white font-extrabold text-xs shadow-sm">
+            {user?.profile?.logo ? (
+              <img src={user.profile.logo} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <span>
+                {(() => {
+                  const name = shopName || "BT";
+                  const parts = name.trim().split(/\s+/);
+                  return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+                })()}
+              </span>
+            )}
           </div>
-          <span className="font-bold text-xs text-slate-200 hidden sm:block truncate max-w-[120px]" title={shopName}>
+          <span className="font-bold text-xs text-slate-200 hidden sm:block truncate max-w-[140px]" title={shopName}>
             {shopName}
           </span>
         </div>

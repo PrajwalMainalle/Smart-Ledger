@@ -45,42 +45,55 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
   drawPageDecorations(doc, pageNum);
 
   if (pageNum === 1) {
-    // 1. Top Left Dark-Teal Badge starting at outer border corner (20, 20) with Gold Curve Accent
+    // 1. Top Left Dark-Teal Badge for Logo
     const badgeX = 20;
     const badgeY = 20;
-    const badgeW = 150;
+    const badgeW = 68;
     const badgeH = 68;
 
     doc.save();
     doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 8).fill(primaryColor);
-    doc.path(`M ${badgeX + badgeW - 25} ${badgeY + badgeH} Q ${badgeX + badgeW} ${badgeY + badgeH} ${badgeX + badgeW} ${badgeY + badgeH - 25}`)
-       .lineWidth(3).stroke(accentColor);
+    doc.path(`M ${badgeX + badgeW - 15} ${badgeY + badgeH} Q ${badgeX + badgeW} ${badgeY + badgeH} ${badgeX + badgeW} ${badgeY + badgeH - 15}`)
+       .lineWidth(2.5).stroke(accentColor);
     doc.restore();
+
+    // Helper to get business initials if no logo is uploaded
+    const getInitials = (name) => {
+      if (!name) return "BT";
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+      return name.substring(0, 2).toUpperCase();
+    };
 
     // Embed logo inside top-left badge
     let logoBuffer = null;
-    if (profile.logo && profile.logo.startsWith("data:image")) {
-      try {
-        const base64Data = profile.logo.replace(/^data:image\/\w+;base64,/, "");
-        logoBuffer = Buffer.from(base64Data, "base64");
-      } catch (e) {}
-    } else {
-      try {
-        const defaultLogoPath = path.join(__dirname, "..", "assets", "SLLogo.png");
-        if (fs.existsSync(defaultLogoPath)) {
-          logoBuffer = fs.readFileSync(defaultLogoPath);
-        }
-      } catch (e) {}
+    if (profile.logo && typeof profile.logo === "string") {
+      if (profile.logo.startsWith("data:image")) {
+        try {
+          const base64Data = profile.logo.replace(/^data:image\/\w+;base64,/, "");
+          logoBuffer = Buffer.from(base64Data, "base64");
+        } catch (e) {}
+      } else if (fs.existsSync(profile.logo)) {
+        try {
+          logoBuffer = fs.readFileSync(profile.logo);
+        } catch (e) {}
+      } else if (profile.logo.trim().length > 50) {
+        try {
+          logoBuffer = Buffer.from(profile.logo, "base64");
+        } catch (e) {}
+      }
     }
 
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, badgeX + 12, badgeY + 12, { width: 40, height: 40 });
-        doc.fillColor("#ffffff").font(fontBold).fontSize(10.5).text("SmartLedger", badgeX + 56, badgeY + 20, { width: 90 });
-        doc.font(fontRegular).fontSize(6.5).fillColor("#cbd5e1").text("Your Business Partner", badgeX + 56, badgeY + 34, { width: 90 });
-      } catch (e) {}
+        doc.image(logoBuffer, badgeX + 10, badgeY + 10, { width: 48, height: 48, fit: [48, 48], align: 'center', valing: 'center' });
+      } catch (e) {
+        doc.fillColor("#ffffff").font(fontBold).fontSize(20).text(getInitials(shopName), badgeX + 4, badgeY + 22, { width: 60, align: "center" });
+      }
     } else {
-      doc.fillColor("#ffffff").font(fontBold).fontSize(12).text("SmartLedger", badgeX + 15, badgeY + 24, { width: 120 });
+      try {
+        doc.fillColor("#ffffff").font(fontBold).fontSize(20).text(getInitials(shopName), badgeX + 4, badgeY + 22, { width: 60, align: "center" });
+      } catch (e) {}
     }
 
     // 2. Top Right GSTIN & Mobile Info
@@ -93,8 +106,8 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
 
     // 3. Centered Header Branding, Subtitle & Store Address
     const brandStartY = margin + 4;
-    const logoRightX = margin + 140;
-    const centerAreaWidth = printWidth - 240;
+    const logoRightX = margin + 60;
+    const centerAreaWidth = printWidth - 140;
 
     doc.fillColor(primaryColor).font(fontBold).fontSize(19).text(shopName.toUpperCase(), logoRightX, brandStartY, { align: "center", width: centerAreaWidth });
     doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text("W H O L E S A L E R ' S", logoRightX, brandStartY + 23, { align: "center", width: centerAreaWidth });

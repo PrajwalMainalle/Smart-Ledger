@@ -65,7 +65,7 @@ const SideBar = ({
     return new Date().getFullYear();
   };
 
-  const displayName = user?.profile?.shopName || user?.businessName || "SmartLedger";
+  const displayName = user?.profile?.shopName || user?.businessName || "smart-ledger";
 
   return (
     <aside
@@ -144,10 +144,9 @@ const SideBar = ({
                           to={sub.path}
                           className={({ isActive }) =>
                             `block px-4 py-2 rounded-md text-[10px] font-bold transition
-                            ${
-                              isActive
-                                ? "bg-slate-900 text-orange-400"
-                                : "text-slate-500 hover:text-slate-350"
+                            ${isActive
+                              ? "bg-slate-900 text-orange-400"
+                              : "text-slate-500 hover:text-slate-350"
                             }`
                           }
                         >
@@ -163,10 +162,9 @@ const SideBar = ({
                     to={path}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                      ${
-                        isActive
-                          ? "bg-sidebar-active text-orange-400"
-                          : "text-sidebar-subtext"
+                      ${isActive
+                        ? "bg-sidebar-active text-orange-400"
+                        : "text-sidebar-subtext"
                       }
                       hover:bg-sidebar-active hover:text-orange-400`
                     }
@@ -183,10 +181,9 @@ const SideBar = ({
                 to={path}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                  ${
-                    isActive
-                      ? "bg-sidebar-active text-orange-400"
-                      : "text-sidebar-subtext"
+                  ${isActive
+                    ? "bg-sidebar-active text-orange-400"
+                    : "text-sidebar-subtext"
                   }
                   hover:bg-sidebar-active hover:text-orange-400`
                 }
@@ -228,10 +225,9 @@ const SideBar = ({
                           onClick={() => setMobileOpen(false)}
                           className={({ isActive }) =>
                             `block px-4 py-2 rounded-md text-[10px] font-bold transition
-                            ${
-                              isActive
-                                ? "bg-slate-900 text-orange-400"
-                                : "text-slate-500 hover:text-slate-350"
+                            ${isActive
+                              ? "bg-slate-900 text-orange-400"
+                              : "text-slate-500 hover:text-slate-350"
                             }`
                           }
                         >
@@ -248,10 +244,9 @@ const SideBar = ({
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                      ${
-                        isActive
-                          ? "bg-sidebar-active text-orange-400"
-                          : "text-sidebar-subtext"
+                      ${isActive
+                        ? "bg-sidebar-active text-orange-400"
+                        : "text-sidebar-subtext"
                       }
                       hover:bg-sidebar-active hover:text-orange-400`
                     }
@@ -269,10 +264,9 @@ const SideBar = ({
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                  ${
-                    isActive
-                      ? "bg-sidebar-active text-orange-400"
-                      : "text-sidebar-subtext"
+                  ${isActive
+                    ? "bg-sidebar-active text-orange-400"
+                    : "text-sidebar-subtext"
                   }
                   hover:bg-sidebar-active hover:text-orange-400`
                 }

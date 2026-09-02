@@ -220,7 +220,7 @@ function InvoiceList() {
     if (!inv?._id) return "";
     const serverUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000";
     const token = authStoreToken || user?.token || "";
-    return `${serverUrl}/api/billing/${inv._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}`;
+    return `${serverUrl}/api/billing/${inv._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}#toolbar=0&navpanes=0&view=FitH`;
   };
 
   // Trigger Receipt Printing using dynamic PDF streaming (via blob same-origin URL to avoid CORS blocks)
@@ -583,7 +583,7 @@ Thank you for your business! 🙏
       {/* REPRINT / VIEW RECEIPT MODAL */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[96vw] md:max-w-6xl xl:max-w-7xl overflow-hidden shadow-2xl relative flex flex-col max-h-[96vh]">
             
             <div className="bg-slate-950 px-6 py-4 flex items-center justify-between border-b border-slate-900">
               <div className="flex items-center gap-3">
@@ -612,216 +612,38 @@ Thank you for your business! 🙏
               </button>
             </div>
 
-            {/* Split Content */}
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden h-[68vh]">
-              {/* Left Column: PDF Iframe Preview */}
-              <div className="flex-1 bg-slate-950 border-r border-slate-855 flex flex-col h-full min-h-[300px] md:min-h-0">
-                <div className="p-3 bg-slate-950 border-b border-slate-855 flex flex-wrap justify-between items-center gap-2">
-                  <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
-                  <div className="flex items-center gap-3">
-                    <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => setPageSize(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-355"
-                    >
-                      <option value="auto">Auto-Fit</option>
-                      <option value="A4">A4 Paper</option>
-                      <option value="A3">A3 Paper</option>
-                    </select>
+            {/* Full Page PDF Preview */}
+            <div className="flex-1 bg-slate-950 flex flex-col h-[80vh] md:h-[84vh] w-full overflow-hidden">
+              <div className="p-3 bg-slate-950 border-b border-slate-800 flex flex-wrap justify-between items-center gap-2">
+                <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
+                <div className="flex items-center gap-3">
+                  <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-300"
+                  >
+                    <option value="auto">Auto-Fit</option>
+                    <option value="A4">A4 Paper</option>
+                    <option value="A3">A3 Paper</option>
+                  </select>
 
-                    <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
-                    <select
-                      value={orientation}
-                      onChange={(e) => setOrientation(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-355"
-                    >
-                      <option value="portrait">Portrait</option>
-                      <option value="landscape">Landscape</option>
-                    </select>
-                  </div>
-                </div>
-                <iframe
-                  src={getDynamicPdfUrl()}
-                  className="w-full h-full flex-1 border-none bg-slate-950"
-                  title="Live Invoice PDF"
-                />
-              </div>
-
-              {/* Right Column: HTML Print Preview */}
-              <div className="w-full md:w-[480px] overflow-y-auto p-4 bg-slate-950 flex flex-col h-full">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 text-center">
-                  POS Print Receipt Preview
-                </div>
-                <div className="bg-white p-4 rounded-lg overflow-y-auto flex-1 max-h-full" style={{ color: "#1e293b" }}>
-                  <div id="reprint-area">
-                    <div className="print-receipt">
-                      {/* Top Header Row with Logo Badge, Shop Title & Right GSTIN/Mobile */}
-                      <div className="top-header-row">
-                        <div className="brand-badge-container">
-                          {logoSrc ? (
-                            <img src={logoSrc} alt="Logo" className="brand-logo-img" />
-                          ) : (
-                            <div className="brand-badge-title">SmartLedger<br/><span className="brand-badge-sub">Your Business Partner</span></div>
-                          )}
-                        </div>
-
-                        <div className="header-center-info">
-                          <h1 className="header-shop-title">{shopName.toUpperCase()}</h1>
-                          <div className="header-shop-sub">W H O L E S A L E R ' S</div>
-                        </div>
-
-                        <div className="top-right-contact">
-                          {selectedInvoice.isGstBilling !== false && (
-                            <div><strong>GSTIN:</strong> {gstNumber}</div>
-                          )}
-                          <div><strong>Mobile:</strong> {contactPhone}</div>
-                        </div>
-                      </div>
-
-                      <div className="gold-divider-line"></div>
-
-                      <div className="shop-tagline-bar">
-                        {profile.businessDescription || "Office Stationery • School Items • Note Books • Xerox Papers • Sports Items • Computer Materials & More"}
-                      </div>
-
-                      {/* Document Title with side accent lines */}
-                      <div className="doc-title-wrapper">
-                        <div className="doc-title-line"></div>
-                        <div className="doc-title-text">
-                          {(selectedInvoice.status === "Quotation" || selectedInvoice.isQuotation)
-                            ? "Estimate / Quotation"
-                            : (selectedInvoice.isGstBilling !== false ? "Tax Invoice" : `${(selectedInvoice.paymentMethod || "CASH").toUpperCase()} BILL`)}
-                        </div>
-                        <div className="doc-title-line"></div>
-                      </div>
-
-                      {/* Metadata 2-column Grid */}
-                      <div className="meta-grid-2col">
-                        <div className="meta-col">
-                          <div>
-                            <div className="meta-label">INVOICE NO.</div>
-                            <div className="meta-value font-mono">{selectedInvoice.invoiceId || selectedInvoice.id}</div>
-                          </div>
-                          <div className="mt-2">
-                            <div className="meta-label">BILLED TO</div>
-                            <div className="meta-value">{selectedInvoice.customerName.toUpperCase()}</div>
-                          </div>
-                        </div>
-
-                        <div className="meta-col text-right">
-                          <div>
-                            <div className="meta-label">DATE</div>
-                            <div className="meta-value">{new Date(selectedInvoice.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
-                          </div>
-                          <div className="mt-2">
-                            <div className="meta-label">PHONE</div>
-                            <div className="meta-value">{selectedInvoice.customerPhone && selectedInvoice.customerPhone !== "N/A" ? selectedInvoice.customerPhone : "N/A"}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Modern Table Grid */}
-                      <table className="modern-receipt-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: "8%", textAlign: "center" }}>S.NO</th>
-                            <th style={{ width: "52%" }}>PARTICULARS</th>
-                            <th style={{ width: "10%", textAlign: "center" }}>QTY</th>
-                            <th style={{ width: "14%", textAlign: "right" }}>RATE</th>
-                            <th style={{ width: "16%", textAlign: "right" }}>AMOUNT</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedInvoice.items.map((item, idx) => {
-                            const lineTotal = item.price * item.qty;
-                            return (
-                              <tr key={idx}>
-                                <td style={{ textAlign: "center" }}>{idx + 1}</td>
-                                <td className="font-semibold">{item.name}</td>
-                                <td style={{ textAlign: "center" }} className="font-mono">{item.qty}</td>
-                                <td style={{ textAlign: "right" }} className="font-mono">₹{item.price.toFixed(2)}</td>
-                                <td style={{ textAlign: "right" }} className="font-mono font-bold">₹{lineTotal.toFixed(2)}</td>
-                              </tr>
-                            );
-                          })}
-                          <tr className="total-summary-row">
-                            <td colSpan="2" style={{ textAlign: "left", paddingLeft: "12px" }}>Total</td>
-                            <td style={{ textAlign: "center" }} className="font-mono">{selectedInvoice.items.reduce((sum, item) => sum + item.qty, 0)}</td>
-                            <td colSpan="2" style={{ textAlign: "right" }} className="font-mono">₹{selectedInvoice.subtotal.toFixed(2)}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {/* Grand Total Pill Badge */}
-                      <div className="grand-total-pill-container">
-                        <div className="grand-total-pill">
-                          <span className="grand-total-pill-label">
-                            {selectedInvoice.status === "Quotation" ? "GRAND TOTAL (EST.)" : "GRAND TOTAL (INCL. TAX)"}
-                          </span>
-                          <span className="grand-total-pill-val font-mono">
-                            ₹{selectedInvoice.total.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Footer Cards: Bank Details (Left) & Scan & Pay (Right) */}
-                      <div className="footer-cards-grid">
-                        <div className="footer-card">
-                          <div className="footer-card-title">BANK ACCOUNT DETAILS</div>
-                          <div className="footer-card-body">
-                            {selectedInvoice.isGstBilling !== false ? (
-                              <>
-                                <div><strong>Account Name:</strong> {(profile?.accountHolderName || shopName || "").toUpperCase() || "N/A"}</div>
-                                <div><strong>Bank Name:</strong> {profile?.bankName || "N/A"}</div>
-                                <div><strong>A/C No:</strong> {profile?.accountNumber || "N/A"}</div>
-                                <div><strong>IFSC Code:</strong> {profile?.ifscCode || "N/A"}</div>
-                              </>
-                            ) : (
-                              <div className="text-[7.5px] text-slate-400 italic mt-2">N/A (Non-GST Estimate Bill)</div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="footer-card text-center">
-                          <div className="footer-card-title">SCAN &amp; PAY (UPI)</div>
-                          <div className="footer-card-body">
-                            {(() => {
-                              let resolvedUpi = "";
-                              if (selectedInvoice && selectedInvoice.upiIdUsed && selectedInvoice.upiIdUsed.trim() !== "") {
-                                resolvedUpi = selectedInvoice.upiIdUsed.trim();
-                              } else {
-                                const isGst = selectedInvoice?.isGstBilling !== false;
-                                const configuredUpi = isGst ? profile?.gstUpiId : profile?.nonGstUpiId;
-                                if (configuredUpi && configuredUpi.trim() !== "") {
-                                  resolvedUpi = configuredUpi.trim();
-                                }
-                              }
-                              
-                              if (!resolvedUpi || resolvedUpi === "") {
-                                return <div className="text-[7.5px] mt-1 text-slate-500 italic">UPI Payment QR Unconfigured</div>;
-                              }
-                              
-                              return <div className="text-[7.5px] mt-1">UPI ID: {resolvedUpi}</div>;
-                            })()}
-                            <div className="font-bold text-xs text-[#034b54] mt-1 font-mono">₹{selectedInvoice.total.toFixed(2)}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom Signature & Tagline */}
-                      <div className="bottom-sign-row">
-                        <div className="bottom-thankyou">Thank you, visit again.</div>
-                        <div className="bottom-sig-box">
-                          <div className="bottom-sig-line"></div>
-                          <div className="bottom-sig-text">Authorized Signature</div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
+                  <select
+                    value={orientation}
+                    onChange={(e) => setOrientation(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-300"
+                  >
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
                 </div>
               </div>
+              <iframe
+                src={getDynamicPdfUrl()}
+                className="w-full h-full flex-1 border-none bg-slate-950"
+                title="Live Invoice PDF"
+              />
             </div>
 
             {/* Print toolbar footer */}
