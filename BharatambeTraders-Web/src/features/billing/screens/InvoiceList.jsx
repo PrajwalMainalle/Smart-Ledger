@@ -506,7 +506,7 @@ Thank you for your business! 🙏
                           >
                             Receipt
                           </button>
-                          {!inv.isLocked && !inv.isGovInvoice && inv.status !== "Refunded" && (
+                          {inv.status !== "Refunded" && (
                             <button 
                               onClick={() => handleEditInvoice(inv)}
                               className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded border border-amber-500/20 font-bold text-xs transition flex items-center gap-1"
@@ -590,7 +590,7 @@ Thank you for your business! 🙏
                 <h3 className="font-bold text-slate-100 flex items-center gap-2">
                   <FaFileInvoice className="text-orange-500" /> {selectedInvoice.status === "Quotation" ? "Quotation / Estimate Details" : "Invoice Details"} ({selectedInvoice.invoiceId})
                 </h3>
-                {!selectedInvoice.isLocked && !selectedInvoice.isGovInvoice && selectedInvoice.status !== "Refunded" && (
+                {selectedInvoice.status !== "Refunded" && (
                   <button
                     onClick={() => {
                       const invToEdit = selectedInvoice;
@@ -850,7 +850,7 @@ Thank you for your business! 🙏
                 >
                   <FaWhatsapp className="text-base text-white" /> WhatsApp Bill
                 </a>
-                {!selectedInvoice.isLocked && !selectedInvoice.isGovInvoice && selectedInvoice.status !== "Refunded" && (
+                {selectedInvoice.status !== "Refunded" && (
                   <button
                     onClick={() => {
                       const invToEdit = selectedInvoice;

@@ -511,7 +511,7 @@ const createInvoice = async (req, res) => {
     if (!isQuotation && (customerType === "School" || paymentMethod === "Government School Fund" || govSchoolId || req.body.isGovInvoice)) {
       try {
         savedInvoice.isGovInvoice = true;
-        savedInvoice.isLocked = true;
+        savedInvoice.isLocked = false;
         savedInvoice.govFundStatus = "Invoice Issued";
         await savedInvoice.save();
 
@@ -1330,11 +1330,7 @@ const updateInvoice = async (req, res) => {
       return res.status(404).json({ message: "Invoice not found or unauthorized" });
     }
 
-    if (invoice.isLocked || invoice.isGovInvoice) {
-      return res.status(400).json({
-        message: "Government Invoice is locked and read-only. Invoice amounts, GST, and items cannot be modified directly after issuance.",
-      });
-    }
+
 
     // Fetch tenant settings for GST billing rules and state info
     const tenantUser = await User.findById(tenantId);
@@ -1707,6 +1703,18 @@ const updateInvoice = async (req, res) => {
 
     // Save invoice changes to database
     const savedInvoice = await invoice.save();
+
+    // If there is an associated GovGrant (for School / Government invoices), update its approved budget and remaining balance
+    try {
+      const grant = await GovGrant.findOne({ tenantId, invoiceId: savedInvoice._id });
+      if (grant) {
+        grant.approvedBudget = savedInvoice.total;
+        grant.remainingBalance = Math.max(0, savedInvoice.total - (grant.materialUtilized || 0) - (grant.cashWithdrawn || 0));
+        await grant.save();
+      }
+    } catch (govGrantErr) {
+      console.error("Non-fatal error updating GovGrant budget on invoice edit:", govGrantErr.message);
+    }
 
     // 6. Re-generate Invoice PDF file (optional cached copy)
     try {
