@@ -1,0 +1,18 @@
+{
+  "short_name": "Bharatambe",
+  "name": "Bharatambe Traders - Smart Ledger",
+  "icons": [
+    {
+      "src": "/BTLogo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/home",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "description": "Billing, Inventory, Customer Ledger & GST Management Platform"
+}

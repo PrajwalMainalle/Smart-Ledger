@@ -68,16 +68,25 @@ const SideBar = ({
   const displayName = user?.profile?.shopName || user?.businessName || "smart-ledger";
 
   return (
-    <aside
-      className={`
-        fixed md:relative top-0 left-0 h-full z-40 print:hidden
-        bg-sidebar-bg text-sidebar-text flex flex-col
-        transition-all duration-300
-        ${collapsed ? "w-20" : "w-64"}
-        ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0
-      `}
-    >
+    <>
+      {/* Mobile Drawer Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 md:hidden transition-opacity"
+        />
+      )}
+
+      <aside
+        className={`
+          fixed md:relative top-0 left-0 h-full z-50 md:z-40 print:hidden
+          bg-sidebar-bg text-sidebar-text flex flex-col
+          transition-all duration-300
+          ${collapsed ? "w-20" : "w-64"}
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0
+        `}
+      >
       {/* Top */}
       <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
         {!collapsed && (
@@ -299,7 +308,8 @@ const SideBar = ({
         )}
       </div>
     </aside>
-  );
+  </>
+);
 };
 
 export default SideBar;

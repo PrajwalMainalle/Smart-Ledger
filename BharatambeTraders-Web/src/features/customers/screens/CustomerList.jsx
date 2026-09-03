@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { IoSearch } from "react-icons/io5";
-import { FaUserFriends, FaPlus, FaTimes, FaEdit, FaTrashAlt, FaSpinner, FaHistory, FaPrint } from "react-icons/fa";
+import { FaUserFriends, FaPlus, FaTimes, FaEdit, FaTrashAlt, FaSpinner, FaHistory, FaPrint, FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 import { fetchCustomers, addCustomer, updateCustomer, deleteCustomer, fetchCustomerLedger, collectPayment, clearActiveLedger } from "../customerSlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
@@ -170,6 +170,14 @@ function CustomerList() {
     dispatch(fetchCustomerLedger(cust._id || cust.id));
   };
 
+  const handleSendWhatsAppReminder = (cust) => {
+    const cleanPhone = (cust.phone || "").replace(/\D/g, "");
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const balance = cust.outstandingBalance || 0;
+    const text = encodeURIComponent(`Namaste ${cust.name} ji,\nThis is a friendly reminder from Bharatambe Traders regarding your outstanding balance of ₹${balance.toFixed(2)}.\nKindly make payment at your convenience.\nThank you!`);
+    window.open(`https://wa.me/${formattedPhone}?text=${text}`, "_blank");
+  };
+
   const handleCollectSubmit = (e) => {
     e.preventDefault();
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
@@ -282,8 +290,90 @@ function CustomerList() {
           </div>
         </div>
 
-        {/* Customer list Table */}
-        <div className="bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
+        {/* Mobile View Customer Cards */}
+        <div className="md:hidden space-y-3">
+          {loading && <LoadingOverlay message="Fetching customer records..." />}
+          {filteredCustomers.map((cust) => {
+            const custId = cust._id || cust.id;
+            const balance = cust.outstandingBalance || 0;
+
+            return (
+              <div key={custId} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">{cust.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                        {cust.customerType}
+                      </span>
+                      <span className="text-[10px] text-orange-400 font-bold capitalize">
+                        {cust.priceCategory} Price
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-500 uppercase block font-semibold">Balance</span>
+                    <span className={`font-mono text-sm font-black ${balance > 0 ? "text-rose-450" : "text-emerald-450"}`}>
+                      ₹{balance.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                  <a 
+                    href={`tel:${cust.phone}`}
+                    className="flex items-center gap-1.5 text-slate-300 hover:text-white font-mono bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60"
+                  >
+                    <FaPhoneAlt size={11} className="text-emerald-400" />
+                    <span>{cust.phone}</span>
+                  </a>
+
+                  {balance > 0 && (
+                    <button
+                      onClick={() => handleSendWhatsAppReminder(cust)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition"
+                    >
+                      <FaWhatsapp size={13} className="text-emerald-400" />
+                      <span>Remind</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    onClick={() => handleOpenLedger(cust)}
+                    className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <FaHistory size={12} /> Ledger & Payment
+                  </button>
+                  <button
+                    onClick={() => openEditModal(cust)}
+                    className="p-2 bg-slate-800 text-slate-300 rounded-xl border border-slate-700 hover:text-white"
+                    title="Edit customer"
+                  >
+                    <FaEdit size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(custId, cust.name)}
+                    className="p-2 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20 hover:text-white"
+                    title="Delete customer"
+                  >
+                    <FaTrashAlt size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredCustomers.length === 0 && !loading && (
+            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 text-xs">
+              No customers match query filters.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Customer list Table */}
+        <div className="hidden md:block bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           {loading && <LoadingOverlay message="Fetching customer records..." />}
           
           <div className="overflow-x-auto">
