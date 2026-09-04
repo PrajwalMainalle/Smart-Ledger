@@ -67,6 +67,7 @@ function POS() {
   const [quotationReceiptData, setQuotationReceiptData] = useState(null);
   const [activeTabReceipt, setActiveTabReceipt] = useState("tax"); // "tax" | "quotation"
   const [customInvoiceDate, setCustomInvoiceDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [modalPreviewMode, setModalPreviewMode] = useState("summary"); // "summary" | "pdf"
 
   // Credit Outstanding & Return Exchange states
   const [amountPaidToday, setAmountPaidToday] = useState(0);
@@ -1941,6 +1942,34 @@ function POS() {
 
       </div>
 
+      {/* Floating Sticky Mobile Cart Bar */}
+      {cart.length > 0 && (
+        <div className="xl:hidden fixed bottom-16 left-3 right-3 z-40 bg-slate-900/95 border border-orange-500/50 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between animate-in slide-in-from-bottom duration-250">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-500 text-slate-950 flex items-center justify-center font-black text-sm shadow-md">
+              {cart.reduce((sum, item) => sum + item.qty, 0)}
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white">Cart Total: <span className="text-orange-400 font-mono font-black">₹{grandTotal.toFixed(2)}</span></p>
+              <p className="text-[10px] text-slate-400 font-semibold">{cart.length} item{cart.length > 1 ? "s" : ""} in active bill</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const cartEl = document.getElementById("pos-cart-panel");
+              if (cartEl) {
+                cartEl.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+            className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition"
+          >
+            <span>View Cart & Checkout</span>
+            <span className="text-sm">➔</span>
+          </button>
+        </div>
+      )}
+
       {/* PRINTABLE INVOICE / CHECKOUT MODAL OVERLAY */}
       {showCheckoutModal && receiptData && (
         (() => {
@@ -1955,15 +1984,41 @@ function POS() {
               <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[96vw] md:max-w-6xl xl:max-w-7xl overflow-hidden shadow-2xl relative flex flex-col max-h-[96vh]">
                 
                 {/* Modal Header Bar */}
-                <div className="bg-slate-950 px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-900">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-                      <FaCheckCircle className="text-emerald-500" /> 
+                <div className="bg-slate-950 px-4 md:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-900">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="font-bold text-white flex items-center gap-2 text-xs md:text-sm">
+                      <FaCheckCircle className="text-emerald-500 text-base" /> 
                       {quotationReceiptData 
                         ? "Dual Bills Generated (Tax Invoice & Quotation)" 
                         : (receiptData.isQuotation ? "Quotation / Estimate Generated" : "Tax Invoice Generated")
                       }
                     </h3>
+
+                    {/* View Mode Switcher Tab (Summary vs PDF) */}
+                    <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setModalPreviewMode("summary")}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                          modalPreviewMode === "summary"
+                            ? "bg-orange-500 text-slate-950 shadow-md font-black"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        📱 Interactive Bill Summary
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalPreviewMode("pdf")}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                          modalPreviewMode === "pdf"
+                            ? "bg-orange-500 text-slate-950 shadow-md font-black"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        📄 PDF Document View
+                      </button>
+                    </div>
 
                     {/* Tab Switcher if Dual Bill Generated */}
                     {quotationReceiptData && (
@@ -2001,7 +2056,7 @@ function POS() {
                       className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
                       title="Unlock and edit bill items, quantities or pricing in POS cart"
                     >
-                      <FaEdit size={13} /> Edit Bill / Modify Items
+                      <FaEdit size={13} /> Edit Bill
                     </button>
                     <button 
                       onClick={() => {
@@ -2009,46 +2064,155 @@ function POS() {
                         setReceiptData(null);
                         setQuotationReceiptData(null);
                       }}
-                      className="text-slate-400 hover:text-slate-200"
+                      className="text-slate-400 hover:text-slate-200 p-1"
                     >
                       <FaTimes size={18} />
                     </button>
                   </div>
                 </div>
 
-                {/* Full Page Live PDF Preview */}
-                <div className="flex-1 bg-slate-950 flex flex-col h-[80vh] md:h-[84vh] w-full overflow-hidden">
-                  <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-wrap justify-between items-center gap-2">
-                    <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
-                    <div className="flex items-center gap-3">
-                      <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => setPageSize(e.target.value)}
-                        className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
-                      >
-                        <option value="auto">Auto-Fit</option>
-                        <option value="A4">A4 Paper</option>
-                        <option value="A3">A3 Paper</option>
-                      </select>
-
-                      <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
-                      <select
-                        value={orientation}
-                        onChange={(e) => setOrientation(e.target.value)}
-                        className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
-                      >
-                        <option value="portrait">Portrait</option>
-                        <option value="landscape">Landscape</option>
-                      </select>
+                {/* MODAL CONTENT: Summary View vs PDF View */}
+                {modalPreviewMode === "summary" ? (
+                  <div className="flex-1 bg-slate-950 p-4 md:p-6 overflow-y-auto space-y-4 max-h-[75vh]">
+                    {/* Success Header Box */}
+                    <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-3 text-center md:text-left">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-2xl font-bold shrink-0">
+                          ✓
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-white">
+                            {currentActiveReceipt.isQuotation ? "Quotation / Estimate Generated!" : "Tax Invoice Generated Successfully!"}
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            Merchant: <strong className="text-slate-200">{shopName}</strong> | GSTIN: <strong className="text-orange-400 font-mono">{gstNumber}</strong>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-center">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase block">Bill Number</span>
+                        <span className="text-sm font-mono font-black text-orange-400">{currentActiveReceipt.id}</span>
+                      </div>
                     </div>
+
+                    {/* Customer & Bill Details Card */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+                      <div className="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 text-xs gap-2">
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold uppercase block">Customer Details</span>
+                          <span className="font-bold text-white text-sm">{currentActiveReceipt.customerName}</span>
+                          {currentActiveReceipt.customerPhone && currentActiveReceipt.customerPhone !== "N/A" && (
+                            <span className="text-slate-400 text-xs font-mono block">📞 {currentActiveReceipt.customerPhone}</span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase block">Payment Method</span>
+                          <span className="px-3 py-1 rounded-lg text-xs font-black bg-orange-500/20 text-orange-400 border border-orange-500/30 inline-block mt-0.5">
+                            {currentActiveReceipt.paymentMethod}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Line Items List */}
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block mb-2">Billed Items ({currentActiveReceipt.items.length})</span>
+                        <div className="divide-y divide-slate-800/80 bg-slate-950 rounded-xl border border-slate-850 p-3 space-y-2.5">
+                          {currentActiveReceipt.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs pt-1.5">
+                              <div className="flex-1 pr-2">
+                                <p className="font-bold text-slate-100">{item.name}</p>
+                                <p className="text-[10px] text-slate-400 font-medium">₹{item.price.toFixed(2)} × {item.qty} {item.gstRate > 0 ? `(${item.gstRate}% GST)` : ""}</p>
+                              </div>
+                              <p className="font-mono font-bold text-white text-sm">₹{(item.price * item.qty).toFixed(2)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Calculations Summary */}
+                      <div className="border-t border-slate-800 pt-3 space-y-2 text-xs">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Items Subtotal:</span>
+                          <span className="font-mono font-bold text-slate-200">₹{(currentActiveReceipt.subtotal || 0).toFixed(2)}</span>
+                        </div>
+                        {currentActiveReceipt.discountAmount > 0 && (
+                          <div className="flex justify-between text-orange-400">
+                            <span>Discount Applied ({currentActiveReceipt.discountPercent}%):</span>
+                            <span className="font-mono font-bold">-₹{currentActiveReceipt.discountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {currentActiveReceipt.gstAmount > 0 && (
+                          <div className="flex justify-between text-slate-400">
+                            <span>GST Tax Collection:</span>
+                            <span className="font-mono font-bold text-slate-200">₹{currentActiveReceipt.gstAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-sm">
+                          <span className="font-extrabold text-white">Grand Total Billed:</span>
+                          <span className="font-mono font-black text-xl text-emerald-400">₹{(currentActiveReceipt.total || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Direct WhatsApp Share Button */}
+                    {currentActiveReceipt.customerPhone && currentActiveReceipt.customerPhone !== "N/A" && (
+                      <a
+                        href={`https://wa.me/91${currentActiveReceipt.customerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                          `*BHARATAMBE TRADERS - ${currentActiveReceipt.isQuotation ? "ESTIMATE / QUOTATION" : "TAX INVOICE"}*\n` +
+                          `Bill No: *${currentActiveReceipt.id}*\n` +
+                          `Date: ${new Date(currentActiveReceipt.date).toLocaleDateString()}\n` +
+                          `Customer: ${currentActiveReceipt.customerName}\n` +
+                          `----------------------------\n` +
+                          currentActiveReceipt.items.map(it => `• ${it.name} x${it.qty} = ₹${(it.price * it.qty).toFixed(2)}`).join('\n') +
+                          `\n----------------------------\n` +
+                          `*Total Amount: ₹${(currentActiveReceipt.total || 0).toFixed(2)}*\n` +
+                          `Payment Mode: ${currentActiveReceipt.paymentMethod}\n\n` +
+                          `Thank you for doing business with Bharatambe Traders! 🙏`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl flex items-center justify-center gap-2 shadow-lg text-xs transition"
+                      >
+                        <span className="text-base">💬</span>
+                        <span>Send Invoice Summary on WhatsApp ({currentActiveReceipt.customerPhone})</span>
+                      </a>
+                    )}
                   </div>
-                  <iframe
-                    src={activePdfUrl}
-                    className="w-full h-full flex-1 border-none bg-slate-950"
-                    title="Live Invoice PDF"
-                  />
-                </div>
+                ) : (
+                  /* Full Page Live PDF Preview */
+                  <div className="flex-1 bg-slate-950 flex flex-col h-[75vh] w-full overflow-hidden">
+                    <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-wrap justify-between items-center gap-2">
+                      <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
+                      <div className="flex items-center gap-3">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => setPageSize(e.target.value)}
+                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                        >
+                          <option value="auto">Auto-Fit</option>
+                          <option value="A4">A4 Paper</option>
+                          <option value="A3">A3 Paper</option>
+                        </select>
+
+                        <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
+                        <select
+                          value={orientation}
+                          onChange={(e) => setOrientation(e.target.value)}
+                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                        >
+                          <option value="portrait">Portrait</option>
+                          <option value="landscape">Landscape</option>
+                        </select>
+                      </div>
+                    </div>
+                    <iframe
+                      src={activePdfUrl}
+                      className="w-full h-full flex-1 border-none bg-slate-950"
+                      title="Live Invoice PDF"
+                    />
+                  </div>
+                )}
 
                 {/* Bottom Action Footer */}
                 <div className="bg-slate-950 px-4 md:px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
@@ -2074,7 +2238,7 @@ function POS() {
                             };
                           });
                       }}
-                      className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
                     >
                       <FaPrint /> Print {currentActiveReceipt.isQuotation ? "Quotation" : "Tax Invoice"}
                     </button>
@@ -2082,14 +2246,14 @@ function POS() {
                       href={`${activePdfUrl}&download=true`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
                     >
                       <FaDownload /> Download {currentActiveReceipt.isQuotation ? "Quotation PDF" : "Tax Invoice PDF"}
                     </a>
                     <button
                       type="button"
                       onClick={() => handleEditBillInPOS(currentActiveReceipt)}
-                      className="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
+                      className="flex-1 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
                     >
                       <FaEdit /> Edit Bill / Modify Items
                     </button>
@@ -2101,9 +2265,9 @@ function POS() {
                         setQuotationReceiptData(null);
                         setCustomInvoiceDate(new Date().toISOString().split("T")[0]);
                       }}
-                      className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition"
+                      className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 text-xs transition shadow-lg"
                     >
-                      Next Customer
+                      Next Customer ➔
                     </button>
                   </div>
                 </div>
