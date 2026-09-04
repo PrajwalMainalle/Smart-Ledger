@@ -57,6 +57,13 @@
   --color-layout-bg: 17 24 39;    /* bg-gray-900 */
 }
 
+/* Mobile Smooth Touch Scrolling & Touch Optimization */
+html, body {
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
 /* Theme transitions */
 body, body * {
   transition-property: background-color, border-color, color, fill, stroke;

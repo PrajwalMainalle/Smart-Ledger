@@ -116,18 +116,18 @@ const Headers = ({ onMenuClick }) => {
   return (
     <header className="flex items-center justify-between 
         bg-slate-900 border-b border-slate-800 print:hidden
-        shadow px-6 h-16 text-slate-100 z-35">
-      <div className="flex items-center gap-3">
+        shadow px-3 md:px-6 h-16 text-slate-100 z-35">
+      <div className="flex items-center gap-2 md:gap-3">
         <button
           onClick={onMenuClick}
-          className="md:hidden p-2 rounded hover:bg-slate-800 text-slate-100"
+          className="md:hidden p-2 rounded-xl hover:bg-slate-800 text-slate-100 border border-slate-800"
         >
           <HiOutlineMenu size={22} />
         </button>
-        <h1 className="text-sm md:text-base font-semibold tracking-wide text-slate-100">{getPageName()}</h1>
+        <h1 className="text-xs md:text-base font-semibold tracking-wide text-slate-100 truncate max-w-[180px] sm:max-w-none">{getPageName()}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Theme Cycle Button */}
         <button
           onClick={() => {
@@ -177,7 +177,7 @@ const Headers = ({ onMenuClick }) => {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute -right-8 sm:right-0 mt-3 w-[calc(100vw-32px)] sm:w-80 max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-200">Alerts &amp; Reminders</span>
                 <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full font-bold">
