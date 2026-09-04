@@ -1,29 +1,30 @@
-import React, { lazy, Suspense } from "react";
+import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import publicRoutes from "./PublicRoutes";
 import MainLayout from "../layouts/MainLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import LoadingOverlay from "../components/LoadingOverlay";
 import ErrorBoundary from "../components/ErrorBoundary";
+import lazyWithRetry from "../utils/lazyWithRetry";
 
-// Lazy-loaded page features for route code-splitting
-const DashboardPage = lazy(() => import("../features/dashboard/screens/Dashboard"));
-const POSPage = lazy(() => import("../features/billing/screens/POS"));
-const InvoiceListPage = lazy(() => import("../features/billing/screens/InvoiceList"));
-const ProductListPage = lazy(() => import("../features/inventory/screens/ProductList"));
-const ReportsPage = lazy(() => import("../features/reports/screens/Reports"));
-const SettingsPage = lazy(() => import("../features/profile/screens/Settings"));
-const CustomerListPage = lazy(() => import("../features/customers/screens/CustomerList"));
-const PurchaseListPage = lazy(() => import("../features/purchases/screens/PurchaseList"));
-const RequestBookPage = lazy(() => import("../features/requests/screens/RequestBook"));
-const QuotationListPage = lazy(() => import("../features/quotations/screens/QuotationList"));
-const GovSchoolsPage = lazy(() => import("../features/gov-funds/screens/GovSchoolsPage"));
-const GstDashboard = lazy(() => import("../features/gst/screens/GstDashboard"));
-const GstSales = lazy(() => import("../features/gst/screens/GstSales"));
-const GstPurchases = lazy(() => import("../features/gst/screens/GstPurchases"));
-const GstSummary = lazy(() => import("../features/gst/screens/GstSummary"));
-const GstInventory = lazy(() => import("../features/gst/screens/GstInventory"));
-const GstCAReports = lazy(() => import("../features/gst/screens/GstCAReports"));
+// Lazy-loaded page features with deployment retry resilience
+const DashboardPage = lazyWithRetry(() => import("../features/dashboard/screens/Dashboard"));
+const POSPage = lazyWithRetry(() => import("../features/billing/screens/POS"));
+const InvoiceListPage = lazyWithRetry(() => import("../features/billing/screens/InvoiceList"));
+const ProductListPage = lazyWithRetry(() => import("../features/inventory/screens/ProductList"));
+const ReportsPage = lazyWithRetry(() => import("../features/reports/screens/Reports"));
+const SettingsPage = lazyWithRetry(() => import("../features/profile/screens/Settings"));
+const CustomerListPage = lazyWithRetry(() => import("../features/customers/screens/CustomerList"));
+const PurchaseListPage = lazyWithRetry(() => import("../features/purchases/screens/PurchaseList"));
+const RequestBookPage = lazyWithRetry(() => import("../features/requests/screens/RequestBook"));
+const QuotationListPage = lazyWithRetry(() => import("../features/quotations/screens/QuotationList"));
+const GovSchoolsPage = lazyWithRetry(() => import("../features/gov-funds/screens/GovSchoolsPage"));
+const GstDashboard = lazyWithRetry(() => import("../features/gst/screens/GstDashboard"));
+const GstSales = lazyWithRetry(() => import("../features/gst/screens/GstSales"));
+const GstPurchases = lazyWithRetry(() => import("../features/gst/screens/GstPurchases"));
+const GstSummary = lazyWithRetry(() => import("../features/gst/screens/GstSummary"));
+const GstInventory = lazyWithRetry(() => import("../features/gst/screens/GstInventory"));
+const GstCAReports = lazyWithRetry(() => import("../features/gst/screens/GstCAReports"));
 
 const AppRoutes = () => {
   return (

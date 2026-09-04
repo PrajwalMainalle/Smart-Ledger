@@ -18,13 +18,20 @@ class ErrorBoundary extends Component {
   componentDidCatch(error, errorInfo) {
     console.error("ErrorBoundary caught a runtime rendering error:", error, errorInfo);
     this.setState({ errorInfo });
+
+    // Auto-reload on dynamic import 404 error (caused by new deployment chunk hashes)
+    const errStr = error ? error.toString() : "";
+    if (errStr.includes("dynamically imported module") || errStr.includes("Loading chunk")) {
+      const autoReloadKey = "auto_reload_chunk_" + window.location.pathname;
+      if (!sessionStorage.getItem(autoReloadKey)) {
+        sessionStorage.setItem(autoReloadKey, "true");
+        window.location.reload();
+      }
+    }
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
-  };
-
   handleReload = () => {
+    sessionStorage.clear();
     window.location.reload();
   };
 
@@ -34,9 +41,11 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const isChunkError = this.state.error && this.state.error.toString().includes("dynamically imported module");
+
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-orange-500 selection:text-white">
-          <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center animate-in zoom-in-95 duration-200">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center animate-in zoom-in-95 duration-200">
             
             <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg">
               <FaExclamationTriangle className="animate-bounce" />
@@ -44,16 +53,19 @@ class ErrorBoundary extends Component {
 
             <div className="space-y-2">
               <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                Oops! Something went wrong
+                {isChunkError ? "New Deployment Update Available" : "Oops! Something went wrong"}
               </h2>
-              <p className="text-slate-400 text-xs sm:text-sm">
-                An unexpected error occurred while loading this view. You can reload the page or navigate back to the main console.
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                {isChunkError 
+                  ? "A new version of SmartLedger was just deployed on Vercel. Please click reload to load the latest application assets."
+                  : "An unexpected error occurred while loading this view. You can reload the page or navigate back to the main console."
+                }
               </p>
             </div>
 
             {this.state.error && (
-              <div className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl text-left font-mono text-[11px] text-rose-300 overflow-x-auto max-h-32 divide-y divide-slate-900">
-                <div className="font-bold text-rose-400 mb-1">{this.state.error.toString()}</div>
+              <div className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl text-left font-mono text-[11px] text-rose-400 overflow-x-auto max-h-32 shadow-inner">
+                <div className="font-bold break-all">{this.state.error.toString()}</div>
               </div>
             )}
 
