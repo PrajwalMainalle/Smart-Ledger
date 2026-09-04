@@ -559,7 +559,7 @@ function POS() {
             isQuotation,
             paymentMethod: isQuotation ? "N/A" : paymentMethod,
             items: checkoutItems,
-            isGstBilling,
+            isGstBilling: isQuotation ? true : isGstBilling,
             amountPaid: isQuotation ? 0 : (paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal))),
             creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
             returnedItems: returnedItems,
@@ -580,7 +580,7 @@ function POS() {
           isQuotation,
           paymentMethod: isQuotation ? "N/A" : paymentMethod,
           items: checkoutItems,
-          isGstBilling,
+          isGstBilling: isQuotation ? true : isGstBilling,
           amountPaid: isQuotation ? 0 : (paymentMethod === "Credit" ? amountPaidToday : (paymentMethod === "Split" ? (cashAmount + upiAmount) : (paymentMethod === "Exchange" ? 0 : grandTotal))),
           creditReminderDays: paymentMethod === "Credit" ? creditReminderDays : null,
           returnedItems: returnedItems,
@@ -1861,11 +1861,17 @@ function POS() {
             type="checkbox"
             id="isQuotation"
             checked={isQuotation}
-            onChange={(e) => setIsQuotation(e.target.checked)}
+            onChange={(e) => {
+              const val = e.target.checked;
+              setIsQuotation(val);
+              if (val) {
+                setIsGstBilling(true);
+              }
+            }}
             className="w-4 h-4 rounded text-orange-500 bg-slate-900 border-slate-700 focus:ring-orange-500 focus:ring-2 cursor-pointer"
           />
-          <label htmlFor="isQuotation" className="text-xs font-bold text-slate-200 cursor-pointer">
-            Generate as Quotation / Estimate
+          <label htmlFor="isQuotation" className="text-xs font-bold text-slate-200 cursor-pointer flex items-center gap-1.5">
+            Generate as Quotation / Estimate <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold">(With GSTIN)</span>
           </label>
         </div>
 

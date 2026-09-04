@@ -60,8 +60,8 @@ function PurchaseList() {
         axiosInstance.get("/purchases"),
         axiosInstance.get("/inventory")
       ]);
-      setPurchases(purchRes.data);
-      setProducts(prodRes.data);
+      setPurchases(Array.isArray(purchRes.data) ? purchRes.data : []);
+      setProducts(Array.isArray(prodRes.data) ? prodRes.data : []);
       setLoading(false);
     } catch (err) {
       console.error(err);

@@ -28,7 +28,7 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
   const profile = tenant.profile || {};
   const shopName = profile.shopName || tenant.businessName || "BHARATAMBE TRADERS";
   const address = profile.businessAddress || "M B PATIL COLONY, NEAR BUSTAND, GORTA MUCHLAMB ROAD, BASAVAKALYAN";
-  const hasGst = invoice.isGstBilling !== false;
+  const hasGst = invoice.isGstBilling !== false || invoice.isQuotation === true;
   const phone = hasGst ? "9845757296" : "6361037157";
   const gstNumber = profile.gstNumber || "29ANOPM8542Q1ZU";
   
@@ -98,7 +98,7 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
 
     // 2. Top Right GSTIN & Mobile Info
     let topRightY = margin + 8;
-    if (invoice.isGstBilling !== false) {
+    if (invoice.isGstBilling !== false || invoice.isQuotation === true) {
       doc.font(fontBold).fontSize(8.5).fillColor(textDark).text(`GSTIN ${gstNumber}`, pageWidth - margin - 200, topRightY, { align: "right", width: 200 });
       topRightY += 14;
     }
@@ -252,7 +252,7 @@ const resolveInvoiceUpiId = (invoice, tenant) => {
 const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const hasGst = invoice.isGstBilling !== false;
+      const hasGst = invoice.isGstBilling !== false || invoice.isQuotation === true;
       const upiVpa = resolveInvoiceUpiId(invoice, tenant);
       const merchantName = encodeURIComponent(tenant?.profile?.shopName || tenant?.businessName || "Store Merchant");
       let qrBuffer = null;

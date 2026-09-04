@@ -28,7 +28,8 @@ import LoadingOverlay from "../../../components/LoadingOverlay";
 
 function RequestBook() {
   const dispatch = useDispatch();
-  const { requests, loading, error } = useSelector((state) => state.requests);
+  const { requests: rawRequests, loading, error } = useSelector((state) => state.requests);
+  const requests = Array.isArray(rawRequests) ? rawRequests : [];
 
   // UI state
   const [activeTab, setActiveTab] = useState("list"); // "list" or "supplier"

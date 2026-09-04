@@ -85,6 +85,23 @@ function GstInventory() {
     triggerSafePrint();
   };
 
+  const filteredProducts = React.useMemo(() => {
+    const list = Array.isArray(products) ? products : [];
+    return list.filter(p => 
+      p?.name?.toLowerCase().includes(search.toLowerCase()) || 
+      p?.sku?.toLowerCase().includes(search.toLowerCase()) || 
+      p?.hsnCode?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [products, search]);
+
+  const { totalGstStock, totalNonGstStock, cumulativeStockValuation } = React.useMemo(() => {
+    const list = Array.isArray(products) ? products : [];
+    const gstStockSum = list.reduce((sum, p) => sum + (p.gstStock || 0), 0);
+    const nonGstStockSum = list.reduce((sum, p) => sum + (p.nonGstStock || 0), 0);
+    const valuation = list.reduce((sum, p) => sum + ((p.totalStock || 0) * (p.purchasePrice || 0)), 0);
+    return { totalGstStock: gstStockSum, totalNonGstStock: nonGstStockSum, cumulativeStockValuation: valuation };
+  }, [products]);
+
   if (loading && products.length === 0) {
     return <LoadingOverlay message="Compiling Inventory GST stock logs..." />;
   }
@@ -98,21 +115,6 @@ function GstInventory() {
       </div>
     );
   }
-
-  const filteredProducts = React.useMemo(() => {
-    return products.filter(p => 
-      p.name.toLowerCase().includes(search.toLowerCase()) || 
-      p.sku.toLowerCase().includes(search.toLowerCase()) || 
-      p.hsnCode.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [products, search]);
-
-  const { totalGstStock, totalNonGstStock, cumulativeStockValuation } = React.useMemo(() => {
-    const gstStockSum = products.reduce((sum, p) => sum + p.gstStock, 0);
-    const nonGstStockSum = products.reduce((sum, p) => sum + p.nonGstStock, 0);
-    const valuation = products.reduce((sum, p) => sum + (p.totalStock * p.purchasePrice), 0);
-    return { totalGstStock: gstStockSum, totalNonGstStock: nonGstStockSum, cumulativeStockValuation: valuation };
-  }, [products]);
 
   return (
     <div className="w-full space-y-6 text-slate-100 print:bg-white print:text-black print:border-none print:p-0 print:m-0">

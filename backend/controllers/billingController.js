@@ -104,7 +104,7 @@ const createInvoice = async (req, res) => {
     // 1. Verify stock availability first & cache products for cost calculations
     const checkedItems = [];
     const productsMap = {};
-    const isGst = isGstBilling !== false;
+    const isGst = (isGstBilling !== false) || (isQuotation === true);
     const salesType = isGst ? "GST" : "Non-GST";
 
     // Fetch tenant user to check billing rules and gstNumber
