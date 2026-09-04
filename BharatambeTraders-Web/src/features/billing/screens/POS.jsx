@@ -68,6 +68,7 @@ function POS() {
   const [activeTabReceipt, setActiveTabReceipt] = useState("tax"); // "tax" | "quotation"
   const [customInvoiceDate, setCustomInvoiceDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [modalPreviewMode, setModalPreviewMode] = useState("summary"); // "summary" | "pdf"
+  const [mobilePosTab, setMobilePosTab] = useState("catalog"); // "catalog" | "cart"
 
   // Credit Outstanding & Return Exchange states
   const [amountPaidToday, setAmountPaidToday] = useState(0);
@@ -936,8 +937,41 @@ function POS() {
         </div>
       )}
 
+      {/* MOBILE POS DUAL TAB NAVIGATION (< xl breakpoint) */}
+      <div className="xl:hidden flex bg-slate-900 border-b border-slate-800 p-2 gap-2 shrink-0 sticky top-0 z-30 shadow-lg">
+        <button
+          type="button"
+          onClick={() => setMobilePosTab("catalog")}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+            mobilePosTab === "catalog"
+              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md"
+              : "text-slate-400 hover:text-white bg-slate-950/80 border border-slate-800"
+          }`}
+        >
+          <FaBarcode className="text-sm" />
+          <span>1. Products Catalog</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePosTab("cart")}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+            mobilePosTab === "cart"
+              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md"
+              : "text-slate-400 hover:text-white bg-slate-950/80 border border-slate-800"
+          }`}
+        >
+          <FaCalculator className="text-sm" />
+          <span>2. Bill & Checkout ({cart.length})</span>
+          {cart.length > 0 && (
+            <span className="px-2 py-0.5 bg-slate-950 text-orange-400 rounded-full font-mono text-[10px] font-extrabold border border-orange-500/30">
+              ₹{grandTotal}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* LEFT: PRODUCTS BROWSER */}
-      <div className="flex-1 p-6 space-y-6 flex flex-col xl:h-full xl:overflow-y-auto">
+      <div className={`flex-1 p-4 md:p-6 space-y-6 flex flex-col xl:h-full xl:overflow-y-auto ${mobilePosTab === "catalog" ? "flex" : "hidden xl:flex"}`}>
         
         {/* Search, SKU scanner input */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -1083,8 +1117,9 @@ function POS() {
 
       {/* RIGHT: CART AND CHECKOUT LOGIC */}
       <div 
+        id="pos-cart-panel"
         style={typeof window !== "undefined" && window.innerWidth >= 1280 ? { width: `${panelWidth}px` } : {}}
-        className="w-full xl:w-auto bg-slate-900 border-t xl:border-t-0 border-slate-800 p-4 md:p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75"
+        className={`w-full xl:w-auto bg-slate-900 border-t xl:border-t-0 border-slate-800 p-4 md:p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75 ${mobilePosTab === "cart" ? "flex" : "hidden xl:flex"}`}
       >
         
         {/* Customer logging */}
@@ -1957,6 +1992,7 @@ function POS() {
           <button
             type="button"
             onClick={() => {
+              setMobilePosTab("cart");
               const cartEl = document.getElementById("pos-cart-panel");
               if (cartEl) {
                 cartEl.scrollIntoView({ behavior: "smooth" });

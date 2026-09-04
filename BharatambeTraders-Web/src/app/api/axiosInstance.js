@@ -1,7 +1,17 @@
 import axios from "axios";
 
+const getFallbackApiUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname) {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return `http://${host}:5000/api`;
+    }
+  }
+  return "http://localhost:5000/api";
+};
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || getFallbackApiUrl(),
   headers: {
     "Content-Type": "application/json",
   },
