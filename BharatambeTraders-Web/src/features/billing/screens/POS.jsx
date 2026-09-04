@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import { MdDeleteOutline, MdClear } from "react-icons/md";
-import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload, FaCalendarAlt, FaEdit } from "react-icons/fa";
+import { FaUser, FaPhoneAlt, FaCalculator, FaBarcode, FaCheckCircle, FaPrint, FaTimes, FaSpinner, FaDownload, FaCalendarAlt, FaEdit, FaExclamationTriangle } from "react-icons/fa";
 import { 
   addToCart, 
   removeFromCart, 
@@ -1082,8 +1082,8 @@ function POS() {
 
       {/* RIGHT: CART AND CHECKOUT LOGIC */}
       <div 
-        style={{ width: window.innerWidth >= 1280 ? `${panelWidth}px` : "100%" }}
-        className="w-full bg-slate-900 border-t xl:border-t-0 border-slate-800 p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75"
+        style={typeof window !== "undefined" && window.innerWidth >= 1280 ? { width: `${panelWidth}px` } : {}}
+        className="w-full xl:w-auto bg-slate-900 border-t xl:border-t-0 border-slate-800 p-4 md:p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75"
       >
         
         {/* Customer logging */}
@@ -2051,8 +2051,8 @@ function POS() {
                 </div>
 
                 {/* Bottom Action Footer */}
-                <div className="bg-slate-950 px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
-                  <div className="flex gap-2">
+                <div className="bg-slate-950 px-4 md:px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                     <button
                       onClick={() => {
                         const pdfUrl = activePdfUrl;
@@ -2351,7 +2351,8 @@ function POS() {
                   </form>
 
                   <div className="border border-slate-850 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto bg-slate-950/20">
-                    <table className="w-full text-left">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
                       <thead>
                         <tr className="bg-slate-900 text-slate-450 border-b border-slate-850 uppercase text-[9px] font-bold">
                           <th className="p-3">Invoice No</th>
@@ -2395,6 +2396,7 @@ function POS() {
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               ) : (
