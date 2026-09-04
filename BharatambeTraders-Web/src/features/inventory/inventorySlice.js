@@ -100,7 +100,8 @@ const inventorySlice = createSlice({
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
         // Map backend _id to id to keep backward-compatibility with UI references
-        state.products = action.payload.map(p => ({
+        const list = Array.isArray(action.payload) ? action.payload : [];
+        state.products = list.map(p => ({
           ...p,
           id: p._id,
         }));

@@ -4,6 +4,7 @@ import publicRoutes from "./PublicRoutes";
 import MainLayout from "../layouts/MainLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import LoadingOverlay from "../components/LoadingOverlay";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 // Lazy-loaded page features for route code-splitting
 const DashboardPage = lazy(() => import("../features/dashboard/screens/Dashboard"));
@@ -26,8 +27,9 @@ const GstCAReports = lazy(() => import("../features/gst/screens/GstCAReports"));
 
 const AppRoutes = () => {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<LoadingOverlay message="Loading portal view..." />}>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingOverlay message="Loading portal view..." />}>
         <Routes>
 
           {/* Public Routes */}
@@ -67,6 +69,7 @@ const AppRoutes = () => {
         </Routes>
       </Suspense>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 

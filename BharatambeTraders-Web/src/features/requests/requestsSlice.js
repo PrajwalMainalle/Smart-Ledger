@@ -101,7 +101,8 @@ const requestsSlice = createSlice({
       })
       .addCase(fetchRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload.map(r => ({
+        const list = Array.isArray(action.payload) ? action.payload : [];
+        state.requests = list.map(r => ({
           ...r,
           id: r._id,
         }));

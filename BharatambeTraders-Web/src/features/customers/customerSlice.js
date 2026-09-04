@@ -111,7 +111,8 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomers.fulfilled, (state, action) => {
         state.loading = false;
-        state.customers = action.payload.map(c => ({
+        const list = Array.isArray(action.payload) ? action.payload : [];
+        state.customers = list.map(c => ({
           ...c,
           id: c._id,
         }));

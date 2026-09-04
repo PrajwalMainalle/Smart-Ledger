@@ -301,7 +301,8 @@ const billingSlice = createSlice({
       .addCase(fetchInvoices.fulfilled, (state, action) => {
         state.loading = false;
         // Map _id to id for backward compatibility
-        state.invoices = action.payload.map(inv => ({
+        const list = Array.isArray(action.payload) ? action.payload : [];
+        state.invoices = list.map(inv => ({
           ...inv,
           id: inv.invoiceId, // UI relies on inv.id to show the code e.g. INV-2026-0001
         }));

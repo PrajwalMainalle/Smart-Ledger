@@ -79,23 +79,26 @@ function Reports() {
     const headers = ["Type", "Tax Slab", "Taxable Base Value", "CGST Amount", "SGST Amount", "Total GST Value"];
     const rows = [headers.join(",")];
 
+    if (!reportData?.gstReport) return alert("GST report data is currently unavailable");
     rows.push('"--- OUTWARD SALES GST ---",,,,,');
-    reportData.gstReport.ratesBreakdown.forEach(row => {
-      rows.push(`"Sales GST",${row.rate},${row.taxableValue.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.totalTax.toFixed(2)}`);
+    (reportData.gstReport.ratesBreakdown || []).forEach(row => {
+      rows.push(`"Sales GST",${row.rate},${(row.taxableValue || 0).toFixed(2)},${(row.cgst || 0).toFixed(2)},${(row.sgst || 0).toFixed(2)},${(row.totalTax || 0).toFixed(2)}`);
     });
-    rows.push(`"Sales Total Sum",,${reportData.gstReport.summary.totalTaxable.toFixed(2)},${reportData.gstReport.summary.totalCgst.toFixed(2)},${reportData.gstReport.summary.totalSgst.toFixed(2)},${reportData.gstReport.summary.totalTax.toFixed(2)}`);
+    const salesSum = reportData.gstReport.summary || { totalTaxable: 0, totalCgst: 0, totalSgst: 0, totalTax: 0 };
+    rows.push(`"Sales Total Sum",,${(salesSum.totalTaxable || 0).toFixed(2)},${(salesSum.totalCgst || 0).toFixed(2)},${(salesSum.totalSgst || 0).toFixed(2)},${(salesSum.totalTax || 0).toFixed(2)}`);
 
     rows.push('"--- INWARD PURCHASE GST (ITC) ---",,,,,');
-    purchaseGstReport.ratesBreakdown.forEach(row => {
-      rows.push(`"Purchase GST (ITC)",${row.rate},${row.taxableValue.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.totalTax.toFixed(2)}`);
+    (purchaseGstReport.ratesBreakdown || []).forEach(row => {
+      rows.push(`"Purchase GST (ITC)",${row.rate},${(row.taxableValue || 0).toFixed(2)},${(row.cgst || 0).toFixed(2)},${(row.sgst || 0).toFixed(2)},${(row.totalTax || 0).toFixed(2)}`);
     });
-    rows.push(`"Purchase Total Sum",,${purchaseGstReport.summary.totalTaxable.toFixed(2)},${purchaseGstReport.summary.totalCgst.toFixed(2)},${purchaseGstReport.summary.totalSgst.toFixed(2)},${purchaseGstReport.summary.totalTax.toFixed(2)}`);
+    const purchSum = purchaseGstReport.summary || { totalTaxable: 0, totalCgst: 0, totalSgst: 0, totalTax: 0 };
+    rows.push(`"Purchase Total Sum",,${(purchSum.totalTaxable || 0).toFixed(2)},${(purchSum.totalCgst || 0).toFixed(2)},${(purchSum.totalSgst || 0).toFixed(2)},${(purchSum.totalTax || 0).toFixed(2)}`);
 
     rows.push('"--- NET TAX RECONCILIATION ---",,,,,');
-    const netTaxable = reportData.gstReport.summary.totalTaxable - purchaseGstReport.summary.totalTaxable;
-    const netCgst = reportData.gstReport.summary.totalCgst - purchaseGstReport.summary.totalCgst;
-    const netSgst = reportData.gstReport.summary.totalSgst - purchaseGstReport.summary.totalSgst;
-    const netTotal = reportData.gstReport.summary.totalTax - purchaseGstReport.summary.totalTax;
+    const netTaxable = (salesSum.totalTaxable || 0) - (purchSum.totalTaxable || 0);
+    const netCgst = (salesSum.totalCgst || 0) - (purchSum.totalCgst || 0);
+    const netSgst = (salesSum.totalSgst || 0) - (purchSum.totalSgst || 0);
+    const netTotal = (salesSum.totalTax || 0) - (purchSum.totalTax || 0);
     rows.push(`"Net Liability (Sales - ITC)",,${netTaxable.toFixed(2)},${netCgst.toFixed(2)},${netSgst.toFixed(2)},${netTotal.toFixed(2)}`);
 
     const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r).join("\n");

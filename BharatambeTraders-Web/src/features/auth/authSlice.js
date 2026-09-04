@@ -1,12 +1,22 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../../app/api/axiosInstance";
 
-// Load initial state from local storage
+// Load initial state safely from local storage
 const storedUser = localStorage.getItem("bt_user");
 const storedToken = localStorage.getItem("bt_token");
 
+let parsedUser = null;
+if (storedUser) {
+  try {
+    parsedUser = JSON.parse(storedUser);
+  } catch (err) {
+    console.error("Failed to parse stored user from localStorage:", err);
+    localStorage.removeItem("bt_user");
+  }
+}
+
 const initialState = {
-  user: storedUser ? JSON.parse(storedUser) : null,
+  user: parsedUser,
   token: storedToken || null,
   isAuthenticated: !!storedToken,
   loading: false,

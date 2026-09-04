@@ -74,7 +74,7 @@ function QuotationList() {
     const fetchInventory = async () => {
       try {
         const res = await axiosInstance.get("/inventory");
-        setProducts(res.data || []);
+        setProducts(Array.isArray(res.data) ? res.data : (res.data?.products || []));
       } catch (err) {
         console.warn("Using offline catalog fallback");
       }

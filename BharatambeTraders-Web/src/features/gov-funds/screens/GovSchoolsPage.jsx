@@ -76,8 +76,8 @@ const GovSchoolsPage = () => {
         axiosInstance.get("/gov-funds/schools"),
         axiosInstance.get("/gov-funds/funds"),
       ]);
-      setSchools(schoolsRes.data);
-      setFunds(fundsRes.data);
+      setSchools(Array.isArray(schoolsRes.data) ? schoolsRes.data : []);
+      setFunds(Array.isArray(fundsRes.data) ? fundsRes.data : []);
     } catch (err) {
       console.error(err);
       alert("Failed to load Government School Fund data");

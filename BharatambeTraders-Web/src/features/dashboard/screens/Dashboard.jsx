@@ -65,7 +65,13 @@ function Dashboard() {
     );
   }
 
-  const { kpis, recentInvoices, lowStockProducts, paymentBreakdown, topSellingProducts } = data;
+  const { 
+    kpis = { totalSales: 0, todaySales: 0, totalInvoices: 0, inventoryCount: 0, lowStockCount: 0, monthlySales: 0 }, 
+    recentInvoices = [], 
+    lowStockProducts = [], 
+    paymentBreakdown = {}, 
+    topSellingProducts = [] 
+  } = data || {};
 
   // Generate filtered chart points based on selected period
   const getFilteredChartData = () => {
