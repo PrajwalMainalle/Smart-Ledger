@@ -1,8 +1,8 @@
-// Service Worker for Bharatambe Traders PWA Caching & Deployment Resilience
-const CACHE_NAME = "bharatambe-traders-v2";
+// Service Worker for Smart Ledger PWA Caching & Deployment Resilience
+const CACHE_NAME = "smart-ledger-v2";
 const ASSETS_TO_CACHE = [
   "/manifest.json",
-  "/BTLogo.png"
+  "/SLLogo.png"
 ];
 
 self.addEventListener("install", (event) => {

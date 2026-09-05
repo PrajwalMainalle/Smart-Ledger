@@ -41,7 +41,8 @@ const Headers = ({ onMenuClick }) => {
     if (stats.pendingRequests === 0 && stats.readyRequests === 0 && stats.outOfStockProducts === 0) return;
 
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Bharatambe Traders: Daily Reminder", {
+      const currentShopName = user?.profile?.shopName || user?.businessName || "Smart Ledger";
+      new Notification(`${currentShopName}: Daily Reminder`, {
         body: `Pending Requests: ${stats.pendingRequests} | Ready for Collection: ${stats.readyRequests} | Out of Stock Items: ${stats.outOfStockProducts}`,
         icon: defaultLogo,
       });
@@ -109,22 +110,22 @@ const Headers = ({ onMenuClick }) => {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  const shopName = user?.profile?.shopName || user?.businessName || "Bharatambe Traders";
+  const shopName = user?.profile?.shopName || user?.businessName || "Smart Ledger";
   const logoSrc = user?.profile?.logo || defaultLogo;
   const ownerName = user?.ownerName || "Merchant Owner";
 
   return (
     <header className="flex items-center justify-between 
         bg-slate-900 border-b border-slate-800 print:hidden
-        shadow px-3 md:px-6 h-16 text-slate-100 z-35">
+        shadow-sm px-3 md:px-6 h-16 text-slate-100 z-35">
       <div className="flex items-center gap-2 md:gap-3">
         <button
           onClick={onMenuClick}
-          className="md:hidden p-2 rounded-xl hover:bg-slate-800 text-slate-100 border border-slate-800"
+          className="md:hidden p-2 rounded-xl hover:bg-slate-800/60 text-slate-100 border border-slate-700/40 transition"
         >
           <HiOutlineMenu size={22} />
         </button>
-        <h1 className="text-xs md:text-base font-semibold tracking-wide text-slate-100 truncate max-w-[180px] sm:max-w-none">{getPageName()}</h1>
+        <h1 className="text-xs md:text-base font-bold tracking-wide text-slate-100 truncate max-w-[180px] sm:max-w-none">{getPageName()}</h1>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
@@ -134,7 +135,7 @@ const Headers = ({ onMenuClick }) => {
             const nextModes = { auto: "light", light: "dark", dark: "auto" };
             selectThemeMode(nextModes[themeMode]);
           }}
-          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/50 hover:border-slate-600 transition flex items-center gap-1.5 shadow-sm"
+          className="p-2 rounded-xl hover:bg-slate-800/60 text-slate-100 border border-transparent hover:border-slate-700/40 transition flex items-center gap-1.5"
           title={`Theme: ${themeMode === "auto" ? "Auto (Time-based)" : themeMode.toUpperCase()}`}
         >
           {themeMode === "auto" && (
@@ -161,8 +162,8 @@ const Headers = ({ onMenuClick }) => {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/50 hover:border-slate-600 transition flex items-center justify-center shadow-sm relative"
-            title="Notifications &amp; Alerts"
+            className="p-2 rounded-xl hover:bg-slate-800/60 text-slate-100 border border-transparent hover:border-slate-700/40 transition flex items-center justify-center relative"
+            title="Notifications & Alerts"
           >
             <FaBell className={`text-sm ${
               (reminders.length > 0 || requestStats.pendingRequests > 0 || requestStats.readyRequests > 0 || requestStats.outOfStockProducts > 0)
@@ -170,7 +171,7 @@ const Headers = ({ onMenuClick }) => {
                 : "text-slate-400"
             }`} />
             {(reminders.length + requestStats.pendingRequests + requestStats.readyRequests + requestStats.outOfStockProducts) > 0 && (
-              <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-505 bg-orange-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-black animate-bounce shadow">
+              <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-orange-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-black animate-bounce shadow">
                 {reminders.length + requestStats.pendingRequests + requestStats.readyRequests + requestStats.outOfStockProducts}
               </span>
             )}
@@ -324,7 +325,7 @@ const Headers = ({ onMenuClick }) => {
             ) : (
               <span>
                 {(() => {
-                  const name = shopName || "BT";
+                  const name = shopName || "SL";
                   const parts = name.trim().split(/\s+/);
                   return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
                 })()}

@@ -471,11 +471,11 @@ const processFundUtilization = async (req, res) => {
     try {
       const merchantInfo = {
         ...(req.user?.profile || {}),
-        shopName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
-        firmName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
-        address: req.user?.profile?.businessAddress || "Main Market Road, Basavakalyan",
-        mobileNumber: req.user?.mobileNumber || "9741166742",
-        phone: req.user?.mobileNumber || "9741166742",
+        shopName: req.user?.profile?.shopName || req.user?.businessName || "Smart Ledger",
+        firmName: req.user?.profile?.shopName || req.user?.businessName || "Smart Ledger",
+        address: req.user?.profile?.businessAddress || "",
+        mobileNumber: req.user?.profile?.mobileNumber || req.user?.mobileNumber || "",
+        phone: req.user?.profile?.mobileNumber || req.user?.mobileNumber || "",
         gstNumber: req.user?.profile?.gstNumber || "",
       };
       const pdfUrl = await generateGovVoucherPDF(ledgerEntry, merchantInfo);
@@ -745,11 +745,11 @@ const getVoucherPdf = async (req, res) => {
 
     const merchantInfo = {
       ...(req.user?.profile || {}),
-      shopName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
-      firmName: req.user?.profile?.shopName || req.user?.businessName || "BHARATAMBE TRADERS",
-      address: req.user?.profile?.businessAddress || "Main Market Road, Basavakalyan",
-      mobileNumber: req.user?.mobileNumber || "9741166742",
-      phone: req.user?.mobileNumber || "9741166742",
+      shopName: req.user?.profile?.shopName || req.user?.businessName || "Smart Ledger",
+      firmName: req.user?.profile?.shopName || req.user?.businessName || "Smart Ledger",
+      address: req.user?.profile?.businessAddress || "",
+      mobileNumber: req.user?.profile?.mobileNumber || req.user?.mobileNumber || "",
+      phone: req.user?.profile?.mobileNumber || req.user?.mobileNumber || "",
       gstNumber: req.user?.profile?.gstNumber || "",
     };
 

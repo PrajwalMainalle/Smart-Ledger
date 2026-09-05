@@ -282,11 +282,13 @@ function InvoiceList() {
 
     const totalStr = `₹${(inv.total || 0).toFixed(2)}`;
 
-    const msg = `🧾 *${docTitle} - BHARATAMBE TRADERS*
+    const shopName = user?.profile?.shopName || user?.businessName || "Smart Ledger";
+
+    const msg = `🧾 *${docTitle} - ${shopName.toUpperCase()}*
 
 Hello *${inv.customerName || "Customer"}*,
 
-Here is your bill details from *Bharatambe Traders*:
+Here is your bill details from *${shopName}*:
 
 🔖 *Invoice No:* ${inv.invoiceId || inv.id}
 📅 *Date:* ${new Date(inv.date || Date.now()).toLocaleDateString("en-IN")}
@@ -301,7 +303,7 @@ ${itemsList}
 ${pdfUrl}
 
 Thank you for your business! 🙏
-📍 *Bharatambe Traders*`;
+📍 *${shopName}*`;
 
     return formattedPhone 
       ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
@@ -309,11 +311,11 @@ Thank you for your business! 🙏
   };
 
   const profile = user?.profile || {};
-  const shopName = profile.shopName || user?.businessName || "SmartLedger";
-  const address = profile.businessAddress || "N/A Address";
-  const gstNumber = profile.gstNumber || "N/A GSTIN";
+  const shopName = profile.shopName || user?.businessName || "Smart Ledger";
+  const address = profile.businessAddress || "";
+  const gstNumber = profile.gstNumber || "";
   const isGstBill = selectedInvoice ? (selectedInvoice.isGstBilling !== false) : true;
-  const contactPhone = isGstBill ? "9845757296" : "6361037157";
+  const contactPhone = profile.mobileNumber || user?.mobileNumber || "";
   const logoSrc = profile.logo || logo;
 
   return (

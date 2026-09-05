@@ -53,6 +53,11 @@ const UserSchema = new mongoose.Schema(
       ifscCode: { type: String, default: "" },
       accountHolderName: { type: String, default: "" },
     },
+    role: {
+      type: String,
+      enum: ["admin", "staff", "read_only"],
+      required: [true, "User role must be explicitly specified."],
+    },
     gstBillingRule: {
       type: String,
       enum: ["prevent", "warn"],

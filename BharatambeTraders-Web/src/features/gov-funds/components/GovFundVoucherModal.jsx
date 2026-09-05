@@ -74,10 +74,10 @@ const GovFundVoucherModal = ({ voucher, onClose, merchantInfo }) => {
             {/* Header */}
             <div className="text-center border-b-2 border-[#0f172a] pb-3 mb-4 print:pb-2 print:mb-3">
               <h1 className="text-2xl font-black tracking-tight text-[#0f172a] uppercase print:text-xl">
-                {merchantInfo?.firmName || "BHARATAMBE TRADERS"}
+                {merchantInfo?.firmName || merchantInfo?.shopName || "Smart Ledger"}
               </h1>
               <p className="text-xs text-[#475569] font-medium print:text-[10px]">
-                {merchantInfo?.address || "Main Market Road"} | Mobile: {merchantInfo?.mobileNumber || "9741166742"}
+                {merchantInfo?.address ? `${merchantInfo.address} | ` : ""}Mobile: {merchantInfo?.mobileNumber || "N/A"}
               </p>
               {merchantInfo?.gstNumber && (
                 <p className="text-xs font-bold text-[#334155] mt-0.5 print:text-[10px]">GSTIN: {merchantInfo.gstNumber}</p>
@@ -186,7 +186,7 @@ const GovFundVoucherModal = ({ voucher, onClose, merchantInfo }) => {
               <div>
                 <div className="h-8 print:h-6"></div>
                 <p className="border-t border-[#64748b] pt-1 font-bold text-[#0f172a] print:text-[10px]">Authorized Store Signatory</p>
-                <p className="text-[10px] text-[#475569] print:text-[9px]">({merchantInfo?.firmName || "Bharatambe Traders"})</p>
+                <p className="text-[10px] text-[#475569] print:text-[9px]">({merchantInfo?.firmName || merchantInfo?.shopName || "Smart Ledger"})</p>
               </div>
             </div>
 

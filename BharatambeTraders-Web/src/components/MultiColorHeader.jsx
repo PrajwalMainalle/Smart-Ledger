@@ -1,14 +1,27 @@
 import React from "react";
+import { useSelector } from "react-redux";
+import { getShopName } from "../utils/tenantConfig";
 
 /**
  * MultiColorCompanyTitle
- * Renders bold, elegant BHARATAMBE TRADERS header for print & web reports.
+ * Renders bold, elegant corporate shop title for print & web reports dynamically based on tenant config.
  */
-export const MultiColorCompanyTitle = ({ className = "text-2xl font-black tracking-tight text-[#0f172a] print:text-[#0f172a]" }) => {
+export const MultiColorCompanyTitle = ({
+  user: userProp,
+  titleText,
+  className = "text-2xl font-black tracking-tight text-[#0f172a] print:text-[#0f172a]"
+}) => {
+  const reduxUser = useSelector((state) => state.auth?.user);
+  const user = userProp || reduxUser;
+  const name = titleText || getShopName(user);
+  const words = name.split(" ");
+  const firstPart = words.slice(0, Math.ceil(words.length / 2)).join(" ");
+  const secondPart = words.slice(Math.ceil(words.length / 2)).join(" ");
+
   return (
     <h1 className={className}>
-      <span className="text-[#0f172a] font-black">BHARATAMBE </span>
-      <span className="text-[#034b54] font-black">TRADERS</span>
+      <span className="text-[#0f172a] font-black">{firstPart} </span>
+      {secondPart && <span className="text-[#034b54] font-black">{secondPart}</span>}
     </h1>
   );
 };

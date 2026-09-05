@@ -26,10 +26,14 @@ import {
 } from "../requestsSlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
+import { getShopName } from "../../../utils/tenantConfig";
+
 function RequestBook() {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const { requests: rawRequests, loading, error } = useSelector((state) => state.requests);
   const requests = Array.isArray(rawRequests) ? rawRequests : [];
+  const shopName = getShopName(user);
 
   // UI state
   const [activeTab, setActiveTab] = useState("list"); // "list" or "supplier"
@@ -128,7 +132,8 @@ function RequestBook() {
       year: "numeric",
     });
 
-    let copyText = `📋 *BHARATAMBE TRADERS - SUPPLIER ORDER CHECKLIST*\n📅 Date: ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    const shopTitle = (getShopName(user) || "SMART LEDGER").toUpperCase();
+    let copyText = `📋 *${shopTitle} - SUPPLIER ORDER CHECKLIST*\n📅 Date: ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     
     supplierChecklist.forEach((item, index) => {
       const customerBreakdown = item.customers
@@ -353,18 +358,18 @@ function RequestBook() {
 
 Hello *${req.customerName}*,
 
-Great news! Your requested items have arrived and are now ready to be picked up at *Bharatambe Traders*. 🛍️✨
+Great news! Your requested items have arrived and are now ready to be picked up at *${shopName}*. 🛍️✨
 
 📋 *Items Ready:*
 ${itemsFormatted}
 
 ${qtyInfo}${reqNum}${advanceInfo}
-📍 *Pickup Location:* Bharatambe Traders
+📍 *Pickup Location:* ${shopName}
 Please visit our shop at your earliest convenience to collect your items.
 
 Thank you for your business! 🙏`;
     } else if (req.status === "Ordered from Supplier") {
-      msg = `🚚 *ORDER UPDATE - BHARATAMBE TRADERS*
+      msg = `🚚 *ORDER UPDATE - ${shopName.toUpperCase()}*
 
 Hello *${req.customerName}*,
 
@@ -376,13 +381,13 @@ ${itemsFormatted}
 ${qtyInfo}${reqNum}${advanceInfo}
 ⏳ We will notify you as soon as the stock arrives at our shop.
 
-Thank you for choosing *Bharatambe Traders*! 🙏`;
+Thank you for choosing *${shopName}*! 🙏`;
     } else if (req.status === "Customer Collected") {
-      msg = `✅ *ORDER COMPLETED - BHARATAMBE TRADERS*
+      msg = `✅ *ORDER COMPLETED - ${shopName.toUpperCase()}*
 
 Hello *${req.customerName}*,
 
-Thank you for picking up your requested items from *Bharatambe Traders*! 🛍️
+Thank you for picking up your requested items from *${shopName}*! 🛍️
 
 📋 *Collected Items:*
 ${itemsFormatted}
@@ -390,7 +395,7 @@ ${itemsFormatted}
 ${reqNum}
 We appreciate your business and look forward to serving you again! 🙏✨`;
     } else if (req.status === "Cancelled") {
-      msg = `ℹ️ *REQUEST UPDATE - BHARATAMBE TRADERS*
+      msg = `ℹ️ *REQUEST UPDATE - ${shopName.toUpperCase()}*
 
 Hello *${req.customerName}*,
 
@@ -399,10 +404,10 @@ ${itemsFormatted}
 
 This request status has been updated to *Cancelled*. If you have any questions, please reach out to us.
 
-Thank you! - *Bharatambe Traders* 🙏`;
+Thank you! - *${shopName}* 🙏`;
     } else {
       // Pending or default
-      msg = `📋 *REQUEST RECEIVED - BHARATAMBE TRADERS*
+      msg = `📋 *REQUEST RECEIVED - ${shopName.toUpperCase()}*
 
 Hello *${req.customerName}*,
 
@@ -414,7 +419,7 @@ ${itemsFormatted}
 ${qtyInfo}${reqNum}${advanceInfo}
 🔎 We are checking availability with our suppliers and will update you shortly!
 
-Thank you for choosing *Bharatambe Traders*! 🙏`;
+Thank you for choosing *${shopName}*! 🙏`;
     }
 
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;

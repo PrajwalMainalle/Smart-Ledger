@@ -26,8 +26,12 @@ import {
 } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import GovFundVoucherModal from "../components/GovFundVoucherModal";
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
 
 const GovSchoolsPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [schools, setSchools] = useState([]);
   const [funds, setFunds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -782,7 +786,11 @@ const GovSchoolsPage = () => {
         <GovFundVoucherModal
           voucher={selectedVoucher}
           onClose={() => setSelectedVoucher(null)}
-          merchantInfo={{ firmName: "BHARATAMBE TRADERS", mobileNumber: "9741166742" }}
+          merchantInfo={{ 
+            firmName: shopName || "Business Merchant", 
+            mobileNumber: user?.profile?.mobileNumber || user?.mobileNumber || "",
+            address: user?.profile?.businessAddress || ""
+          }}
         />
       )}
 

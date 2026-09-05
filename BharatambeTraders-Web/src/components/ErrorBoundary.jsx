@@ -86,7 +86,7 @@ class ErrorBoundary extends Component {
             </div>
 
             <div className="pt-2 border-t border-slate-850">
-              <span className="text-[10px] text-slate-500">Bharatambe Traders Safety &amp; Error Recovery System</span>
+              <span className="text-[10px] text-slate-500">Smart Ledger Safety &amp; Error Recovery System</span>
             </div>
 
           </div>

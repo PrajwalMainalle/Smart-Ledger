@@ -33,7 +33,7 @@ app.use("/api/gov-funds", require("./routes/govFundRoutes"));
 
 // Catch-all route for test/health check
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "Bharatambe Traders API Server is running" });
+  res.json({ status: "OK", message: "Smart Ledger API Engine is running" });
 });
 
 // Centralized error handling middleware

@@ -15,8 +15,12 @@ import {
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import LoadingOverlay from "../../../components/LoadingOverlay";
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
 
 const GovReports = () => {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [activeTab, setActiveTab] = useState("grant"); // "school" | "teacher" | "grant" | "cash" | "settlement" | "balance"
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -248,7 +252,7 @@ const GovReports = () => {
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg print:bg-white print:text-black">
         {/* Printable Title Header */}
         <div className="p-4 border-b border-slate-800 hidden print:block text-center">
-          <h2 className="text-lg font-bold">Bharatambe Traders - Government School Funds Report</h2>
+          <h2 className="text-lg font-bold">{shopName} - Government School Funds Report</h2>
           <p className="text-xs text-gray-600">
             Report Type: {activeTab.toUpperCase()} | Generated on {new Date().toLocaleDateString()}
           </p>

@@ -41,7 +41,8 @@ function Settings() {
     Notification.requestPermission().then((permission) => {
       setNotificationPermission(permission);
       if (permission === "granted") {
-        new Notification("Bharatambe Traders", {
+        const currentShopName = user?.profile?.shopName || user?.businessName || "Smart Ledger";
+        new Notification(currentShopName, {
           body: "Daily reminders at 11:00 AM are now configured!",
         });
       }
@@ -297,7 +298,7 @@ function Settings() {
                   name="businessAddress"
                   value={formData.businessAddress}
                   onChange={handleChange}
-                  placeholder="e.g. MB Patil Colony Near Bus Stand, BasavaKalyan"
+                  placeholder="e.g. 123 Main Street, Suite 400, Commerce Zone"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-orange-500 h-16 resize-none"
                 />
               </div>

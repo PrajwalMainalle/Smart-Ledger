@@ -5,8 +5,12 @@ import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner } from "react-icon
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
 import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
 
 function GstSummary() {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState("monthly");
@@ -45,7 +49,7 @@ function GstSummary() {
     if (!data) return alert("No data to export");
 
     const sheetData = [
-      ["BHARATAMBE TRADERS - GST TAX VARIANCE & COMPARATIVE SUMMARY"],
+      [`${shopName.toUpperCase()} - GST TAX VARIANCE & COMPARATIVE SUMMARY`],
       ["Period / Filter Range:", period.toUpperCase()],
       ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
       [],

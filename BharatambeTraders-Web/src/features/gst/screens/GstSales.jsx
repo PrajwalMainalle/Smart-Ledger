@@ -4,8 +4,12 @@ import { FaFileCsv, FaFileExcel, FaPrint, FaSearch, FaSpinner, FaCalendarAlt, Fa
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
 import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
 
 function GstSales() {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState("monthly");
@@ -72,7 +76,7 @@ function GstSales() {
 
     // Sheet 1: Sales Tax Reconciliation
     const salesSheetData = [
-      ["BHARATAMBE TRADERS - CA GST OUTWARD SALES TAX AUDIT REPORT"],
+      [`${shopName.toUpperCase()} - CA GST OUTWARD SALES TAX AUDIT REPORT`],
       ["Filter Period / Range:", dateRangeStr],
       ["Report Generated On:", todayStr],
       [],
@@ -146,7 +150,7 @@ function GstSales() {
     const totPay = summary?.totalPaymentBreakdown || {};
 
     const paymentSheetData = [
-      ["BHARATAMBE TRADERS - PAYMENT METHOD REVENUE SPLIT (CASH & BANK AUDIT)"],
+      [`${(shopName || "BUSINESS").toUpperCase()} - PAYMENT METHOD REVENUE SPLIT (CASH & BANK AUDIT)`],
       ["Filter Period / Range:", dateRangeStr],
       ["Report Generated On:", todayStr],
       [],

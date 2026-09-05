@@ -102,7 +102,7 @@ function LandingPage() {
             onClick={() => setFormMode(formMode === "login" ? "register" : "login")}
             className="text-xs font-bold text-orange-400 hover:text-orange-300 border border-orange-500/20 px-3 py-1.5 rounded-lg bg-orange-500/5 hover:bg-orange-500/10 transition"
           >
-            {formMode === "login" ? "Create Account" : "Access Tenant Portal"}
+            {formMode === "login" ? "Create Account" : "Access User Portal"}
           </button>
         </div>
       </header>
@@ -114,9 +114,9 @@ function LandingPage() {
         <div className="lg:col-span-7 space-y-8">
           <div>
             <span className="px-3 py-1 text-xs font-semibold tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-full uppercase">
-              Next-Gen Multi-Tenant Platform
+              Next-Gen Retail Platform
             </span>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-white mt-4 tracking-tight leading-tight">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-100 mt-4 tracking-tight leading-tight">
               Power Your Retail Store with <br />
               <span className="bg-gradient-to-r from-orange-500 via-amber-405 to-yellow-300 bg-clip-text text-transparent">
                 SmartLedger Cloud
@@ -142,7 +142,7 @@ function LandingPage() {
                     <Icon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">{feature.title}</h4>
+                    <h4 className="text-xs font-bold text-slate-100">{feature.title}</h4>
                     <p className="text-[10px] text-slate-500 mt-1 leading-normal">{feature.desc}</p>
                   </div>
                 </div>
@@ -167,7 +167,7 @@ function LandingPage() {
               // LOGIN FORM
               <form onSubmit={handleLoginSubmit} className="space-y-5 text-xs relative z-10">
                 <div className="text-center space-y-1 mb-2">
-                  <h3 className="text-lg font-black text-white uppercase tracking-wider">Tenant Login</h3>
+                  <h3 className="text-lg font-black text-slate-100 uppercase tracking-wider">User Login</h3>
                   <p className="text-[10px] text-slate-500">Access your SmartLedger dashboard terminal</p>
                 </div>
 
@@ -223,7 +223,7 @@ function LandingPage() {
                   disabled={loading}
                   className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-orange-500/10"
                 >
-                  {loading ? <FaSpinner className="animate-spin" /> : "Verify and Enter Terminal &rarr;"}
+                  {loading ? <FaSpinner className="animate-spin" /> : "Verify and Enter Terminal →"}
                 </button>
 
                 <div className="text-center pt-4 border-t border-slate-900">
@@ -240,10 +240,10 @@ function LandingPage() {
                 </div>
               </form>
             ) : (
-              // REGISTRATION FORM
+              // REGISTER FORM
               <form onSubmit={handleRegisterSubmit} className="space-y-4 text-xs relative z-10">
                 <div className="text-center space-y-1 mb-2">
-                  <h3 className="text-lg font-black text-white uppercase tracking-wider">Tenant Registration</h3>
+                  <h3 className="text-lg font-black text-slate-100 uppercase tracking-wider">User Registration</h3>
                   <p className="text-[10px] text-slate-500">Configure your trade store account instantly</p>
                 </div>
 

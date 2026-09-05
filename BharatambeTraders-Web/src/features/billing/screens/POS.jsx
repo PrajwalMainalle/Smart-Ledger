@@ -902,11 +902,11 @@ function POS() {
     ? quotationReceiptData 
     : receiptData;
   const profile = user?.profile || {};
-  const shopName = profile.shopName || user?.businessName || "SmartLedger";
-  const address = profile.businessAddress || "N/A Address";
-  const gstNumber = profile.gstNumber || "N/A GSTIN";
+  const shopName = profile.shopName || user?.businessName || "Smart Ledger";
+  const address = profile.businessAddress || "";
+  const gstNumber = profile.gstNumber || "";
   const isCurrentGst = currentActiveReceipt ? (currentActiveReceipt.isGstBilling !== false) : isGstBilling;
-  const contactPhone = isCurrentGst ? "9845757296" : "6361037157";
+  const contactPhone = profile.mobileNumber || user?.mobileNumber || "";
   const logoSrc = profile.logo || logo;
 
   return (
@@ -2194,7 +2194,7 @@ function POS() {
                     {currentActiveReceipt.customerPhone && currentActiveReceipt.customerPhone !== "N/A" && (
                       <a
                         href={`https://wa.me/91${currentActiveReceipt.customerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                          `*BHARATAMBE TRADERS - ${currentActiveReceipt.isQuotation ? "ESTIMATE / QUOTATION" : "TAX INVOICE"}*\n` +
+                          `*${(user?.profile?.shopName || user?.businessName || "Smart Ledger").toUpperCase()} - ${currentActiveReceipt.isQuotation ? "ESTIMATE / QUOTATION" : "TAX INVOICE"}*\n` +
                           `Bill No: *${currentActiveReceipt.id}*\n` +
                           `Date: ${new Date(currentActiveReceipt.date).toLocaleDateString()}\n` +
                           `Customer: ${currentActiveReceipt.customerName}\n` +
@@ -2203,7 +2203,7 @@ function POS() {
                           `\n----------------------------\n` +
                           `*Total Amount: ₹${(currentActiveReceipt.total || 0).toFixed(2)}*\n` +
                           `Payment Mode: ${currentActiveReceipt.paymentMethod}\n\n` +
-                          `Thank you for doing business with Bharatambe Traders! 🙏`
+                          `Thank you for doing business with ${user?.profile?.shopName || user?.businessName || "Smart Ledger"}! 🙏`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -2715,7 +2715,7 @@ function POS() {
         <GovFundVoucherModal
           voucher={govVoucherData}
           onClose={() => setShowGovVoucherModal(false)}
-          merchantInfo={user?.profile || { firmName: "BHARATAMBE TRADERS", mobileNumber: "9741166742" }}
+          merchantInfo={user?.profile || { firmName: user?.businessName || "Smart Ledger", mobileNumber: user?.mobileNumber || "" }}
         />
       )}
 

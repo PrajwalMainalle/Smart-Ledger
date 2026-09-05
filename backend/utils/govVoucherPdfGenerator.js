@@ -56,15 +56,16 @@ const generateGovVoucherPDF = (voucher, merchantInfo = {}) => {
       let y = margin + 15;
 
       // 2. Header Banner
-      const shopName = merchantInfo.shopName || merchantInfo.firmName || "BHARATAMBE TRADERS";
-      const address = merchantInfo.businessAddress || merchantInfo.address || "Main Market Road, Basavakalyan";
-      const phone = merchantInfo.phone || merchantInfo.mobileNumber || "9741166742";
+      const shopName = merchantInfo.shopName || merchantInfo.firmName || "Smart Ledger";
+      const address = merchantInfo.businessAddress || merchantInfo.address || "";
+      const phone = merchantInfo.phone || merchantInfo.mobileNumber || "";
       const gstNumber = merchantInfo.gstNumber || "";
 
       doc.font("Helvetica-Bold").fontSize(18).fillColor(primaryColor).text(shopName, margin, y, { align: "center" });
       y += 22;
 
-      doc.font("Helvetica").fontSize(9).fillColor(textMuted).text(`${address} | Mobile: ${phone}`, margin, y, { align: "center" });
+      const contactSubtitle = [address, phone ? `Mobile: ${phone}` : ""].filter(Boolean).join(" | ");
+      doc.font("Helvetica").fontSize(9).fillColor(textMuted).text(contactSubtitle, margin, y, { align: "center" });
       y += 14;
 
       if (gstNumber) {

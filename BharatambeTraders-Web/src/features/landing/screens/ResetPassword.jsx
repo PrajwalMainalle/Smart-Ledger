@@ -37,7 +37,7 @@ function ResetPassword() {
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /\d/.test(password),
-    special: /[@$!%*?&]/.test(password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
   };
 
   const isPasswordValid = Object.values(checks).every(Boolean);
@@ -120,7 +120,7 @@ function ResetPassword() {
             </div>
 
             <div className="text-center space-y-1">
-              <h3 className="text-xl font-black text-white uppercase tracking-wider">Reset Password</h3>
+              <h3 className="text-xl font-black text-slate-100 uppercase tracking-wider">Reset Password</h3>
               <p className="text-[11px] text-slate-500">Provide reset details and choose a secure new password</p>
             </div>
 
@@ -226,7 +226,7 @@ function ResetPassword() {
                     </div>
                     <div className="flex items-center gap-1.5 col-span-2">
                       <span className={`w-1.5 h-1.5 rounded-full ${checks.special ? "bg-emerald-500" : "bg-red-500"}`}></span>
-                      <span className={checks.special ? "text-emerald-450" : "text-slate-500"}>1 Special character (@$!%*?&)</span>
+                      <span className={checks.special ? "text-emerald-450" : "text-slate-500"}>1 Special character (!@#$%^&*)</span>
                     </div>
                   </div>
                 </div>

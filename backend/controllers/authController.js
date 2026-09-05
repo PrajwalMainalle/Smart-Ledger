@@ -35,6 +35,7 @@ const registerUser = async (req, res) => {
       email,
       mobileNumber,
       password,
+      role: req.body.role || "admin",
       profile: {
         shopName: businessName, // default to business name
         mobileNumber: mobileNumber,
@@ -49,6 +50,7 @@ const registerUser = async (req, res) => {
         ownerName: user.ownerName,
         email: user.email,
         mobileNumber: user.mobileNumber,
+        role: user.role,
         token: generateToken(user._id),
         profile: user.profile,
         gstBillingRule: user.gstBillingRule || "warn",
@@ -84,6 +86,7 @@ const loginUser = async (req, res) => {
         ownerName: user.ownerName,
         email: user.email,
         mobileNumber: user.mobileNumber,
+        role: user.role || "admin",
         token: generateToken(user._id),
         profile: user.profile,
         gstBillingRule: user.gstBillingRule || "warn",
@@ -259,6 +262,7 @@ const sendResetEmail = async (email, otp, token) => {
 };
 
 // @desc    Request password reset OTP and token
+// @desc    Request password reset OTP and token
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const forgotPassword = async (req, res) => {
@@ -268,8 +272,10 @@ const forgotPassword = async (req, res) => {
     return res.status(400).json({ message: "Please provide your email address" });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
       return res.status(404).json({ message: "No account with that email address exists." });
@@ -287,21 +293,21 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Send email asynchronously
-    sendResetEmail(email, otp, token);
+    sendResetEmail(cleanEmail, otp, token);
 
     console.log(`========================================`);
     console.log(`[PASSWORD RESET DEV ASSIST]`);
-    console.log(`Email: ${email}`);
+    console.log(`Email: ${cleanEmail}`);
     console.log(`OTP: ${otp}`);
     console.log(`Token: ${token}`);
-    console.log(`Reset Link: http://localhost:5173/reset-password?token=${token}&email=${email}`);
+    console.log(`Reset Link: http://localhost:5173/reset-password?token=${token}&email=${encodeURIComponent(cleanEmail)}`);
     console.log(`========================================`);
 
-    const devData = process.env.NODE_ENV !== "production" ? { otp, token } : {};
-
     res.json({
-      message: "Password reset OTP and link have been sent to your email address.",
-      ...devData
+      message: "Password reset OTP code and link have been generated.",
+      otp,
+      token,
+      resetUrl: `http://localhost:5173/reset-password?token=${token}&email=${encodeURIComponent(cleanEmail)}`
     });
   } catch (error) {
     console.error(error);
@@ -323,16 +329,18 @@ const resetPassword = async (req, res) => {
     return res.status(400).json({ message: "Passwords do not match" });
   }
 
-  // Strong password validation
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  // Flexible strong password validation accepting standard special characters
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
   if (!passwordRegex.test(password)) {
     return res.status(400).json({ 
       message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character." 
     });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -341,11 +349,13 @@ const resetPassword = async (req, res) => {
     let isValid = false;
 
     if (token) {
-      if (user.resetPasswordToken === token && user.resetPasswordTokenExpires > Date.now()) {
+      if (user.resetPasswordToken && user.resetPasswordToken === String(token).trim() && user.resetPasswordTokenExpires > Date.now()) {
         isValid = true;
       }
-    } else if (otp) {
-      if (user.resetPasswordOtp === otp && user.resetPasswordOtpExpires > Date.now()) {
+    } 
+    
+    if (!isValid && otp) {
+      if (user.resetPasswordOtp && user.resetPasswordOtp === String(otp).trim() && user.resetPasswordOtpExpires > Date.now()) {
         isValid = true;
       }
     }

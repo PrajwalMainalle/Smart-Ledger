@@ -4,8 +4,12 @@ import { FaFileCsv, FaFileExcel, FaPrint, FaSpinner, FaSearch, FaBoxes } from "r
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
 import { MultiColorCompanyTitle, MultiColorReportTitle, triggerSafePrint } from "../../../components/MultiColorHeader";
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
 
 function GstInventory() {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
@@ -14,12 +18,12 @@ function GstInventory() {
   const fetchInventoryGst = async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/gst/inventory-summary");
+      const res = await axiosInstance.get("/gst/reports/inventory");
       setProducts(res.data);
       setLoading(false);
     } catch (err) {
       console.error(err);
-      setError("Failed to fetch GST inventory summary.");
+      setError("Failed to fetch GST inventory breakdown.");
       setLoading(false);
     }
   };
@@ -34,7 +38,7 @@ function GstInventory() {
     const headers = ["Product Name", "SKU", "HSN Code", "GST Purchased Stock", "Non-GST Purchased Stock", "Total Stock Balance", "Cost Price (INR)", "Stock Valuation (INR)"];
     
     const sheetData = [
-      ["BHARATAMBE TRADERS - GST INVENTORY STOCK SPLIT REPORT"],
+      [`${shopName.toUpperCase()} - GST INVENTORY STOCK SPLIT REPORT`],
       ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
       [],
       headers

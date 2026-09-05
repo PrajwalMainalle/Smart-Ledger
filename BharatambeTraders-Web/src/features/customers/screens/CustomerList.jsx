@@ -5,9 +5,13 @@ import { FaUserFriends, FaPlus, FaTimes, FaEdit, FaTrashAlt, FaSpinner, FaHistor
 import { fetchCustomers, addCustomer, updateCustomer, deleteCustomer, fetchCustomerLedger, collectPayment, clearActiveLedger } from "../customerSlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 
+import { getShopName } from "../../../utils/tenantConfig";
+
 function CustomerList() {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const { customers, loading, error } = useSelector((state) => state.customers);
+  const shopName = getShopName(user);
 
   // Search & filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -174,7 +178,7 @@ function CustomerList() {
     const cleanPhone = (cust.phone || "").replace(/\D/g, "");
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const balance = cust.outstandingBalance || 0;
-    const text = encodeURIComponent(`Namaste ${cust.name} ji,\nThis is a friendly reminder from Bharatambe Traders regarding your outstanding balance of ₹${balance.toFixed(2)}.\nKindly make payment at your convenience.\nThank you!`);
+    const text = encodeURIComponent(`Namaste ${cust.name} ji,\nThis is a friendly reminder from ${shopName} regarding your outstanding balance of ₹${balance.toFixed(2)}.\nKindly make payment at your convenience.\nThank you!`);
     window.open(`https://wa.me/${formattedPhone}?text=${text}`, "_blank");
   };
 

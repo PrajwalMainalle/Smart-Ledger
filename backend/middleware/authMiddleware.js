@@ -35,4 +35,19 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+    const userRole = req.user.role || "admin";
+    if (!roles.includes(userRole)) {
+      return res.status(403).json({
+        message: `Forbidden: User role '${userRole}' is not authorized to perform this action.`
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { protect, authorize };

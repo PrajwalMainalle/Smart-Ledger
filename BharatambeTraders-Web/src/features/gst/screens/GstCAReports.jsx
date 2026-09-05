@@ -4,13 +4,18 @@ import { FaFileCsv, FaFileExcel, FaPrint, FaSpinner } from "react-icons/fa";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import { exportToExcel } from "../../../utils/excelExporter";
 
+import { useSelector } from "react-redux";
+import { getShopName } from "../../../utils/tenantConfig";
+
 function GstCAReports() {
+  const { user } = useSelector((state) => state.auth);
+  const shopName = getShopName(user);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
   const [type, setType] = useState("monthly");
   const [error, setError] = useState("");
 
-  const fetchCaSummary = async () => {
+  const fetchCaReconciliation = async () => {
     try {
       setLoading(true);
       const res = await axiosInstance.get(`/gst/reports/ca-summary?type=${type}`);
@@ -18,13 +23,13 @@ function GstCAReports() {
       setLoading(false);
     } catch (err) {
       console.error(err);
-      setError("Failed to fetch CA reconciliation reports.");
+      setError("Failed to fetch CA reconciliation summary.");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCaSummary();
+    fetchCaReconciliation();
   }, [type]);
 
   const handleExportExcel = () => {
@@ -33,7 +38,7 @@ function GstCAReports() {
     const headers = ["Period", "Sales Taxable Value (INR)", "Sales Tax Collected (INR)", "Sales Total Gross (INR)", "Purchases Taxable Value (INR)", "Purchases Tax Paid / ITC (INR)", "Purchases Total Gross (INR)", "Net Tax Liability (INR)"];
 
     const sheetData = [
-      ["BHARATAMBE TRADERS - CA GST RECONCILIATION SUMMARY REPORT"],
+      [`${shopName.toUpperCase()} - CA GST RECONCILIATION SUMMARY REPORT`],
       ["Grouped By:", type.toUpperCase()],
       ["Generated On:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")],
       [],

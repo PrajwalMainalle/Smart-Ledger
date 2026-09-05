@@ -11,18 +11,20 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
+import { getShopName } from "../../../utils/tenantConfig";
+
 function QuotationList() {
   const { user } = useSelector((state) => state.auth);
-  const defaultShopName = user?.profile?.shopName || user?.businessName || "BHARATAMBE TRADERS";
-  const defaultShopGst = user?.profile?.gstNumber || "29ANOPM8542Q1ZU";
+  const defaultShopName = getShopName(user);
+  const defaultShopGst = user?.profile?.gstNumber || "";
   const isGstDoc = (docType) => {
     if (!docType) return false;
     const str = String(docType).toUpperCase();
     return str.includes("GST") || str.includes("TAX");
   };
-  const defaultShopPhone = "9845757296";
-  const defaultAddress = "M B PATIL COLONY, NEAR BUSTAND ,GORTA MUCHLAMB ROAD, BASAVAKALYAN";
-  const defaultSubtext = "OFFICE STATIONARY , SCHOOL ITEMS , ALL NOTE BOOKS ,XEROX PAPERS ,SPORTS ITEMS,COMPUTERS MATERIALS, GOVERNMENT SUPPLIES AND OTHERS MATERIALS";
+  const defaultShopPhone = user?.profile?.mobileNumber || user?.mobileNumber || "";
+  const defaultAddress = user?.profile?.businessAddress || user?.profile?.address || "";
+  const defaultSubtext = user?.profile?.tagline || user?.profile?.businessSubtext || "";
 
   const [products, setProducts] = useState([]);
   const [showFirmSettings, setShowFirmSettings] = useState(false);
@@ -731,14 +733,10 @@ function QuotationList() {
               {/* TOP HEADER BAR (Light Green) */}
               <div className="bg-[#e2ecc8] px-3 py-1.5 flex items-center justify-between border border-black mb-1">
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
-                  REG. GSTIN - {selectedPrintQuote.firmGst || defaultShopGst}
+                  REG. GSTIN - {selectedPrintQuote.firmGst || defaultShopGst || "N/A"}
                 </div>
                 <div className="text-[11px] font-black uppercase tracking-tight text-black">
-                  MOBILE: {
-                    selectedPrintQuote && (isGstDoc(selectedPrintQuote.docType) || selectedPrintQuote.isGstBilling)
-                      ? "9845757296"
-                      : "6361037157"
-                  }
+                  MOBILE: {selectedPrintQuote.firmPhone || defaultShopPhone || "N/A"}
                 </div>
               </div>
 
@@ -747,7 +745,9 @@ function QuotationList() {
                 <h1 className="text-2xl font-black tracking-widest uppercase leading-none text-white">
                   {selectedPrintQuote.firmName || defaultShopName}
                 </h1>
-                <p className="text-[10px] font-bold tracking-widest uppercase mt-1 text-white">WHOLE SALER'S</p>
+                {user?.profile?.tagline && (
+                  <p className="text-[10px] font-bold tracking-widest uppercase mt-1 text-white">{user.profile.tagline}</p>
+                )}
               </div>
 
               {/* ADDRESS & CATEGORY SUB-BAR */}

@@ -26,11 +26,10 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
   const printWidth = pageWidth - 2 * margin;
   
   const profile = tenant.profile || {};
-  const shopName = profile.shopName || tenant.businessName || "BHARATAMBE TRADERS";
-  const address = profile.businessAddress || "M B PATIL COLONY, NEAR BUSTAND, GORTA MUCHLAMB ROAD, BASAVAKALYAN";
-  const hasGst = invoice.isGstBilling !== false || invoice.isQuotation === true;
-  const phone = hasGst ? "9845757296" : "6361037157";
-  const gstNumber = profile.gstNumber || "29ANOPM8542Q1ZU";
+  const shopName = profile.shopName || tenant.businessName || "Smart Ledger";
+  const address = profile.businessAddress || "";
+  const phone = profile.mobileNumber || tenant.mobileNumber || "";
+  const gstNumber = profile.gstNumber || "";
   
   const primaryColor = "#034b54"; // Dark Teal
   const accentColor = "#d97706";  // Amber / Gold
@@ -110,12 +109,13 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
     const centerAreaWidth = printWidth - 140;
 
     doc.fillColor(primaryColor).font(fontBold).fontSize(19).text(shopName.toUpperCase(), logoRightX, brandStartY, { align: "center", width: centerAreaWidth });
-    doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text("W H O L E S A L E R ' S", logoRightX, brandStartY + 23, { align: "center", width: centerAreaWidth });
+    if (profile.tagline) {
+      doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text(profile.tagline.toUpperCase(), logoRightX, brandStartY + 23, { align: "center", width: centerAreaWidth });
+    }
 
     // Store Address
     let addressParts = [];
     if (profile.businessAddress) addressParts.push(profile.businessAddress.trim());
-    else addressParts.push("M B PATIL COLONY, NEAR BUSTAND, GORTA MUCHLAMB ROAD, BASAVAKALYAN");
     if (profile.pincode) addressParts.push(profile.pincode.trim());
     if (profile.state) addressParts.push(profile.state.trim());
     const storeAddressStr = addressParts.join(", ");
@@ -284,7 +284,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
         bufferPages: true,
         info: {
           Title: `${invoice.isQuotation ? "Quotation" : "Invoice"}_${invoice.invoiceId}`,
-          Author: tenant.businessName || "Bharatambe Traders",
+          Author: tenant.businessName || tenant.profile?.shopName || "Smart Ledger",
         },
       });
 

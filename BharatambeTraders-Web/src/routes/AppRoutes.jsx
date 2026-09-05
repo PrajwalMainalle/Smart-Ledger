@@ -30,7 +30,7 @@ const AppRoutes = () => {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Suspense fallback={<LoadingOverlay message="Loading portal view..." />}>
+        <Suspense fallback={<LoadingOverlay message="Initializing Smart Ledger module..." />}>
         <Routes>
 
           {/* Public Routes */}

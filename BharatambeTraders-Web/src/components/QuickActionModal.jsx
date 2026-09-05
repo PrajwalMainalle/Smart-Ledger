@@ -112,7 +112,7 @@ const QuickActionModal = ({ isOpen, onClose }) => {
 
         {/* Footer info */}
         <div className="mt-4 pt-3 border-t border-slate-800/80 text-center">
-          <p className="text-[10px] text-slate-500">Bharatambe Traders Mobile Quick Suite</p>
+          <p className="text-[10px] text-slate-500">Smart Ledger Mobile Quick Suite</p>
         </div>
       </div>
     </div>

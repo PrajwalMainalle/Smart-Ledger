@@ -73,7 +73,7 @@ function ForgotPassword() {
             </div>
 
             <div className="text-center space-y-1">
-              <h3 className="text-xl font-black text-white uppercase tracking-wider">Forgot Password</h3>
+              <h3 className="text-xl font-black text-slate-100 uppercase tracking-wider">Forgot Password</h3>
               <p className="text-[11px] text-slate-500">Enter your registered email address to recover your account</p>
             </div>
 
@@ -96,14 +96,14 @@ function ForgotPassword() {
                   {devOtp && (
                     <div className="my-3 bg-orange-500/10 border border-orange-500/20 text-orange-400 p-3.5 rounded-xl text-left font-mono space-y-1">
                       <p className="font-sans font-bold text-[10px] text-slate-400 uppercase tracking-wider text-center">Dev Mode Assist</p>
-                      <p className="text-[11px] text-center">OTP Code: <span className="font-extrabold text-white text-sm bg-slate-950 px-2 py-0.5 rounded border border-slate-800">{devOtp}</span></p>
+                      <p className="text-[11px] text-center">OTP Code: <span className="font-extrabold text-slate-100 text-sm bg-slate-950 px-2 py-0.5 rounded border border-slate-800">{devOtp}</span></p>
                       <div className="h-px bg-slate-800/60 my-2"></div>
                       <p className="text-[9px] text-slate-500 leading-normal text-center">
                         <Link 
                           to={`/reset-password?token=${devToken}&email=${encodeURIComponent(email)}`}
                           className="text-orange-400 underline font-sans font-semibold hover:text-orange-300"
                         >
-                          Use Secure Reset Link &rarr;
+                          Use Secure Reset Link →
                         </Link>
                       </p>
                     </div>
@@ -113,7 +113,7 @@ function ForgotPassword() {
                     to={`/reset-password?email=${encodeURIComponent(email)}`}
                     className="mt-3 block w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition text-center text-xs shadow-lg shadow-orange-500/10"
                   >
-                    Enter OTP & Reset Password &rarr;
+                    Enter OTP & Reset Password →
                   </Link>
                 </div>
               </div>
@@ -139,7 +139,7 @@ function ForgotPassword() {
                   disabled={loading}
                   className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-orange-500/10"
                 >
-                  {loading ? <FaSpinner className="animate-spin" /> : "Send Reset Code & Link &rarr;"}
+                  {loading ? <FaSpinner className="animate-spin" /> : "Send Reset Code & Link →"}
                 </button>
               </form>
             )}

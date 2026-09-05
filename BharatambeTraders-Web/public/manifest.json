@@ -1,9 +1,9 @@
 {
-  "short_name": "Bharatambe",
-  "name": "Bharatambe Traders - Smart Ledger",
+  "short_name": "SmartLedger",
+  "name": "Smart Ledger Management Platform",
   "icons": [
     {
-      "src": "/BTLogo.png",
+      "src": "/SLLogo.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "any maskable"
