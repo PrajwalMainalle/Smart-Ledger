@@ -384,9 +384,9 @@ function Dashboard() {
                     </defs>
 
                     {/* Grid lines */}
-                    <line x1={padding} y1={padding} x2={svgWidth - padding} y2={padding} stroke="#1e293b" strokeDasharray="3" />
-                    <line x1={padding} y1={svgHeight / 2} x2={svgWidth - padding} y2={svgHeight / 2} stroke="#1e293b" strokeDasharray="3" />
-                    <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#334155" strokeWidth="1.5" />
+                    <line x1={padding} y1={padding} x2={svgWidth - padding} y2={padding} className="stroke-slate-800" strokeDasharray="3" />
+                    <line x1={padding} y1={svgHeight / 2} x2={svgWidth - padding} y2={svgHeight / 2} className="stroke-slate-800" strokeDasharray="3" />
+                    <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} className="stroke-slate-700" strokeWidth="1.5" />
 
                     {/* Area fill */}
                     {svgAreaPath && <path d={svgAreaPath} fill="url(#chartGradient)" />}
@@ -404,10 +404,9 @@ function Dashboard() {
                             cx={p.x} 
                             cy={p.y} 
                             r={isHovered ? "6.5" : "4.5"} 
-                            fill="#0f172a" 
                             stroke="#f97316" 
                             strokeWidth={isHovered ? "3.5" : "2.5"} 
-                            className="transition-all cursor-pointer" 
+                            className="fill-slate-900 transition-all cursor-pointer" 
                             style={{ transformOrigin: `${p.x}px ${p.y}px` }}
                             onMouseEnter={() => setHoveredPoint(p)}
                             onMouseLeave={() => setHoveredPoint(null)}
@@ -415,14 +414,27 @@ function Dashboard() {
                           
                           {/* Tooltip value */}
                           {(points.length <= 10 || isHovered) && p.sales > 0 && (
-                            <text x={p.x} y={p.y - 12} fill={isHovered ? "#fb923c" : "#cbd5e1"} fontSize={isHovered ? "11" : "9.5"} textAnchor="middle" fontWeight="bold">
+                            <text 
+                              x={p.x} 
+                              y={p.y - 12} 
+                              fontSize={isHovered ? "11" : "10"} 
+                              textAnchor="middle" 
+                              fontWeight="800"
+                              className={isHovered ? "fill-orange-500 font-black" : "fill-slate-100 font-extrabold"}
+                            >
                               ₹{Math.round(p.sales)}
                             </text>
                           )}
                           
                           {/* Bottom labels */}
                           {showLabel && (
-                            <text x={p.x} y={svgHeight - 10} fill="#64748b" fontSize="9" textAnchor="middle">
+                            <text 
+                              x={p.x} 
+                              y={svgHeight - 10} 
+                              fontSize="9.5" 
+                              textAnchor="middle"
+                              className="fill-slate-400 font-bold"
+                            >
                               {p.label}
                             </text>
                           )}

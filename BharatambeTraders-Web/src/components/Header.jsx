@@ -314,12 +314,12 @@ const Headers = ({ onMenuClick }) => {
         </div>
 
         <div className="hidden lg:flex flex-col text-right">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider">Merchant Portal</span>
-          <span className="text-xs font-semibold text-orange-400">{ownerName}</span>
+          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Merchant Portal</span>
+          <span className="text-xs font-bold text-slate-100">{ownerName}</span>
         </div>
         <div className="h-8 w-px bg-slate-800 hidden sm:block"></div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center border border-slate-700/60 overflow-hidden text-white font-extrabold text-xs shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-100 flex items-center justify-center border border-slate-700/60 overflow-hidden font-extrabold text-xs shadow-sm">
             {user?.profile?.logo ? (
               <img src={user.profile.logo} alt="Logo" className="w-full h-full object-cover" />
             ) : (
@@ -332,7 +332,7 @@ const Headers = ({ onMenuClick }) => {
               </span>
             )}
           </div>
-          <span className="font-bold text-xs text-slate-200 hidden sm:block truncate max-w-[140px]" title={shopName}>
+          <span className="font-bold text-xs text-slate-100 hidden sm:block truncate max-w-[140px]" title={shopName}>
             {shopName}
           </span>
         </div>
