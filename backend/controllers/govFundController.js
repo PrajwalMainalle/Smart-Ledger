@@ -10,7 +10,6 @@ const { generateGovVoucherPDF } = require("../utils/govVoucherPdfGenerator");
 // Helper to calculate total spent and remaining amount for a school
 const getSchoolFundStats = async (tenantId, schoolId, grantedAmount) => {
   const funds = await GovGrant.find({
-    tenantId,
     schoolId,
     isDeleted: { $ne: true },
   }).lean();
@@ -41,8 +40,7 @@ const getSchoolFundStats = async (tenantId, schoolId, grantedAmount) => {
 // GET all government schools with fund stats
 const getSchools = async (req, res) => {
   try {
-    const tenantId = req.user._id;
-    const schools = await GovSchool.find({ tenantId, isDeleted: { $ne: true } })
+    const schools = await GovSchool.find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -116,7 +114,7 @@ const updateSchool = async (req, res) => {
     const tenantId = req.user._id;
     const { id } = req.params;
 
-    const school = await GovSchool.findOne({ _id: id, tenantId, isDeleted: { $ne: true } });
+    const school = await GovSchool.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!school) return res.status(404).json({ message: "Government school record not found" });
 
     const phone = (req.body.contactNumber || req.body.mobileNumber || school.contactNumber || school.mobileNumber || "").trim();
@@ -152,7 +150,7 @@ const deleteSchool = async (req, res) => {
     const tenantId = req.user._id;
     const { id } = req.params;
 
-    const school = await GovSchool.findOne({ _id: id, tenantId, isDeleted: { $ne: true } });
+    const school = await GovSchool.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!school) return res.status(404).json({ message: "Government school record not found" });
 
     school.isDeleted = true;
@@ -171,14 +169,14 @@ const getSchoolDetails = async (req, res) => {
     const tenantId = req.user._id;
     const { id } = req.params;
 
-    const school = await GovSchool.findOne({ _id: id, tenantId, isDeleted: { $ne: true } }).lean();
+    const school = await GovSchool.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
     if (!school) return res.status(404).json({ message: "Government school record not found" });
 
-    const funds = await GovGrant.find({ tenantId, schoolId: id, isDeleted: { $ne: true } })
+    const funds = await GovGrant.find({ schoolId: id, isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
 
-    const ledgers = await GovTransaction.find({ tenantId, schoolId: id, isDeleted: { $ne: true } })
+    const ledgers = await GovTransaction.find({ schoolId: id, isDeleted: { $ne: true } })
       .sort({ date: -1 })
       .lean();
 
@@ -255,7 +253,7 @@ const createGovFund = async (req, res) => {
       return res.status(400).json({ message: "School selection and Approved Budget (> ₹0) are required" });
     }
 
-    const school = await GovSchool.findOne({ _id: schoolId, tenantId, isDeleted: { $ne: true } });
+    const school = await GovSchool.findOne({ _id: schoolId, isDeleted: { $ne: true } });
     if (!school) return res.status(404).json({ message: "Government school not found" });
 
     const count = await GovGrant.countDocuments({ tenantId });
@@ -295,7 +293,7 @@ const activateGovFund = async (req, res) => {
     const tenantId = req.user._id;
     const { id } = req.params;
 
-    const fund = await GovGrant.findOne({ _id: id, tenantId, isDeleted: { $ne: true } });
+    const fund = await GovGrant.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!fund) return res.status(404).json({ message: "Government Fund Account not found" });
 
     fund.status = "Fund Active";
@@ -332,7 +330,7 @@ const processFundUtilization = async (req, res) => {
     const tenantId = req.user._id;
 
     // 1. Fetch Government Fund Account
-    const fund = await GovGrant.findOne({ _id: grantId, tenantId, isDeleted: { $ne: true } });
+    const fund = await GovGrant.findOne({ _id: grantId, isDeleted: { $ne: true } });
     if (!fund) {
       return res.status(404).json({ message: "Government Fund Account not found" });
     }
@@ -343,7 +341,7 @@ const processFundUtilization = async (req, res) => {
       });
     }
 
-    const school = await GovSchool.findOne({ _id: schoolId || fund.schoolId, tenantId });
+    const school = await GovSchool.findOne({ _id: schoolId || fund.schoolId });
     if (!school) {
       return res.status(404).json({ message: "Associated Government School record not found" });
     }
@@ -423,7 +421,7 @@ const processFundUtilization = async (req, res) => {
     }
 
     // 4. Generate unique Voucher Number
-    const count = await GovTransaction.countDocuments({ tenantId });
+    const count = await GovTransaction.countDocuments({});
     const currentYear = new Date().getFullYear();
     const voucherNumber = `VOUCHER-${currentYear}-${String(count + 1).padStart(4, "0")}`;
 
@@ -529,7 +527,7 @@ const reverseGovTransaction = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const originalTx = await GovTransaction.findOne({ _id: id, tenantId, isDeleted: { $ne: true } });
+    const originalTx = await GovTransaction.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!originalTx) {
       return res.status(404).json({ message: "Ledger transaction record not found" });
     }
@@ -538,7 +536,7 @@ const reverseGovTransaction = async (req, res) => {
       return res.status(400).json({ message: "This transaction is already a reversal record" });
     }
 
-    const fund = await GovGrant.findOne({ _id: originalTx.grantId, tenantId });
+    const fund = await GovGrant.findOne({ _id: originalTx.grantId });
     if (!fund) {
       return res.status(404).json({ message: "Associated Government Fund Account not found" });
     }
@@ -673,7 +671,7 @@ const getGovDashboardStats = async (req, res) => {
   try {
     const tenantId = req.user._id;
 
-    const funds = await GovGrant.find({ tenantId, isDeleted: { $ne: true } })
+    const funds = await GovGrant.find({ isDeleted: { $ne: true } })
       .populate("schoolId", "schoolName headmasterName")
       .lean();
 

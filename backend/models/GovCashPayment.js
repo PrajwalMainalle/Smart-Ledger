@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const GovCashPaymentSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     schoolId: {
@@ -58,6 +64,7 @@ const GovCashPaymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-GovCashPaymentSchema.index({ tenantId: 1, grantId: 1, date: 1 });
+GovCashPaymentSchema.index({ organizationId: 1, grantId: 1, date: 1 });
+GovCashPaymentSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("GovCashPayment", GovCashPaymentSchema);

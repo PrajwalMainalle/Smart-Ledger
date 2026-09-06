@@ -87,229 +87,229 @@ const SideBar = ({
           md:translate-x-0
         `}
       >
-      {/* Top */}
-      <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
-        {!collapsed && (
-          <h1 className="text-sm font-black tracking-wider uppercase text-orange-400 truncate max-w-[170px]" title={displayName}>
-            {displayName}
-          </h1>
-        )}
+        {/* Top */}
+        <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
+          {!collapsed && (
+            <h1 className="text-sm font-black tracking-wider uppercase text-orange-400 truncate max-w-[170px]" title="Smart Ledger">
+              Smart Ledger
+            </h1>
+          )}
 
-        <div className="flex gap-2">
-          {/* Collapse - Desktop only */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden md:flex p-2 bg-sidebar-active rounded hover:bg-sidebar-active/80"
-          >
-            {collapsed ? <FaChevronRight /> : <FaChevronLeft />}
-          </button>
+          <div className="flex gap-2">
+            {/* Collapse - Desktop only */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden md:flex p-2 bg-sidebar-active rounded hover:bg-sidebar-active/80"
+            >
+              {collapsed ? <FaChevronRight /> : <FaChevronLeft />}
+            </button>
 
-          {/* Close - Mobile only */}
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="md:hidden p-2 bg-sidebar-active rounded hover:bg-sidebar-active/80"
-          >
-            <FaTimes />
-          </button>
+            {/* Close - Mobile only */}
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="md:hidden p-2 bg-sidebar-active rounded hover:bg-sidebar-active/80"
+            >
+              <FaTimes />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 mt-4 space-y-1 overflow-y-auto">
-        {/* Desktop nav */}
-        <div className="hidden md:block">
-          {desktopNavItems.map(({ name, path, icon: Icon }) => {
-            if (name === "Reports") {
-              return (
-                <div key="gst-suite-desktop">
-                  {/* GST Suite Header */}
-                  <div
-                    onClick={() => {
-                      if (collapsed) {
-                        navigate("/gst/dashboard");
-                      } else {
-                        setGstOpen(!gstOpen);
-                      }
-                    }}
-                    className={`flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <FaPercent className="text-base text-orange-500" />
-                      {!collapsed && <span className="font-semibold text-xs">GST Suite</span>}
+        {/* Nav */}
+        <nav className="flex-1 mt-4 space-y-1 overflow-y-auto">
+          {/* Desktop nav */}
+          <div className="hidden md:block">
+            {desktopNavItems.map(({ name, path, icon: Icon }) => {
+              if (name === "Reports") {
+                return (
+                  <div key="gst-suite-desktop">
+                    {/* GST Suite Header */}
+                    <div
+                      onClick={() => {
+                        if (collapsed) {
+                          navigate("/gst/dashboard");
+                        } else {
+                          setGstOpen(!gstOpen);
+                        }
+                      }}
+                      className={`flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FaPercent className="text-base text-orange-500" />
+                        {!collapsed && <span className="font-semibold text-xs">GST Suite</span>}
+                      </div>
+                      {!collapsed && (
+                        <span className="text-[10px] text-slate-500 transition-transform duration-200">
+                          {gstOpen ? "▲" : "▼"}
+                        </span>
+                      )}
                     </div>
-                    {!collapsed && (
-                      <span className="text-[10px] text-slate-500 transition-transform duration-200">
+
+                    {/* GST Sub items */}
+                    {!collapsed && gstOpen && (
+                      <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
+                        {gstSubItems.map((sub) => (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            className={({ isActive }) =>
+                              `block px-4 py-2 rounded-md text-[10px] font-bold transition
+                            ${isActive
+                                ? "bg-slate-900 text-orange-400"
+                                : "text-slate-500 hover:text-slate-350"
+                              }`
+                            }
+                          >
+                            {sub.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Original Reports Item */}
+                    <NavLink
+                      key={path}
+                      to={path}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                      ${isActive
+                          ? "bg-sidebar-active text-orange-400"
+                          : "text-sidebar-subtext"
+                        }
+                      hover:bg-sidebar-active hover:text-orange-400`
+                      }
+                    >
+                      <Icon className="text-base" />
+                      {!collapsed && <span>{name}</span>}
+                    </NavLink>
+                  </div>
+                );
+              }
+              return (
+                <NavLink
+                  key={path}
+                  to={path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                  ${isActive
+                      ? "bg-sidebar-active text-orange-400"
+                      : "text-sidebar-subtext"
+                    }
+                  hover:bg-sidebar-active hover:text-orange-400`
+                  }
+                >
+                  <Icon className="text-base" />
+                  {!collapsed && <span>{name}</span>}
+                </NavLink>
+              );
+            })}
+          </div>
+
+          {/* Mobile nav */}
+          <div className="md:hidden">
+            {desktopNavItems.map(({ name, path, icon: Icon }) => {
+              if (name === "Reports") {
+                return (
+                  <div key="gst-suite-mobile">
+                    {/* GST Suite Header */}
+                    <div
+                      onClick={() => setGstOpen(!gstOpen)}
+                      className="flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FaPercent className="text-base text-orange-500" />
+                        <span className="font-semibold text-xs">GST Suite</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
                         {gstOpen ? "▲" : "▼"}
                       </span>
+                    </div>
+
+                    {/* GST Sub items */}
+                    {gstOpen && (
+                      <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
+                        {gstSubItems.map((sub) => (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            onClick={() => setMobileOpen(false)}
+                            className={({ isActive }) =>
+                              `block px-4 py-2 rounded-md text-[10px] font-bold transition
+                            ${isActive
+                                ? "bg-slate-900 text-orange-400"
+                                : "text-slate-500 hover:text-slate-350"
+                              }`
+                            }
+                          >
+                            {sub.name}
+                          </NavLink>
+                        ))}
+                      </div>
                     )}
-                  </div>
 
-                  {/* GST Sub items */}
-                  {!collapsed && gstOpen && (
-                    <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
-                      {gstSubItems.map((sub) => (
-                        <NavLink
-                          key={sub.path}
-                          to={sub.path}
-                          className={({ isActive }) =>
-                            `block px-4 py-2 rounded-md text-[10px] font-bold transition
-                            ${isActive
-                              ? "bg-slate-900 text-orange-400"
-                              : "text-slate-500 hover:text-slate-350"
-                            }`
-                          }
-                        >
-                          {sub.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Original Reports Item */}
-                  <NavLink
-                    key={path}
-                    to={path}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                    {/* Original Reports Item */}
+                    <NavLink
+                      key={path}
+                      to={path}
+                      onClick={() => setMobileOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
                       ${isActive
-                        ? "bg-sidebar-active text-orange-400"
-                        : "text-sidebar-subtext"
-                      }
+                          ? "bg-sidebar-active text-orange-400"
+                          : "text-sidebar-subtext"
+                        }
                       hover:bg-sidebar-active hover:text-orange-400`
-                    }
-                  >
-                    <Icon className="text-base" />
-                    {!collapsed && <span>{name}</span>}
-                  </NavLink>
-                </div>
-              );
-            }
-            return (
-              <NavLink
-                key={path}
-                to={path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                  ${isActive
-                    ? "bg-sidebar-active text-orange-400"
-                    : "text-sidebar-subtext"
-                  }
-                  hover:bg-sidebar-active hover:text-orange-400`
-                }
-              >
-                <Icon className="text-base" />
-                {!collapsed && <span>{name}</span>}
-              </NavLink>
-            );
-          })}
-        </div>
-
-        {/* Mobile nav */}
-        <div className="md:hidden">
-          {desktopNavItems.map(({ name, path, icon: Icon }) => {
-            if (name === "Reports") {
+                      }
+                    >
+                      <Icon className="text-base" />
+                      <span>{name}</span>
+                    </NavLink>
+                  </div>
+                );
+              }
               return (
-                <div key="gst-suite-mobile">
-                  {/* GST Suite Header */}
-                  <div
-                    onClick={() => setGstOpen(!gstOpen)}
-                    className="flex items-center justify-between px-4 py-3 mx-3 rounded-lg transition cursor-pointer text-sidebar-subtext hover:bg-sidebar-active hover:text-orange-400"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FaPercent className="text-base text-orange-500" />
-                      <span className="font-semibold text-xs">GST Suite</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500">
-                      {gstOpen ? "▲" : "▼"}
-                    </span>
-                  </div>
-
-                  {/* GST Sub items */}
-                  {gstOpen && (
-                    <div className="pl-6 pr-3 py-1 space-y-1 bg-slate-950/20 rounded-lg mx-3 mb-2 border border-slate-900/40">
-                      {gstSubItems.map((sub) => (
-                        <NavLink
-                          key={sub.path}
-                          to={sub.path}
-                          onClick={() => setMobileOpen(false)}
-                          className={({ isActive }) =>
-                            `block px-4 py-2 rounded-md text-[10px] font-bold transition
-                            ${isActive
-                              ? "bg-slate-900 text-orange-400"
-                              : "text-slate-500 hover:text-slate-350"
-                            }`
-                          }
-                        >
-                          {sub.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Original Reports Item */}
-                  <NavLink
-                    key={path}
-                    to={path}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
-                      ${isActive
-                        ? "bg-sidebar-active text-orange-400"
-                        : "text-sidebar-subtext"
-                      }
-                      hover:bg-sidebar-active hover:text-orange-400`
-                    }
-                  >
-                    <Icon className="text-base" />
-                    <span>{name}</span>
-                  </NavLink>
-                </div>
-              );
-            }
-            return (
-              <NavLink
-                key={path}
-                to={path}
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
+                <NavLink
+                  key={path}
+                  to={path}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 mx-3 rounded-lg transition
                   ${isActive
-                    ? "bg-sidebar-active text-orange-400"
-                    : "text-sidebar-subtext"
-                  }
+                      ? "bg-sidebar-active text-orange-400"
+                      : "text-sidebar-subtext"
+                    }
                   hover:bg-sidebar-active hover:text-orange-400`
-                }
-              >
-                <Icon className="text-base" />
-                <span>{name}</span>
-              </NavLink>
-            );
-          })}
+                  }
+                >
+                  <Icon className="text-base" />
+                  <span>{name}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Logout Trigger */}
+        <div className="px-3 py-2 border-t border-sidebar-border">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sidebar-subtext hover:bg-sidebar-active hover:text-red-400 transition text-left"
+          >
+            <FaSignOutAlt className="text-base text-red-500" />
+            {!collapsed && <span className="font-semibold text-xs text-red-400">Log Out</span>}
+          </button>
         </div>
-      </nav>
 
-      {/* Logout Trigger */}
-      <div className="px-3 py-2 border-t border-sidebar-border">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sidebar-subtext hover:bg-sidebar-active hover:text-red-400 transition text-left"
-        >
-          <FaSignOutAlt className="text-base text-red-500" />
-          {!collapsed && <span className="font-semibold text-xs text-red-400">Log Out</span>}
-        </button>
-      </div>
-
-      {/* Bottom  */}
-      <div className="p-4 border-t border-sidebar-border text-center">
-        {!collapsed && (
-          <p className="text-[10px] text-sidebar-subtext/70">
-            &copy; {getCurrentYear()} {displayName.slice(0, 18)}
-          </p>
-        )}
-      </div>
-    </aside>
-  </>
-);
+        {/* Bottom  */}
+        <div className="p-4 border-t border-sidebar-border text-center">
+          {!collapsed && (
+            <p className="text-[10px] text-sidebar-subtext/70">
+              &copy; {getCurrentYear()} SMART LEDGER
+            </p>
+          )}
+        </div>
+      </aside>
+    </>
+  );
 };
 
 export default SideBar;

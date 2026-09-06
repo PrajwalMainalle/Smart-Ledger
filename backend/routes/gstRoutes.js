@@ -18,5 +18,6 @@ router.get("/reports/purchases", getGstPurchasesSummary);
 router.get("/reports/ca-summary", getGstCaSummary);
 router.get("/reports/profit", getProfitReport);
 router.get("/inventory-summary", getInventoryGstSummary);
+router.get("/reports/inventory", getInventoryGstSummary);
 
 module.exports = router;

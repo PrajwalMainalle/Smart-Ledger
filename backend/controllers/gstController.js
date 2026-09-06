@@ -146,7 +146,6 @@ const getGstDashboard = async (req, res) => {
 
     // 1. Sales metrics (Invoices, excluding quotations & refunded status)
     const sales = await Invoice.find({
-      tenantId,
       isQuotation: { $ne: true },
       status: { $ne: "Refunded" }
     }).lean();
@@ -197,7 +196,7 @@ const getGstDashboard = async (req, res) => {
     const periodPaymentBreakdown = calculatePaymentBreakdown(filteredSales);
 
     // 2. Purchases metrics
-    const purchases = await Purchase.find({ tenantId }).lean();
+    const purchases = await Purchase.find({}).lean();
 
     const hasSupplierGstin = (p) => p.isGst !== false && Boolean(p.supplierGst && p.supplierGst.trim());
 
@@ -317,7 +316,6 @@ const getGstSalesSummary = async (req, res) => {
     const dateQuery = getDateQuery(period, startDate, endDate);
     
     const matchStage = {
-      tenantId: tenantId,
       isQuotation: { $ne: true },
       status: { $ne: "Refunded" },
       ...dateQuery
@@ -569,7 +567,6 @@ const getGstPurchasesSummary = async (req, res) => {
   try {
     const dateQuery = getDateQuery(period, startDate, endDate);
     const matchStage = {
-      tenantId: tenantId,
       ...dateQuery
     };
 
@@ -773,7 +770,6 @@ const getGstCaSummary = async (req, res) => {
     const salesAgg = await Invoice.aggregate([
       {
         $match: {
-          tenantId: tenantId,
           isQuotation: { $ne: true },
           status: { $ne: "Refunded" }
         }
@@ -793,7 +789,7 @@ const getGstCaSummary = async (req, res) => {
 
     const purchasesAgg = await Purchase.aggregate([
       {
-        $match: { tenantId }
+        $match: {}
       },
       {
         $group: {
@@ -870,8 +866,7 @@ const getGstCaSummary = async (req, res) => {
 // @access  Private
 const getInventoryGstSummary = async (req, res) => {
   try {
-    const tenantId = req.user._id;
-    const products = await Product.find({ tenantId }).sort({ name: 1 });
+    const products = await Product.find({}).sort({ name: 1 });
 
     const formattedProducts = [];
     for (const p of products) {
@@ -920,7 +915,6 @@ const getProfitReport = async (req, res) => {
     const dateQuery = getDateQuery(period, startDate, endDate);
     
     const matchStage = {
-      tenantId: tenantId,
       isQuotation: { $ne: true },
       status: { $ne: "Refunded" },
       ...dateQuery
@@ -928,7 +922,7 @@ const getProfitReport = async (req, res) => {
 
     const invoices = await Invoice.find(matchStage).lean();
     const purchases = await Purchase.find(matchStage).lean();
-    const products = await Product.find({ tenantId }).lean();
+    const products = await Product.find({}).lean();
 
     let gstSalesTaxable = 0;
     let gstSalesTax = 0;

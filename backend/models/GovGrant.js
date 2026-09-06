@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const GovGrantSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     fundNumber: {
@@ -117,6 +123,7 @@ const GovGrantSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-GovGrantSchema.index({ tenantId: 1, schoolId: 1, fundNumber: 1 });
+GovGrantSchema.index({ organizationId: 1, schoolId: 1, fundNumber: 1 });
+GovGrantSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("GovGrant", GovGrantSchema);

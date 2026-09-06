@@ -25,6 +25,7 @@ const GstPurchases = lazyWithRetry(() => import("../features/gst/screens/GstPurc
 const GstSummary = lazyWithRetry(() => import("../features/gst/screens/GstSummary"));
 const GstInventory = lazyWithRetry(() => import("../features/gst/screens/GstInventory"));
 const GstCAReports = lazyWithRetry(() => import("../features/gst/screens/GstCAReports"));
+const SuperadminPortal = lazyWithRetry(() => import("../features/superadmin/SuperadminPortal"));
 
 const AppRoutes = () => {
   return (
@@ -32,6 +33,9 @@ const AppRoutes = () => {
       <BrowserRouter>
         <Suspense fallback={<LoadingOverlay message="Initializing Smart Ledger module..." />}>
         <Routes>
+
+          {/* Superadmin Backoffice Route */}
+          <Route path="/superadmin" element={<SuperadminPortal />} />
 
           {/* Public Routes */}
           {publicRoutes.map(({ path, element }, index) => (

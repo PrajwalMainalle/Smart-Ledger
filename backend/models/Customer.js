@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const CustomerSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     name: {
@@ -48,7 +54,7 @@ const CustomerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ensure phone is unique PER tenant
-CustomerSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
+CustomerSchema.index({ organizationId: 1, phone: 1 });
+CustomerSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("Customer", CustomerSchema);

@@ -1,8 +1,18 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const UserSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
+    isSuperAdmin: {
+      type: Boolean,
+      default: false,
+    },
     businessName: {
       type: String,
       required: true,
@@ -87,5 +97,7 @@ UserSchema.pre("save", async function (next) {
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+UserSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("User", UserSchema);

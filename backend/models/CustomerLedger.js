@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const CustomerLedgerSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     customerId: {
@@ -52,5 +58,7 @@ const CustomerLedgerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+CustomerLedgerSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("CustomerLedger", CustomerLedgerSchema);

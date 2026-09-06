@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const CustomerRequestSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     requestNumber: {
@@ -64,9 +70,8 @@ const CustomerRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index to ensure fast queries and enforce request number uniqueness per tenant
-CustomerRequestSchema.index({ tenantId: 1, requestNumber: 1 }, { unique: true });
-CustomerRequestSchema.index({ tenantId: 1, status: 1 });
-CustomerRequestSchema.index({ tenantId: 1, customerName: 1 });
+CustomerRequestSchema.index({ organizationId: 1, requestNumber: 1 });
+CustomerRequestSchema.index({ organizationId: 1, status: 1 });
+CustomerRequestSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("CustomerRequest", CustomerRequestSchema);

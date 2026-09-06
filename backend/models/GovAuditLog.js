@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const GovAuditLogSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     entityType: {
@@ -47,6 +53,7 @@ const GovAuditLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-GovAuditLogSchema.index({ tenantId: 1, entityType: 1, timestamp: -1 });
+GovAuditLogSchema.index({ organizationId: 1, entityType: 1, timestamp: -1 });
+GovAuditLogSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("GovAuditLog", GovAuditLogSchema);

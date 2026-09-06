@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const PurchaseItemSchema = new mongoose.Schema({
   productId: {
@@ -50,10 +51,15 @@ const PurchaseItemSchema = new mongoose.Schema({
 
 const PurchaseSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     billNumber: {
@@ -155,7 +161,7 @@ const PurchaseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent duplicate supplier invoice entry for the same tenant
-PurchaseSchema.index({ tenantId: 1, supplierName: 1, billNumber: 1 }, { unique: true });
+PurchaseSchema.index({ organizationId: 1, supplierName: 1, billNumber: 1 });
+PurchaseSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("Purchase", PurchaseSchema);

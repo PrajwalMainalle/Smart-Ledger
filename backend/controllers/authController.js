@@ -1,16 +1,17 @@
 const User = require("../models/User");
+const Organization = require("../models/Organization");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 // Helper to generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (id, organizationId, role) => {
+  return jwt.sign({ id, organizationId, role }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
 };
 
-// @desc    Register a new tenant business
+// @desc    Register a new tenant business (Creates new Organization + Admin User)
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
@@ -22,14 +23,27 @@ const registerUser = async (req, res) => {
 
   try {
     // Check if user email already exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email }).setOptions({ bypassTenantFilter: true });
 
     if (userExists) {
       return res.status(400).json({ message: "Email is already registered" });
     }
 
-    // Create user/tenant
+    // 1. Create Organization record for the new business
+    const baseSlug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const org = await Organization.create({
+      name: businessName,
+      slug: `${baseSlug}-${Date.now().toString().slice(-4)}`,
+      ownerName,
+      email,
+      phone: mobileNumber,
+      plan: "free",
+      status: "active",
+    });
+
+    // 2. Create admin User for this Organization
     const user = await User.create({
+      organizationId: org._id,
       businessName,
       ownerName,
       email,
@@ -37,7 +51,7 @@ const registerUser = async (req, res) => {
       password,
       role: req.body.role || "admin",
       profile: {
-        shopName: businessName, // default to business name
+        shopName: businessName,
         mobileNumber: mobileNumber,
         email: email,
       }
@@ -46,12 +60,13 @@ const registerUser = async (req, res) => {
     if (user) {
       res.status(201).json({
         _id: user._id,
+        organizationId: user.organizationId,
         businessName: user.businessName,
         ownerName: user.ownerName,
         email: user.email,
         mobileNumber: user.mobileNumber,
         role: user.role,
-        token: generateToken(user._id),
+        token: generateToken(user._id, user.organizationId, user.role),
         profile: user.profile,
         gstBillingRule: user.gstBillingRule || "warn",
         creditReminderDays: user.creditReminderDays || 20,
@@ -76,18 +91,19 @@ const loginUser = async (req, res) => {
   }
 
   try {
-    // Check user email
-    const user = await User.findOne({ email });
+    // Check user email across all organizations
+    const user = await User.findOne({ email }).setOptions({ bypassTenantFilter: true });
 
     if (user && (await user.matchPassword(password))) {
       res.json({
         _id: user._id,
+        organizationId: user.organizationId,
         businessName: user.businessName,
         ownerName: user.ownerName,
         email: user.email,
         mobileNumber: user.mobileNumber,
         role: user.role || "admin",
-        token: generateToken(user._id),
+        token: generateToken(user._id, user.organizationId, user.role),
         profile: user.profile,
         gstBillingRule: user.gstBillingRule || "warn",
         creditReminderDays: user.creditReminderDays || 20,

@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { runWithOrgId } = require("./tenantContext");
 
 const protect = async (req, res, next) => {
   let token;
@@ -19,13 +20,18 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from the token, exclude password
-      req.user = await User.findById(decoded.id).select("-password");
+      req.user = await User.findById(decoded.id).select("-password").setOptions({ bypassTenantFilter: true });
 
       if (!req.user) {
-        return res.status(401).json({ message: "Not authorized, tenant not found" });
+        return res.status(401).json({ message: "Not authorized, user account not found" });
       }
 
-      next();
+      req.organizationId = req.user.organizationId || decoded.organizationId;
+      req.isImpersonating = !!decoded.isImpersonating;
+
+      runWithOrgId(req.organizationId, () => {
+        next();
+      });
     } catch (error) {
       console.error(error);
       return res.status(401).json({ message: "Not authorized, token failed" });

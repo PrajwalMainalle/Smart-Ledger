@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const DamagedStockSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     productId: {
@@ -39,5 +45,7 @@ const DamagedStockSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+DamagedStockSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("DamagedStock", DamagedStockSchema);

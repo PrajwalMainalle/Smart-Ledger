@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const ProductSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
     name: {
@@ -67,7 +73,7 @@ const ProductSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ensure SKU is unique PER tenant
-ProductSchema.index({ tenantId: 1, sku: 1 }, { unique: true });
+ProductSchema.index({ organizationId: 1, sku: 1 });
+ProductSchema.plugin(tenantPlugin);
 
 module.exports = mongoose.model("Product", ProductSchema);
