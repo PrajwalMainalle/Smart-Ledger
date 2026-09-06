@@ -191,7 +191,7 @@ function GstDashboard() {
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Today's Sales</span>
-              <h3 className="text-2xl font-black text-white font-mono">₹{((todayGstSales || 0) + (todayNonGstSales || 0)).toFixed(2)}</h3>
+              <h3 className="text-2xl font-black text-slate-100 font-mono">₹{((todayGstSales || 0) + (todayNonGstSales || 0)).toFixed(2)}</h3>
             </div>
             <div className="p-3 bg-orange-500/10 text-orange-400 rounded-xl">
               <FaCalendarAlt size={16} />
@@ -208,7 +208,7 @@ function GstDashboard() {
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Monthly Sales</span>
-              <h3 className="text-2xl font-black text-white font-mono">₹{((monthlyGstSales || 0) + (monthlyNonGstSales || 0)).toFixed(2)}</h3>
+              <h3 className="text-2xl font-black text-slate-100 font-mono">₹{((monthlyGstSales || 0) + (monthlyNonGstSales || 0)).toFixed(2)}</h3>
             </div>
             <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
               <FaFileInvoice size={16} />
@@ -225,7 +225,7 @@ function GstDashboard() {
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Monthly Purchases</span>
-              <h3 className="text-2xl font-black text-white font-mono">₹{((gstPurchases || 0) + (nonGstPurchases || 0)).toFixed(2)}</h3>
+              <h3 className="text-2xl font-black text-slate-100 font-mono">₹{((gstPurchases || 0) + (nonGstPurchases || 0)).toFixed(2)}</h3>
             </div>
             <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
               <FaShoppingCart size={16} />
@@ -275,7 +275,7 @@ function GstDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div>
             <span className="text-[10px] uppercase font-bold text-orange-400 tracking-wider">Date-Filtered Revenue Overview</span>
-            <h3 className="text-xl font-extrabold text-white">Active Range: <span className="text-amber-400">{getDateRangeLabel()}</span></h3>
+            <h3 className="text-xl font-extrabold text-slate-100">Active Range: <span className="text-amber-400">{getDateRangeLabel()}</span></h3>
           </div>
           <div className="text-left sm:text-right">
             <span className="text-[10px] text-slate-400 uppercase font-bold">Range Total Sales</span>

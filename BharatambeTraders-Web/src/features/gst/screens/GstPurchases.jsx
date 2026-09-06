@@ -365,15 +365,15 @@ function GstPurchases() {
         
         <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
           <table className="w-full text-left text-xs md:text-sm">
-            <thead className="print-table-header bg-slate-900 text-white">
+            <thead className="print-table-header bg-slate-900 text-slate-100">
               <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
-                <th className="py-3 px-4 text-white">GST Rate Bracket</th>
-                <th className="py-3 px-4 text-right text-white">Taxable Base Amount</th>
-                <th className="py-3 px-4 text-right text-white">CGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">SGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">IGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">Total ITC Claimable</th>
-                <th className="py-3 px-4 text-right text-white">Total Gross Purchases</th>
+                <th className="py-3 px-4 text-slate-100">GST Rate Bracket</th>
+                <th className="py-3 px-4 text-right text-slate-100">Taxable Base Amount</th>
+                <th className="py-3 px-4 text-right text-slate-100">CGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">SGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">IGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total ITC Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Gross Purchases</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">
@@ -407,7 +407,7 @@ function GstPurchases() {
             </tbody>
             {ratesBreakdown.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 bg-slate-900 text-white print-table-header">
+                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 bg-slate-900 text-slate-100 print-table-header">
                   <td className="py-3 px-4 font-sans uppercase text-[11px]">GST Purchases Subtotal</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.taxableValue, 0).toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.cgst, 0).toFixed(2)}</td>
@@ -438,15 +438,15 @@ function GstPurchases() {
         
         <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
           <table className="w-full text-left text-xs md:text-sm font-mono">
-            <thead className="print-table-header bg-slate-900 text-white font-sans">
+            <thead className="print-table-header bg-slate-900 text-slate-100 font-sans">
               <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
-                <th className="py-3 px-4 text-white">Purchase Type</th>
-                <th className="py-3 px-4 text-right text-white">Base Purchase Amount</th>
-                <th className="py-3 px-4 text-right text-white">CGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">SGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">IGST Claimable</th>
-                <th className="py-3 px-4 text-right text-white">Total ITC Claimable</th>
-                <th className="py-3 px-4 text-right text-white">Total Purchase Value</th>
+                <th className="py-3 px-4 text-slate-100">Purchase Type</th>
+                <th className="py-3 px-4 text-right text-slate-100">Base Purchase Amount</th>
+                <th className="py-3 px-4 text-right text-slate-100">CGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">SGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">IGST Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total ITC Claimable</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Purchase Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">

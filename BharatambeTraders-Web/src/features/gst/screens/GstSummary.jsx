@@ -221,13 +221,13 @@ function GstSummary() {
                 <td className="py-3.5 px-4 font-sans font-bold text-slate-100">Sales GST Collections (Outward)</td>
                 <td className="py-3.5 px-4 text-right">₹{(data?.gstSalesTaxable || 0).toFixed(2)}</td>
                 <td className="py-3.5 px-4 text-right text-orange-400">₹{(data?.gstSalesTax || 0).toFixed(2)}</td>
-                <td className="py-3.5 px-4 text-right text-white">₹{(data?.totalSales || 0).toFixed(2)}</td>
+                <td className="py-3.5 px-4 text-right text-slate-100">₹{(data?.totalSales || 0).toFixed(2)}</td>
               </tr>
               <tr className="hover:bg-slate-900/10 transition">
                 <td className="py-3.5 px-4 font-sans font-bold text-slate-100">Purchases GST ITC (Inward)</td>
                 <td className="py-3.5 px-4 text-right">₹{(data?.gstPurchasesTaxable || 0).toFixed(2)}</td>
                 <td className="py-3.5 px-4 text-right text-emerald-450">₹{(data?.gstPurchasesTax || 0).toFixed(2)}</td>
-                <td className="py-3.5 px-4 text-right text-white">₹{(data?.totalPurchases || 0).toFixed(2)}</td>
+                <td className="py-3.5 px-4 text-right text-slate-100">₹{(data?.totalPurchases || 0).toFixed(2)}</td>
               </tr>
               <tr className="bg-slate-950/40 font-bold border-t border-slate-800">
                 <td className="py-3.5 px-4 font-sans font-black text-slate-200">Net Tax Reconciliation</td>

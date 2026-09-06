@@ -167,11 +167,11 @@ function GstInventory() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total GST stock count</span>
-          <p className="text-lg font-black text-white font-mono">{totalGstStock}</p>
+          <p className="text-lg font-black text-slate-100 font-mono">{totalGstStock}</p>
         </div>
         <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total Non-GST stock count</span>
-          <p className="text-lg font-black text-white font-mono">{totalNonGstStock}</p>
+          <p className="text-lg font-black text-slate-100 font-mono">{totalNonGstStock}</p>
         </div>
         <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl text-center space-y-1">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Stock Valuation (at Cost Price)</span>

@@ -9,10 +9,9 @@ const { generateGovVoucherPDF } = require("../utils/govVoucherPdfGenerator");
 
 // Helper to calculate total spent and remaining amount for a school
 const getSchoolFundStats = async (tenantId, schoolId, grantedAmount) => {
-  const funds = await GovGrant.find({
-    schoolId,
-    isDeleted: { $ne: true },
-  }).lean();
+  const query = { schoolId, isDeleted: { $ne: true } };
+  if (tenantId) query.tenantId = tenantId;
+  const funds = await GovGrant.find(query).lean();
 
   let totalApproved = 0;
   let totalMaterialUtilized = 0;
@@ -40,7 +39,8 @@ const getSchoolFundStats = async (tenantId, schoolId, grantedAmount) => {
 // GET all government schools with fund stats
 const getSchools = async (req, res) => {
   try {
-    const schools = await GovSchool.find({ isDeleted: { $ne: true } })
+    const tenantId = req.user._id;
+    const schools = await GovSchool.find({ tenantId, isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -671,7 +671,7 @@ const getGovDashboardStats = async (req, res) => {
   try {
     const tenantId = req.user._id;
 
-    const funds = await GovGrant.find({ isDeleted: { $ne: true } })
+    const funds = await GovGrant.find({ tenantId, isDeleted: { $ne: true } })
       .populate("schoolId", "schoolName headmasterName")
       .lean();
 

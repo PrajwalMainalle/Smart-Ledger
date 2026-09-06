@@ -432,15 +432,15 @@ function GstSales() {
 
         <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
           <table className="w-full text-left text-xs md:text-sm">
-            <thead className="print-table-header bg-slate-900 text-white">
+            <thead className="print-table-header bg-slate-900 text-slate-100">
               <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
-                <th className="py-3 px-4 text-white">GST Rate Bracket</th>
-                <th className="py-3 px-4 text-right text-white">Taxable Base Amount</th>
-                <th className="py-3 px-4 text-right text-white">CGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">SGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">IGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">Total Tax Collected</th>
-                <th className="py-3 px-4 text-right text-white">Total Billable Amount</th>
+                <th className="py-3 px-4 text-slate-100">GST Rate Bracket</th>
+                <th className="py-3 px-4 text-right text-slate-100">Taxable Base Amount</th>
+                <th className="py-3 px-4 text-right text-slate-100">CGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">SGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">IGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Tax Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Billable Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">
@@ -474,7 +474,7 @@ function GstSales() {
             </tbody>
             {ratesBreakdown.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 bg-slate-900 text-white print-table-header">
+                <tr className="border-t-2 border-slate-700 font-bold font-mono text-slate-200 bg-slate-900 text-slate-100 print-table-header">
                   <td className="py-3 px-4 font-sans uppercase text-[11px]">GST Sales Subtotal</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.taxableValue, 0).toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">₹{ratesBreakdown.reduce((sum, r) => sum + r.cgst, 0).toFixed(2)}</td>
@@ -505,15 +505,15 @@ function GstSales() {
 
         <div className="overflow-x-auto border border-slate-800 rounded-xl print:border-slate-800">
           <table className="w-full text-left text-xs md:text-sm">
-            <thead className="print-table-header bg-slate-900 text-white">
+            <thead className="print-table-header bg-slate-900 text-slate-100">
               <tr className="border-b border-slate-800 uppercase tracking-wider text-[10px] font-bold">
-                <th className="py-3 px-4 text-white">Sales Type</th>
-                <th className="py-3 px-4 text-right text-white">Base Sale Amount</th>
-                <th className="py-3 px-4 text-right text-white">CGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">SGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">IGST Collected</th>
-                <th className="py-3 px-4 text-right text-white">Total Tax Collected</th>
-                <th className="py-3 px-4 text-right text-white">Total Sale Value</th>
+                <th className="py-3 px-4 text-slate-100">Sales Type</th>
+                <th className="py-3 px-4 text-right text-slate-100">Base Sale Amount</th>
+                <th className="py-3 px-4 text-right text-slate-100">CGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">SGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">IGST Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Tax Collected</th>
+                <th className="py-3 px-4 text-right text-slate-100">Total Sale Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono print:divide-slate-200 print:text-slate-900">
