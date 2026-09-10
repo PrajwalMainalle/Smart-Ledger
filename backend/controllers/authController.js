@@ -172,6 +172,7 @@ const updateUserProfile = async (req, res) => {
         state,
         pincode,
         mobileNumber,
+        email,
         gstUpiId,
         nonGstUpiId,
         bankName,
@@ -179,6 +180,9 @@ const updateUserProfile = async (req, res) => {
         ifscCode,
         accountHolderName,
       } = req.body;
+
+      if (mobileNumber) user.mobileNumber = mobileNumber;
+      if (email) user.email = email;
 
       const currentProfile = user.profile || {};
       user.profile = {
@@ -217,8 +221,8 @@ const updateUserProfile = async (req, res) => {
       res.status(404).json({ message: "User not found" });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error updating profile", error: error.message });
+    console.error("ERROR UPDATING PROFILE:", error);
+    res.status(500).json({ message: `Server error updating profile: ${error.message}`, error: error.message });
   }
 };
 

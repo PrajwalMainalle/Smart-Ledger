@@ -25,6 +25,7 @@ export const checkout = createAsyncThunk(
       const payload = {
         customerName: state.customerName,
         customerPhone: state.customerPhone,
+        customerGstNumber: state.customerGstNumber || "",
         customerType: state.customerType,
         items: state.cart,
         discountPercent: state.discount,
@@ -51,6 +52,7 @@ export const updateInvoice = createAsyncThunk(
       const payload = {
         customerName: state.customerName,
         customerPhone: state.customerPhone,
+        customerGstNumber: state.customerGstNumber || "",
         customerType: state.customerType,
         items: state.cart,
         discountPercent: state.discount,
@@ -156,6 +158,7 @@ const billingSlice = createSlice({
     cart: [],
     customerName: "",
     customerPhone: "",
+    customerGstNumber: "",
     customerType: "Retail",
     priceCategory: "retail",
     discount: 0, // Percent
@@ -245,9 +248,12 @@ const billingSlice = createSlice({
       }
     },
     setCustomerInfo: (state, action) => {
-      // payload: { name, phone, customerType, priceCategory }
+      // payload: { name, phone, customerGstNumber, customerType, priceCategory }
       state.customerName = action.payload.name || "";
       state.customerPhone = action.payload.phone || "";
+      if (action.payload.customerGstNumber !== undefined || action.payload.customerGst !== undefined) {
+        state.customerGstNumber = action.payload.customerGstNumber || action.payload.customerGst || "";
+      }
       state.customerType = action.payload.customerType || "Retail";
       state.priceCategory = action.payload.priceCategory || "retail";
 
@@ -275,6 +281,7 @@ const billingSlice = createSlice({
       state.cart = [];
       state.customerName = "";
       state.customerPhone = "";
+      state.customerGstNumber = "";
       state.customerType = "Retail";
       state.priceCategory = "retail";
       state.discount = 0;

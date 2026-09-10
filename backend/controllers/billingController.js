@@ -64,6 +64,8 @@ const createInvoice = async (req, res) => {
   const { 
     customerName, 
     customerPhone, 
+    customerGstNumber,
+    customerGst,
     customerType, 
     items, 
     discountType, 
@@ -104,7 +106,9 @@ const createInvoice = async (req, res) => {
     // 1. Verify stock availability first & cache products for cost calculations
     const checkedItems = [];
     const productsMap = {};
-    const isGst = (isGstBilling !== false) || (isQuotation === true);
+    const isGst = isGstBilling !== undefined
+      ? (isGstBilling === true || isGstBilling === "true")
+      : (isQuotation === true);
     const salesType = isGst ? "GST" : "Non-GST";
 
     // Fetch tenant user to check billing rules and gstNumber
@@ -464,6 +468,7 @@ const createInvoice = async (req, res) => {
       date: date ? new Date(date) : new Date(),
       customerName: customerName || "Walk-in Customer",
       customerPhone: customerPhone || "N/A",
+      customerGstNumber: (customerGstNumber || customerGst || "").trim(),
       customerType: customerType || "Retail",
       isGst,
       salesType,
@@ -495,7 +500,7 @@ const createInvoice = async (req, res) => {
       upiAmount: savedUpiAmount,
       status: isQuotation ? "Quotation" : "Paid",
       isQuotation: isQuotation || false,
-      isGstBilling: isGstBilling !== undefined ? isGstBilling : true,
+      isGstBilling: isGst,
       upiIdUsed: isGst ? (tenantUser?.profile?.gstUpiId || "") : (tenantUser?.profile?.nonGstUpiId || ""),
       pdfUrl: relativePdfPath,
       amountPaid: paidAmount,
@@ -1303,6 +1308,8 @@ const updateInvoice = async (req, res) => {
   const { 
     customerName, 
     customerPhone, 
+    customerGstNumber,
+    customerGst,
     customerType, 
     items, 
     discountType, 
@@ -1672,6 +1679,9 @@ const updateInvoice = async (req, res) => {
     // Update Invoice Fields
     invoice.customerName = customerName || "Walk-in Customer";
     invoice.customerPhone = customerPhone || "N/A";
+    if (customerGstNumber !== undefined || customerGst !== undefined) {
+      invoice.customerGstNumber = (customerGstNumber || customerGst || "").trim();
+    }
     invoice.customerType = customerType || "Retail";
     invoice.isGst = isGst;
     invoice.salesType = isGst ? "GST" : "Non-GST";
@@ -1696,7 +1706,11 @@ const updateInvoice = async (req, res) => {
     invoice.upiAmount = savedUpiAmount;
     invoice.amountPaid = paidAmount;
     invoice.outstandingAmount = outstandingAmount;
-    invoice.isGstBilling = isGstBilling !== undefined ? isGstBilling : true;
+    const updatedIsGstBilling = isGstBilling !== undefined 
+      ? (isGstBilling === true || isGstBilling === "true") 
+      : (invoice.isGstBilling !== false && invoice.isGstBilling !== "false");
+    invoice.isGstBilling = updatedIsGstBilling;
+    invoice.upiIdUsed = updatedIsGstBilling ? (tenantUser?.profile?.gstUpiId || "") : (tenantUser?.profile?.nonGstUpiId || "");
     if (date) {
       invoice.date = new Date(date);
     }

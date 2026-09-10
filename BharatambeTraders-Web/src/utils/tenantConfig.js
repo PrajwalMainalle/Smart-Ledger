@@ -23,7 +23,7 @@ export const getAppTitle = (user) => {
   return shopName === "Smart Ledger" ? "Smart Ledger" : `${shopName} - Smart Ledger`;
 };
 
-export const getShopDetails = (user) => {
+export const getShopDetails = (user, isGst = true) => {
   return {
     shopName: getShopName(user),
     gstNumber: user?.profile?.gstNumber || "",
@@ -34,6 +34,10 @@ export const getShopDetails = (user) => {
     bankName: user?.profile?.bankName || "",
     accountNumber: user?.profile?.accountNumber || "",
     ifscCode: user?.profile?.ifscCode || "",
-    upiId: user?.profile?.gstUpiId || user?.profile?.nonGstUpiId || "",
+    upiId: isGst
+      ? (user?.profile?.gstUpiId || user?.profile?.nonGstUpiId || "")
+      : (user?.profile?.nonGstUpiId || user?.profile?.gstUpiId || ""),
+    gstUpiId: user?.profile?.gstUpiId || "",
+    nonGstUpiId: user?.profile?.nonGstUpiId || "",
   };
 };

@@ -34,7 +34,7 @@ function POS() {
   // Selectors
   const { products, loading: productsLoading } = useSelector((state) => state.inventory);
   const { customers } = useSelector((state) => state.customers);
-  const { cart, customerName, customerPhone, customerType, priceCategory, paymentMethod, loading: checkoutLoading } = useSelector((state) => state.billing);
+  const { cart, customerName, customerPhone, customerGstNumber, customerType, priceCategory, paymentMethod, loading: checkoutLoading } = useSelector((state) => state.billing);
   const { user, token: authStoreToken } = useSelector((state) => state.auth);
 
   // Local state
@@ -399,6 +399,7 @@ function POS() {
       date: inv.date,
       customerName: inv.customerName,
       customerPhone: inv.customerPhone,
+      customerGstNumber: inv.customerGstNumber || inv.customerGst || "",
       customerType: inv.customerType,
       items: [...inv.items],
       subtotal: inv.subtotal,
@@ -1246,11 +1247,31 @@ function POS() {
                   dispatch(setCustomerInfo({
                     name: customerName,
                     phone: val.trim() === "" ? "N/A" : val,
+                    customerGstNumber,
                     customerType,
                     priceCategory
                   }));
                 }}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 font-mono font-bold text-slate-100 text-xs focus:outline-none focus:border-orange-500 placeholder-slate-500"
+              />
+            </div>
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-400 font-bold min-w-[75px]">GSTIN:</span>
+              <input 
+                type="text"
+                placeholder="GSTIN (Optional)"
+                value={customerGstNumber || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  dispatch(setCustomerInfo({
+                    name: customerName,
+                    phone: customerPhone,
+                    customerGstNumber: val.trim().toUpperCase(),
+                    customerType,
+                    priceCategory
+                  }));
+                }}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 font-mono font-bold text-slate-100 text-xs focus:outline-none focus:border-orange-500 placeholder-slate-500 uppercase"
               />
             </div>
             <div className="flex justify-between items-center gap-2">
@@ -2139,6 +2160,9 @@ function POS() {
                           <span className="font-bold text-white text-sm">{currentActiveReceipt.customerName}</span>
                           {currentActiveReceipt.customerPhone && currentActiveReceipt.customerPhone !== "N/A" && (
                             <span className="text-slate-400 text-xs font-mono block">📞 {currentActiveReceipt.customerPhone}</span>
+                          )}
+                          {currentActiveReceipt.customerGstNumber && (
+                            <span className="text-orange-400 text-xs font-mono block font-bold">GSTIN: {currentActiveReceipt.customerGstNumber}</span>
                           )}
                         </div>
                         <div className="text-right">

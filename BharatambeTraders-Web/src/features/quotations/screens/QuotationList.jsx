@@ -863,26 +863,36 @@ function QuotationList() {
 
                     <td colSpan="1" className="border border-black p-2 align-top text-center bg-white text-black">
                       <div className="font-bold text-[8px] uppercase mb-1 text-black">SCAN & PAY (UPI)</div>
-                      {selectedPrintQuote.upiId ? (
-                        <div className="flex flex-col items-center justify-center">
-                          {/* Generated UPI QR Box graphic */}
-                          <div className="w-12 h-12 border border-black bg-white flex items-center justify-center p-0.5">
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=upi://pay?pa=${
-                                selectedPrintQuote.upiId
-                              }&pn=${encodeURIComponent(selectedPrintQuote.firmName || defaultShopName)}&am=${
-                                selectedPrintQuote.grandTotal || calculateTotals(selectedPrintQuote).grandTotal
-                              }`}
-                              alt="UPI QR"
-                              className="w-full h-full object-contain"
-                            />
+                      {(() => {
+                        const activeQuoteUpi = (selectedPrintQuote.upiId && selectedPrintQuote.upiId.trim() !== "")
+                          ? selectedPrintQuote.upiId.trim()
+                          : (selectedPrintQuote.docType === "CASH BILL"
+                              ? (user?.profile?.gstUpiId || user?.profile?.nonGstUpiId || "")
+                              : (user?.profile?.nonGstUpiId || user?.profile?.gstUpiId || ""));
+                        
+                        if (!activeQuoteUpi) return null;
+
+                        return (
+                          <div className="flex flex-col items-center justify-center">
+                            {/* Generated UPI QR Box graphic */}
+                            <div className="w-12 h-12 border border-black bg-white flex items-center justify-center p-0.5">
+                              <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=upi://pay?pa=${
+                                  activeQuoteUpi
+                                }&pn=${encodeURIComponent(selectedPrintQuote.firmName || defaultShopName)}&am=${
+                                  selectedPrintQuote.grandTotal || calculateTotals(selectedPrintQuote).grandTotal
+                                }`}
+                                alt="UPI QR"
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div className="text-[7px] font-bold mt-1 text-black">
+                              UPI ID: {activeQuoteUpi}
+                            </div>
+                            <div className="text-[6px] text-black">GPay/PhonePe/Paytm</div>
                           </div>
-                          <div className="text-[7px] font-bold mt-1 text-black">
-                            UPI ID: {selectedPrintQuote.upiId}
-                          </div>
-                          <div className="text-[6px] text-black">GPay/PhonePe/Paytm</div>
-                        </div>
-                      ) : null}
+                        );
+                      })()}
                     </td>
 
                     <td colSpan="1" className="border border-black p-2 align-middle text-right bg-[#f1f5f9] text-black">

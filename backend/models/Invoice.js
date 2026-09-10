@@ -84,6 +84,10 @@ const InvoiceSchema = new mongoose.Schema(
       type: String,
       default: "N/A",
     },
+    customerGstNumber: {
+      type: String,
+      default: "",
+    },
     customerType: {
       type: String,
       default: "Retail",

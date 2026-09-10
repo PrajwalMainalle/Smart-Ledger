@@ -163,9 +163,10 @@ const drawPageHeader = (doc, invoice, tenant, pageNum, customer = null) => {
     doc.fillColor(textDark).font(fontBold).fontSize(9.5).text(custPhone, rightColX, metaY + 39, { align: "right", width: 145 });
 
     let offset = 0;
-    if (customer && customer.gstNumber) {
-      doc.fillColor(textMuted).font(fontBold).fontSize(7.5).text("GSTIN", margin + 5, metaY + 56);
-      doc.fillColor(textDark).font(fontBold).fontSize(9).text(customer.gstNumber.toUpperCase(), margin + 5, metaY + 66);
+    const buyerGst = invoice.customerGstNumber || invoice.customerGst || (customer && customer.gstNumber) || "";
+    if (buyerGst && buyerGst.trim() !== "") {
+      doc.fillColor(textMuted).font(fontBold).fontSize(7.5).text("BUYER GSTIN", margin + 5, metaY + 56);
+      doc.fillColor(textDark).font(fontBold).fontSize(9).text(buyerGst.trim().toUpperCase(), margin + 5, metaY + 66);
       offset += 20;
     }
 
@@ -238,15 +239,23 @@ const drawTableHeaders = (doc, startY) => {
 };
 
 const resolveInvoiceUpiId = (invoice, tenant) => {
-  if (invoice && invoice.upiIdUsed && invoice.upiIdUsed.trim() !== "") {
-    return invoice.upiIdUsed.trim();
+  const isGst = invoice?.isGstBilling !== false && invoice?.isGstBilling !== "false";
+  const gstUpi = (tenant?.profile?.gstUpiId || "").trim();
+  const nonGstUpi = (tenant?.profile?.nonGstUpiId || "").trim();
+
+  if (isGst) {
+    if (gstUpi) return gstUpi;
+    if (invoice && invoice.upiIdUsed && invoice.upiIdUsed.trim() !== "") {
+      return invoice.upiIdUsed.trim();
+    }
+    return nonGstUpi;
+  } else {
+    if (nonGstUpi) return nonGstUpi;
+    if (invoice && invoice.upiIdUsed && invoice.upiIdUsed.trim() !== "" && invoice.upiIdUsed.trim() !== gstUpi) {
+      return invoice.upiIdUsed.trim();
+    }
+    return gstUpi;
   }
-  const isGst = invoice?.isGstBilling !== false;
-  const configuredUpi = isGst ? tenant?.profile?.gstUpiId : tenant?.profile?.nonGstUpiId;
-  if (configuredUpi && configuredUpi.trim() !== "") {
-    return configuredUpi.trim();
-  }
-  return "";
 };
 
 const generateInvoicePDF = (invoice, tenant, target, options = {}) => {

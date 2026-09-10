@@ -97,7 +97,7 @@ export const updateProfile = createAsyncThunk(
       return updatedUser;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to update profile"
+        error.response?.data?.message || error.response?.data?.error || error.message || "Failed to update profile"
       );
     }
   }
