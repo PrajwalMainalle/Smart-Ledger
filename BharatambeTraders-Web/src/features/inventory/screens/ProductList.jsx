@@ -304,11 +304,88 @@ function ProductList() {
           </div>
         </div>
 
-        {/* Inventory list Table */}
+        {/* Inventory list Container */}
         <div className="bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           {loading && <LoadingOverlay message="Retrieving inventory items..." />}
           
-          <div className="overflow-x-auto">
+          {/* Mobile Product Cards (< md) */}
+          <div className="block md:hidden p-3 space-y-3">
+            {filteredProducts.map((prod) => {
+              const isOutOfStock = prod.stock === 0;
+              const isLowStock = prod.stock > 0 && prod.stock <= 5;
+              const prodId = prod._id || prod.id;
+
+              return (
+                <div key={prodId} className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2.5 text-xs shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="h-12 w-12 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center text-slate-700 shrink-0">
+                      {prod.image ? (
+                        <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <FaBoxes size={22} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-1">
+                        <h4 className="font-bold text-slate-100 truncate notranslate" translate="no">{prod.name}</h4>
+                        <span className="font-mono text-[10px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 shrink-0">{prod.sku}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">{prod.description || "No description provided."}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded font-semibold">{prod.category}</span>
+                        <span className="text-[10px] text-slate-500 font-bold">{prod.gstRate}% GST</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-900 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-500 uppercase block font-semibold">Retail Price</span>
+                      <span className="font-extrabold text-slate-100 font-mono text-sm">₹{prod.price.toFixed(2)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-500 uppercase block font-semibold">Stock Status</span>
+                      {isOutOfStock ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          Out of Stock
+                        </span>
+                      ) : isLowStock ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Low: {prod.stock} units
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          {prod.stock} units
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-900/80">
+                    <button 
+                      onClick={() => openEditModal(prod)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg border border-slate-700 font-semibold text-xs transition flex items-center gap-1.5"
+                    >
+                      <FaEdit size={12} className="text-orange-400" /> Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(prodId, prod.name)}
+                      className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-lg border border-rose-500/20 font-semibold text-xs transition flex items-center gap-1.5"
+                    >
+                      <FaTrashAlt size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredProducts.length === 0 && !loading && (
+              <div className="py-8 text-center text-slate-500 text-xs font-medium">No products found matching criteria.</div>
+            )}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-900/40 text-slate-400 font-bold uppercase tracking-wider text-[10px]">

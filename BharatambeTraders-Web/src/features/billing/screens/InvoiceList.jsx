@@ -409,11 +409,117 @@ Thank you for your business! 🙏
           </div>
         </div>
 
-        {/* Invoice listing Table */}
+        {/* Invoice listing Container */}
         <div className="bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           {loading && <LoadingOverlay message="Loading invoice history..." />}
           
-          <div className="overflow-x-auto">
+          {/* Mobile Invoice Cards (< md) */}
+          <div className="block md:hidden p-3 space-y-3">
+            {filteredInvoices.map((inv) => {
+              const invId = inv._id;
+              const outstanding = inv.outstandingAmount !== undefined ? inv.outstandingAmount : (inv.creditSettled ? 0 : inv.total);
+              return (
+                <div key={invId} className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2.5 text-xs shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono font-bold text-slate-400 block">{inv.invoiceId}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {new Date(inv.date).toLocaleDateString()} {new Date(inv.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-sm text-slate-100 font-mono block">₹{inv.total.toFixed(2)}</span>
+                      {inv.paymentMethod === "Credit" && (
+                        <span className="text-[10px] text-purple-400 font-bold block">
+                          Due: ₹{outstanding.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-900">
+                    <div>
+                      <p className="font-bold text-slate-200">{inv.customerName}</p>
+                      <p className="text-[10px] text-slate-400">{inv.customerPhone}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {inv.paymentMethod === "Credit" && !inv.creditSettled ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/10 border-rose-500/20 text-rose-500">
+                          <FaExclamationCircle className="text-[10px]" /> Unpaid
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border
+                          ${inv.status === "Paid" 
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                            : inv.status === "Quotation"
+                            ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                            : "bg-rose-500/10 border-rose-500/20 text-rose-500"
+                          }
+                        `}>
+                          {inv.status === "Paid" ? <FaCheckCircle /> : <FaExclamationCircle />}
+                          {inv.status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-900/80">
+                    <button 
+                      onClick={() => setSelectedInvoice(inv)}
+                      className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg border border-slate-700 font-semibold text-xs transition text-center"
+                    >
+                      Receipt
+                    </button>
+                    {inv.status !== "Refunded" && (
+                      <button 
+                        onClick={() => handleEditInvoice(inv)}
+                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-lg border border-amber-500/20 font-bold text-xs transition flex items-center gap-1"
+                      >
+                        <FaEdit className="text-[11px]" /> Edit
+                      </button>
+                    )}
+                    <a
+                      href={getWhatsAppLink(inv)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-lg border border-emerald-500/20 font-semibold text-xs transition flex items-center justify-center"
+                      title="WhatsApp Customer"
+                    >
+                      <FaWhatsapp className="text-sm" />
+                    </a>
+                    {inv.paymentMethod === "Credit" && !inv.creditSettled && inv.status === "Paid" && (
+                      <button 
+                        onClick={() => {
+                          const outstandingAmt = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.total;
+                          setSettleForm({
+                            invoiceId: inv._id,
+                            invoiceCode: inv.invoiceId,
+                            settlementMethod: "Cash",
+                            settlementDate: new Date().toISOString().split('T')[0],
+                            totalAmount: inv.total,
+                            alreadyPaid: inv.amountPaid || 0,
+                            outstandingAmount: outstandingAmt,
+                            amount: outstandingAmt
+                          });
+                          setShowSettleModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-white rounded-lg border border-purple-500/20 font-bold text-xs transition"
+                      >
+                        Settle
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {filteredInvoices.length === 0 && !loading && (
+              <div className="py-8 text-center text-slate-500 text-xs font-medium">No invoices found matching criteria.</div>
+            )}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-900/40 text-slate-400 font-bold uppercase tracking-wider text-[10px]">

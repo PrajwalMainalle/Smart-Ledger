@@ -494,14 +494,14 @@ function Dashboard() {
 
         </div>
 
-        {/* Bottom tables: Recent Sales & Top Products */}
+        {/* Bottom tables/cards: Recent Sales & Top Products */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Recent Sales table */}
-          <div className="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+          {/* Recent Sales */}
+          <div className="bg-slate-900/30 border border-slate-900 p-4 sm:p-6 rounded-2xl space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h4 className="text-lg font-bold text-slate-100">Recent Transactions</h4>
+                <h4 className="text-base sm:text-lg font-bold text-slate-100">Recent Transactions</h4>
                 <p className="text-xs text-slate-500">Latest sales orders processed at Terminal</p>
               </div>
               <button 
@@ -512,7 +512,42 @@ function Dashboard() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< sm) */}
+            <div className="block sm:hidden space-y-2.5">
+              {recentInvoices.map((inv) => (
+                <div key={inv._id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-slate-400">{inv.invoiceId}</span>
+                    <span className="font-bold text-slate-100">₹{inv.total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-slate-200">{inv.customerName}</p>
+                      <p className="text-[10px] text-slate-500">{inv.customerPhone}</p>
+                    </div>
+                    {inv.isQuotation || inv.status === "Quotation" || inv.paymentMethod === "N/A" ? (
+                      <span className="text-slate-500 font-mono text-xs font-semibold">-</span>
+                    ) : (
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase border 
+                        ${inv.paymentMethod === "UPI" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : ""}
+                        ${inv.paymentMethod === "Cash" ? "bg-orange-500/10 border-orange-500/20 text-orange-400" : ""}
+                        ${inv.paymentMethod === "Card" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : ""}
+                        ${inv.paymentMethod === "Cheque" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : ""}
+                        ${inv.paymentMethod === "Credit" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : ""}
+                      `}>
+                        {inv.paymentMethod}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {recentInvoices.length === 0 && (
+                <div className="py-6 text-center text-slate-500 text-xs">No transactions logged yet.</div>
+              )}
+            </div>
+
+            {/* Desktop Table (>= sm) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-900 text-slate-500 font-bold text-xs uppercase tracking-wider">
@@ -559,10 +594,10 @@ function Dashboard() {
           </div>
 
           {/* Top Selling Products list */}
-          <div className="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+          <div className="bg-slate-900/30 border border-slate-900 p-4 sm:p-6 rounded-2xl space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h4 className="text-lg font-bold text-slate-100">Top Selling Products</h4>
+                <h4 className="text-base sm:text-lg font-bold text-slate-100">Top Selling Products</h4>
                 <p className="text-xs text-slate-500">Highest grossing items in inventory</p>
               </div>
               <button 
@@ -573,7 +608,25 @@ function Dashboard() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Card List (< sm) */}
+            <div className="block sm:hidden space-y-2.5">
+              {topSellingProducts.map((prod, index) => (
+                <div key={index} className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-mono block">{prod.sku}</span>
+                    <span className="font-bold text-slate-200 notranslate" translate="no">{prod.name}</span>
+                    <span className="text-[10px] text-orange-400 font-bold block mt-0.5">{prod.qty} units sold</span>
+                  </div>
+                  <span className="font-bold text-slate-100 font-mono">₹{prod.revenue.toFixed(2)}</span>
+                </div>
+              ))}
+              {topSellingProducts.length === 0 && (
+                <div className="py-6 text-center text-slate-500 text-xs font-medium">No product statistics compiled yet.</div>
+              )}
+            </div>
+
+            {/* Desktop Table (>= sm) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-900 text-slate-500 font-bold text-xs uppercase tracking-wider">

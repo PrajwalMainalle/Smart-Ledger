@@ -913,7 +913,7 @@ function POS() {
   return (
     <div 
       id="pos-main-container"
-      className="flex flex-col xl:flex-row bg-slate-950 text-slate-100 h-full min-h-[600px] xl:h-[calc(100vh-110px)] rounded-2xl border border-slate-900 overflow-hidden relative select-none"
+      className="flex flex-col xl:flex-row bg-slate-950 text-slate-100 h-[calc(100dvh-120px)] xl:h-[calc(100vh-110px)] min-h-[500px] rounded-2xl border border-slate-900 overflow-hidden relative select-none"
     >
       
       {checkoutLoading && <LoadingOverlay message="Processing invoice transaction..." />}
@@ -972,7 +972,7 @@ function POS() {
       </div>
 
       {/* LEFT: PRODUCTS BROWSER */}
-      <div className={`flex-1 p-4 md:p-6 space-y-6 flex flex-col xl:h-full xl:overflow-y-auto ${mobilePosTab === "catalog" ? "flex" : "hidden xl:flex"}`}>
+      <div className={`flex-1 p-4 md:p-6 pb-28 md:pb-6 space-y-6 flex flex-col h-full min-h-0 overflow-y-auto ${mobilePosTab === "catalog" ? "flex" : "hidden xl:flex"}`}>
         
         {/* Search, SKU scanner input */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -1120,7 +1120,7 @@ function POS() {
       <div 
         id="pos-cart-panel"
         style={typeof window !== "undefined" && window.innerWidth >= 1280 ? { width: `${panelWidth}px` } : {}}
-        className={`w-full xl:w-auto bg-slate-900 border-t xl:border-t-0 border-slate-800 p-4 md:p-6 flex flex-col xl:h-full xl:overflow-y-auto space-y-6 shrink-0 transition-all duration-75 ${mobilePosTab === "cart" ? "flex" : "hidden xl:flex"}`}
+        className={`w-full xl:w-auto bg-slate-900 border-t xl:border-t-0 border-slate-800 p-4 md:p-6 pb-28 md:pb-6 flex flex-col h-full min-h-0 overflow-y-auto space-y-6 shrink-0 transition-all duration-75 ${mobilePosTab === "cart" ? "flex" : "hidden xl:flex"}`}
       >
         
         {/* Customer logging */}

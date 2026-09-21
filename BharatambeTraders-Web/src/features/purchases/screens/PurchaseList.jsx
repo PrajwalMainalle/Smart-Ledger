@@ -480,10 +480,87 @@ function PurchaseList() {
           </div>
         </div>
 
-        {/* Purchases log Table */}
+        {/* Purchases log Container */}
         <div className="bg-slate-900/30 border border-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           {loading && <LoadingOverlay message="Syncing supplier bills..." />}
-                 <div className="overflow-x-auto">
+
+          {/* Mobile Purchase Cards (< md) */}
+          <div className="block md:hidden p-3 space-y-3">
+            {filteredPurchases.map((p) => {
+              const billDate = new Date(p.date).toLocaleDateString("en-IN");
+              const isPending = p.status === "Pending";
+              const isExpanded = expandedPurchaseId === p._id;
+
+              return (
+                <div key={p._id} className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2.5 text-xs shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-slate-100 text-sm">{p.supplierName}</span>
+                      {p.supplierGst && (
+                        <span className="font-mono text-[10px] text-slate-500 block uppercase">GSTIN: {p.supplierGst}</span>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">Bill #{p.billNumber} • {billDate}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-sm text-slate-100 font-mono block">₹{p.total.toFixed(2)}</span>
+                      <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase mt-1 border
+                        ${isPending ? "bg-rose-500/10 border-rose-500/20 text-rose-500" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"}
+                      `}>
+                        {p.status} ({p.paymentMethod})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-900 text-[11px]">
+                    <span className="text-slate-400">GST Paid: <strong className="text-emerald-400 font-mono">₹{p.gstAmount.toFixed(2)}</strong></span>
+                    <span className="text-slate-400">Items: <strong className="text-slate-200">{(p.items || []).length} lines</strong></span>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-900/80">
+                    <button 
+                      onClick={() => setExpandedPurchaseId(isExpanded ? null : p._id)}
+                      className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg border border-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1"
+                    >
+                      {isExpanded ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />}
+                      <span>{isExpanded ? "Hide Items" : "View Items"}</span>
+                    </button>
+                    <button 
+                      onClick={() => openEditModal(p)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-orange-400 rounded-lg border border-slate-700 font-semibold text-xs transition flex items-center gap-1"
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(p._id, p.billNumber)}
+                      className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-lg border border-rose-500/20 font-semibold text-xs transition flex items-center gap-1"
+                    >
+                      <FaTrashAlt size={12} /> Delete
+                    </button>
+                  </div>
+
+                  {/* Expanded Items List */}
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-slate-800 space-y-1.5 bg-slate-900/50 p-2.5 rounded-lg text-[11px]">
+                      <span className="font-bold text-slate-400 uppercase text-[9px] block">Items Breakdown:</span>
+                      {(p.items || []).map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-slate-300 font-mono border-b border-slate-800/40 pb-1">
+                          <span>{item.name} ({item.qty} × ₹{item.price})</span>
+                          <span className="font-bold">₹{(item.qty * item.price).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filteredPurchases.length === 0 && !loading && (
+              <div className="py-8 text-center text-slate-500 text-xs font-medium">No purchase records found matching criteria.</div>
+            )}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-900/40 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
