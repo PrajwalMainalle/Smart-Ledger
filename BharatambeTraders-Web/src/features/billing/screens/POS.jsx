@@ -64,6 +64,7 @@ function POS() {
   const [isQuotation, setIsQuotation] = useState(false);
   const [pageSize, setPageSize] = useState("auto");
   const [orientation, setOrientation] = useState("portrait");
+  const [pdfViewMode, setPdfViewMode] = useState("Fit");
   const [isGstBilling, setIsGstBilling] = useState(false);
   const [quotationReceiptData, setQuotationReceiptData] = useState(null);
   const [activeTabReceipt, setActiveTabReceipt] = useState("tax"); // "tax" | "quotation"
@@ -2041,11 +2042,16 @@ function POS() {
             ? quotationReceiptData 
             : receiptData;
 
-          const activePdfUrl = `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000"}/api/billing/${currentActiveReceipt._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${authStoreToken || user?.token || ""}&t=${Date.now()}#toolbar=0&navpanes=0&view=FitH`;
+          const hashView = pdfViewMode || "Fit";
+          const viewHash = (hashView === "Fit" || hashView === "FitH" || hashView === "FitV") 
+            ? `#toolbar=0&navpanes=0&view=${hashView}` 
+            : `#toolbar=0&navpanes=0&zoom=${hashView}`;
+
+          const activePdfUrl = `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000"}/api/billing/${currentActiveReceipt._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${authStoreToken || user?.token || ""}&t=${Date.now()}${viewHash}`;
 
           return (
-            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[96vw] md:max-w-6xl xl:max-w-7xl overflow-hidden shadow-2xl relative flex flex-col max-h-[96vh]">
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 md:p-6">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[96vw] md:max-w-5xl xl:max-w-6xl overflow-hidden shadow-2xl relative flex flex-col h-[92vh] max-h-[92vh]">
                 
                 {/* Modal Header Bar */}
                 <div className="bg-slate-950 px-4 md:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-900">
@@ -2247,26 +2253,42 @@ function POS() {
                   </div>
                 ) : (
                   /* Full Page Live PDF Preview */
-                  <div className="flex-1 bg-slate-950 flex flex-col h-[75vh] w-full overflow-hidden">
-                    <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-wrap justify-between items-center gap-2">
-                      <span className="font-bold text-xs text-slate-300">Live Generated PDF Preview</span>
-                      <div className="flex items-center gap-3">
-                        <label className="text-[10px] text-slate-500 font-bold uppercase">Size:</label>
+                  <div className="flex-1 min-h-0 bg-slate-950 flex flex-col w-full overflow-hidden relative">
+                    <div className="p-2.5 bg-slate-950 border-b border-slate-800 flex flex-wrap justify-between items-center gap-2 flex-shrink-0">
+                      <span className="font-bold text-xs text-slate-300 flex items-center gap-2">
+                        <span>Live Generated PDF Preview</span>
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">Auto-Adjusted Fit</span>
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">View / Zoom:</label>
+                        <select
+                          value={pdfViewMode}
+                          onChange={(e) => setPdfViewMode(e.target.value)}
+                          className="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-200 font-bold focus:outline-none focus:border-orange-500"
+                        >
+                          <option value="Fit">🔍 Fit Entire Page (100% Full View)</option>
+                          <option value="FitH">↔️ Fit Width</option>
+                          <option value="100">100% Zoom</option>
+                          <option value="75">75% Zoom</option>
+                          <option value="50">50% Zoom</option>
+                        </select>
+
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">Size:</label>
                         <select
                           value={pageSize}
                           onChange={(e) => setPageSize(e.target.value)}
-                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                          className="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-200 font-medium focus:outline-none focus:border-orange-500"
                         >
                           <option value="auto">Auto-Fit</option>
                           <option value="A4">A4 Paper</option>
                           <option value="A3">A3 Paper</option>
                         </select>
 
-                        <label className="text-[10px] text-slate-500 font-bold uppercase">Layout:</label>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">Layout:</label>
                         <select
                           value={orientation}
                           onChange={(e) => setOrientation(e.target.value)}
-                          className="bg-slate-900 border border-slate-800 text-[10px] rounded px-1.5 py-0.5 text-slate-350"
+                          className="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-200 font-medium focus:outline-none focus:border-orange-500"
                         >
                           <option value="portrait">Portrait</option>
                           <option value="landscape">Landscape</option>
@@ -2275,7 +2297,7 @@ function POS() {
                     </div>
                     <iframe
                       src={activePdfUrl}
-                      className="w-full h-full flex-1 border-none bg-slate-950"
+                      className="w-full h-full flex-1 border-none bg-slate-950 min-h-0"
                       title="Live Invoice PDF"
                     />
                   </div>
