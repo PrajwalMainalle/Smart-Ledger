@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../../../app/api/axiosInstance";
+import { downloadPdfFile } from "../../../utils/downloadHelper";
 import {
   FaSchool,
   FaPlus,
@@ -743,7 +744,9 @@ const GovSchoolsPage = () => {
                                       }
 
                                       const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-                                      window.open(`${baseUrl}/gov-funds/vouchers/${log._id}/pdf?token=${encodeURIComponent(token)}&t=${Date.now()}`, "_blank");
+                                      const pdfUrl = `${baseUrl}/gov-funds/vouchers/${log._id}/pdf?token=${encodeURIComponent(token)}&download=true&t=${Date.now()}`;
+                                      const filename = `Voucher_${log.voucherNumber || log._id}.pdf`;
+                                      downloadPdfFile(pdfUrl, filename);
                                     }}
                                     className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-900 rounded"
                                     title="Download Voucher PDF"

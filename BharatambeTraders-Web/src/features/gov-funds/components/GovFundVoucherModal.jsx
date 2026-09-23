@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { createPortal } from "react-dom";
 import { FaPrint, FaTimes, FaLandmark, FaCheckCircle, FaMoneyBillWave, FaBoxes, FaDownload } from "react-icons/fa";
+import { downloadPdfFile } from "../../../utils/downloadHelper";
 
 const GovFundVoucherModal = ({ voucher, onClose, merchantInfo }) => {
   const printRef = useRef(null);
@@ -21,8 +22,9 @@ const GovFundVoucherModal = ({ voucher, onClose, merchantInfo }) => {
     }
 
     const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    const pdfUrl = `${baseUrl}/gov-funds/vouchers/${voucher._id}/pdf?token=${encodeURIComponent(token)}&t=${Date.now()}`;
-    window.open(pdfUrl, "_blank");
+    const pdfUrl = `${baseUrl}/gov-funds/vouchers/${voucher._id}/pdf?token=${encodeURIComponent(token)}&download=true&t=${Date.now()}`;
+    const filename = `Voucher_${voucher.voucherNumber || voucher._id}.pdf`;
+    downloadPdfFile(pdfUrl, filename);
   };
 
   const formattedDate = voucher.date ? new Date(voucher.date).toLocaleString("en-IN", {
@@ -48,13 +50,13 @@ const GovFundVoucherModal = ({ voucher, onClose, merchantInfo }) => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleDownloadPdf}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border border-indigo-400 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-900/40 transition-all active:scale-95"
             >
               <FaDownload /> Download PDF
             </button>
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border border-blue-400 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-900/40 transition-transform active:scale-95"
             >
               <FaPrint /> Print Voucher
             </button>

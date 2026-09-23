@@ -8,6 +8,7 @@ import { fetchInvoices, refundInvoice, convertQuotation, settleInvoice, updateIn
 import { fetchProducts } from "../../inventory/inventorySlice";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import logo from "../../../assets/SLLogo.png";
+import { downloadPdfFile } from "../../../utils/downloadHelper";
 
 function InvoiceList() {
   const dispatch = useDispatch();
@@ -216,11 +217,18 @@ function InvoiceList() {
     });
   };
 
-  const getDynamicPdfUrl = (inv = selectedInvoice) => {
+  const getDynamicPdfUrl = (inv = selectedInvoice, options = {}) => {
     if (!inv?._id) return "";
     const serverUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000";
     const token = authStoreToken || user?.token || "";
-    return `${serverUrl}/api/billing/${inv._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}#toolbar=0&navpanes=0&view=FitH`;
+    let url = `${serverUrl}/api/billing/${inv._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}`;
+    if (options.download) {
+      url += "&download=true";
+    }
+    if (options.includeHash !== false) {
+      url += "#toolbar=0&navpanes=0&view=FitH";
+    }
+    return url;
   };
 
   // Trigger Receipt Printing using dynamic PDF streaming (via blob same-origin URL to avoid CORS blocks)
@@ -261,9 +269,13 @@ function InvoiceList() {
       });
   };
 
-  const getPdfDownloadLink = (inv = selectedInvoice) => {
-    const url = getDynamicPdfUrl(inv);
-    return url ? `${url}&download=true` : "";
+  const handleDownloadInvoicePdf = (inv = selectedInvoice) => {
+    if (!inv?._id) return;
+    const isQuotation = inv.status === "Quotation" || inv.isQuotation;
+    const prefix = isQuotation ? "Quotation" : "Invoice";
+    const filename = `${prefix}_${inv.invoiceId || inv._id}.pdf`;
+    const pdfUrl = getDynamicPdfUrl(inv, { download: true, includeHash: false });
+    downloadPdfFile(pdfUrl, filename);
   };
 
   const getWhatsAppLink = (inv) => {
@@ -756,40 +768,41 @@ Thank you for your business! 🙏
 
             {/* Print toolbar footer */}
             <div className="bg-slate-950 px-6 py-4 flex flex-col gap-2 border-t border-slate-900">
-              <div className="flex flex-wrap md:flex-nowrap gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <button
+                  type="button"
                   onClick={triggerReprint}
-                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                  className="py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-blue-400 text-xs shadow-md shadow-blue-900/40 transition active:scale-95"
                 >
-                  <FaPrint /> Reprint Receipt
+                  <FaPrint className="text-sm" /> Reprint Receipt
                 </button>
-                <a
-                  href={getPdfDownloadLink(selectedInvoice)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-750 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadInvoicePdf(selectedInvoice)}
+                  className="py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-indigo-400 text-xs shadow-md shadow-indigo-900/40 transition active:scale-95"
                 >
-                  <FaDownload /> Download PDF
-                </a>
+                  <FaDownload className="text-sm" /> Download PDF
+                </button>
                 <a
                   href={getWhatsAppLink(selectedInvoice)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 border border-emerald-500 text-xs shadow-sm transition"
+                  className="py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-emerald-400 text-xs shadow-md shadow-emerald-900/40 transition active:scale-95"
                   title="WhatsApp Customer"
                 >
                   <FaWhatsapp className="text-base text-white" /> WhatsApp Bill
                 </a>
                 {selectedInvoice.status !== "Refunded" && (
                   <button
+                    type="button"
                     onClick={() => {
                       const invToEdit = selectedInvoice;
                       setSelectedInvoice(null);
                       handleEditInvoice(invToEdit);
                     }}
-                    className="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 rounded-lg font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
+                    className="py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-xl font-black flex items-center justify-center gap-2 border border-amber-300 text-xs shadow-md shadow-amber-900/40 transition active:scale-95"
                   >
-                    <FaEdit /> Edit Bill / Modify Items
+                    <FaEdit className="text-sm text-slate-950" /> Edit Bill / Modify Items
                   </button>
                 )}
               </div>

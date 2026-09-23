@@ -765,10 +765,11 @@ const streamInvoicePDF = async (req, res) => {
 
     // Set PDF content headers to render inline in browser or download as attachment
     res.setHeader("Content-Type", "application/pdf");
-    if (download === "true") {
-      res.setHeader("Content-Disposition", `attachment; filename="${invoice.invoiceId}.pdf"`);
+    const pdfFilename = invoice.invoiceId ? `${invoice.invoiceId}.pdf` : `invoice_${invoice._id}.pdf`;
+    if (download === "true" || download === true) {
+      res.setHeader("Content-Disposition", `attachment; filename="${pdfFilename}"`);
     } else {
-      res.setHeader("Content-Disposition", `inline; filename="${invoice.invoiceId}.pdf"`);
+      res.setHeader("Content-Disposition", `inline; filename="${pdfFilename}"`);
     }
 
     // Call PDF generator to pipe directly to response

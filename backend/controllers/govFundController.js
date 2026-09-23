@@ -757,10 +757,14 @@ const getVoucherPdf = async (req, res) => {
       await voucher.save();
     }
 
+    const isDownload = req.query.download === "true" || req.query.download === true;
+    const disposition = isDownload ? "attachment" : "inline";
+    const pdfFilename = `voucher-${voucher.voucherNumber || id}.pdf`;
+
     const filePath = path.join(__dirname, "..", voucher.pdfUrl);
     if (fs.existsSync(filePath)) {
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename="voucher-${voucher.voucherNumber || id}.pdf"`);
+      res.setHeader("Content-Disposition", `${disposition}; filename="${pdfFilename}"`);
       res.sendFile(filePath);
     } else {
       const pdfUrl = await generateGovVoucherPDF(voucher, merchantInfo);
@@ -768,7 +772,7 @@ const getVoucherPdf = async (req, res) => {
       await voucher.save();
       const newPath = path.join(__dirname, "..", pdfUrl);
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename="voucher-${voucher.voucherNumber || id}.pdf"`);
+      res.setHeader("Content-Disposition", `${disposition}; filename="${pdfFilename}"`);
       res.sendFile(newPath);
     }
   } catch (error) {

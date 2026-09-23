@@ -23,6 +23,7 @@ import { fetchCustomers, addCustomer } from "../../customers/customerSlice";
 import logo from "../../../assets/SLLogo.png";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import axiosInstance from "../../../app/api/axiosInstance";
+import { downloadPdfFile } from "../../../utils/downloadHelper";
 import GovFundVoucherModal from "../../gov-funds/components/GovFundVoucherModal";
 
 
@@ -769,9 +770,15 @@ function POS() {
     return `${serverUrl}/api/billing/${receiptData._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&t=${Date.now()}`;
   };
 
-  const getPdfDownloadLink = () => {
-    const url = getDynamicPdfUrl();
-    return url ? `${url}&download=true` : "";
+  const handleDownloadPosPdf = (receipt = currentActiveReceipt || receiptData) => {
+    if (!receipt?._id) return;
+    const isQuotation = receipt.isQuotation || receipt.status === "Quotation";
+    const prefix = isQuotation ? "Quotation" : "Invoice";
+    const filename = `${prefix}_${receipt.invoiceId || receipt._id}.pdf`;
+    const serverUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:5000";
+    const token = authStoreToken || user?.token || "";
+    const pdfUrl = `${serverUrl}/api/billing/${receipt._id}/pdf?pageSize=${pageSize}&orientation=${orientation}&token=${token}&download=true&t=${Date.now()}`;
+    downloadPdfFile(pdfUrl, filename);
   };
 
   const handleReturnSearchSubmit = async (e) => {
@@ -2298,24 +2305,23 @@ function POS() {
                             };
                           });
                       }}
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                      className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-blue-400 text-xs shadow-md shadow-blue-900/40 transition active:scale-95"
                     >
                       <FaPrint /> Print {currentActiveReceipt.isQuotation ? "Quotation" : "Tax Invoice"}
                     </button>
-                    <a
-                      href={`${activePdfUrl}&download=true`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-700 text-xs"
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPosPdf(currentActiveReceipt)}
+                      className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-indigo-400 text-xs shadow-md shadow-indigo-900/40 transition active:scale-95"
                     >
-                      <FaDownload /> Download {currentActiveReceipt.isQuotation ? "Quotation PDF" : "Tax Invoice PDF"}
-                    </a>
+                      <FaDownload /> Download {currentActiveReceipt?.isQuotation ? "Quotation PDF" : "Tax Invoice PDF"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleEditBillInPOS(currentActiveReceipt)}
-                      className="flex-1 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white rounded-xl font-bold flex items-center justify-center gap-2 border border-amber-500/40 text-xs transition"
+                      className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl flex items-center justify-center gap-2 border border-amber-300 text-xs shadow-md shadow-amber-900/40 transition active:scale-95"
                     >
-                      <FaEdit /> Edit Bill / Modify Items
+                      <FaEdit className="text-slate-950" /> Edit Bill / Modify Items
                     </button>
                     <button
                       type="button"
