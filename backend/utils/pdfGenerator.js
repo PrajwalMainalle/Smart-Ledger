@@ -266,9 +266,15 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const merchantName = encodeURIComponent(tenant?.profile?.shopName || tenant?.businessName || "Store Merchant");
       let qrBuffer = null;
 
+      const rawSubtotal = (invoice.subtotal || 0) - (invoice.discountAmount || 0) + (invoice.gstAmount || 0);
+      const displayTotal = invoice.total !== undefined && invoice.total !== null ? Math.round(invoice.total) : Math.round(rawSubtotal);
+      const calculatedRoundOff = (invoice.roundOff !== undefined && invoice.roundOff !== null && Math.abs(displayTotal - (rawSubtotal + invoice.roundOff)) < 0.05)
+        ? invoice.roundOff
+        : Math.round((displayTotal - rawSubtotal) * 100) / 100;
+
       if (upiVpa) {
         try {
-          const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
+          const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : displayTotal;
           const upiString = `upi://pay?pa=${upiVpa}&pn=${merchantName}&cu=INR&am=${qrAmount.toFixed(2)}`;
           // High-DPI 800px buffer, margin 3 quiet-zone, Error Correction 'H' for crystal clear scanning on A5 paper
           qrBuffer = await QRCode.toBuffer(upiString, { width: 800, margin: 3, errorCorrectionLevel: "H" });
@@ -424,12 +430,11 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       const pillX = pageWidth - margin - pillWidth;
 
       // Round Off Row (if applicable)
-      if (invoice.roundOff && Math.abs(invoice.roundOff) >= 0.01) {
-        const roundOffVal = invoice.roundOff;
-        const signStr = roundOffVal > 0 ? "+" : "";
+      if (Math.abs(calculatedRoundOff) >= 0.01) {
+        const signStr = calculatedRoundOff > 0 ? "+" : "";
         doc.fillColor("#475569").font(fontRegular).fontSize(8.5);
         doc.text("Round Off:", pillX + 12, y, { width: 90, align: "left" });
-        doc.font(fontBold).text(`${signStr}${currencySymbol} ${roundOffVal.toFixed(2)}`, pillX + 110, y, { width: pillWidth - 122, align: "right" });
+        doc.font(fontBold).text(`${signStr}${currencySymbol} ${calculatedRoundOff.toFixed(2)}`, pillX + 110, y, { width: pillWidth - 122, align: "right" });
         y += 18;
       }
 
@@ -440,7 +445,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       doc.save();
       doc.roundedRect(pillX, y, pillWidth, pillHeight, 6).fill(primaryColor);
       doc.fillColor(accentColor).font(fontBold).fontSize(8.5).text(grandTotalLabel, pillX + 12, y + 9);
-      doc.fillColor("#ffffff").font(fontBold).fontSize(13).text(`${currencySymbol} ${invoice.total.toFixed(2)}`, pillX + 110, y + 7, { align: "right", width: pillWidth - 122 });
+      doc.fillColor("#ffffff").font(fontBold).fontSize(13).text(`${currencySymbol} ${displayTotal.toFixed(2)}`, pillX + 110, y + 7, { align: "right", width: pillWidth - 122 });
       doc.restore();
 
       y += 42;
@@ -490,7 +495,7 @@ const generateInvoicePDF = (invoice, tenant, target, options = {}) => {
       }
 
       const upiIdStr = upiVpa || "UPI QR Unconfigured";
-      const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : invoice.total;
+      const qrAmount = invoice.paymentMethod === "Split" ? (invoice.upiAmount || 0) : displayTotal;
       doc.fillColor("#0f172a").font(fontRegular).fontSize(7.5);
       doc.text(`UPI ID: ${upiIdStr}`, rightCardX + (qrBuffer ? 72 : 10), y + 28, { width: cardWidth - (qrBuffer ? 80 : 20) });
       doc.fillColor(primaryColor).font(fontBold).fontSize(12).text(`${currencySymbol} ${qrAmount.toFixed(2)}`, rightCardX + (qrBuffer ? 72 : 10), y + 44, { width: cardWidth - (qrBuffer ? 80 : 20) });

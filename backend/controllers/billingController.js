@@ -730,6 +730,9 @@ const convertQuotationToSale = async (req, res) => {
     if (invoice.paymentMethod === "N/A") {
       invoice.paymentMethod = "Cash";
     }
+    const netVal = invoice.subtotal - (invoice.discountAmount || 0) + (invoice.gstAmount || 0);
+    invoice.total = Math.round(netVal);
+    invoice.roundOff = Math.round((invoice.total - netVal) * 100) / 100;
 
     // 4. Regenerate & Save final PDF (optional cached copy)
     try {
@@ -1521,11 +1524,14 @@ const updateInvoice = async (req, res) => {
 
     const newItemsTotal = isInclusiveGst ? discountedSubtotal : (discountedSubtotal + gstAmount);
     const netTotal = newItemsTotal;
+    const finalRoundedTotal = Math.round(netTotal);
+    const calculatedRoundOff = Math.round((finalRoundedTotal - netTotal) * 100) / 100;
 
     const revenueDiscountAmount = (revenueSubtotal * discPercent) / 100;
     const revenueDiscountedSubtotal = revenueSubtotal - revenueDiscountAmount;
     const revenueNewItemsTotal = isInclusiveGst ? revenueDiscountedSubtotal : (revenueDiscountedSubtotal + revenueGstAmount);
     const revenueTotal = Math.max(0, revenueNewItemsTotal);
+    const finalRevenueRoundedTotal = Math.round(revenueTotal);
 
     // Determine CGST, SGST, IGST tax split based on interstate rules
     let cgst = 0;
@@ -1695,8 +1701,9 @@ const updateInvoice = async (req, res) => {
     invoice.discountPercent = discPercent;
     invoice.discountAmount = discountAmount;
     invoice.gstAmount = gstAmount;
-    invoice.total = netTotal;
-    invoice.revenueTotal = revenueTotal;
+    invoice.total = finalRoundedTotal;
+    invoice.roundOff = calculatedRoundOff;
+    invoice.revenueTotal = finalRevenueRoundedTotal;
     invoice.revenueTaxableAmount = isGst ? (isInclusiveGst ? (revenueDiscountedSubtotal - revenueGstAmount) : revenueDiscountedSubtotal) : 0.0;
     invoice.revenueGstAmount = revenueGstAmount;
     invoice.revenueCgst = revenueCgst;
